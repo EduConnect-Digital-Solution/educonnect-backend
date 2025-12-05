@@ -1,0 +1,1368 @@
+openapi: 3.0.3
+info:
+  title: EduConnect Phase 1 API
+  description: |
+    A comprehensive educational platform backend with Role-Based Access Control (RBAC) authentication system.
+    
+    ## Features
+    - Multi-tenant School Management
+    - Role-Based Access Control (Admin, Teacher, Parent)
+    - Invitation-based Registration
+    - JWT Authentication with Refresh Tokens
+    - Email Integration with Resend
+    
+    ## Authentication
+    Most endpoints require authentication via JWT tokens. Include the token in the Authorization header:
+    ```
+    Authorization: Bearer <your-jwt-token>
+    ```
+    
+    ## Rate Limiting
+    - Authentication endpoints: 20 requests per 15 minutes
+    - General endpoints: 1000 requests per 15 minutes
+    
+  version: 1.0.0
+  contact:
+    name: EduConnect API Support
+    email: support@educonnect.com
+  license:
+    name: ISC
+    
+servers:
+  - url: http://localhost:3000/api
+    description: Development server
+  - url: https://api.educonnect.com/api
+    description: Production server
+
+tags:
+  - name: Health
+    description: System health and status
+  - name: School Auth
+    description: School registration and authentication
+  - name: User Auth
+    description: User authentication (teachers, parents)
+  - name: Admin Dashboard
+    description: Admin management and analytics
+  - name: Student Management
+    description: Student record management
+  - name: Parent Management
+    description: Parent invitation and management
+  - name: Teacher Dashboard
+    description: Teacher dashboard and student access
+  - name: Parent Dashboard
+    description: Parent dashboard and children access
+  - name: School Profile
+    description: School profile management
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      
+  schemas:
+    Error:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: "Error message"
+        errors:
+          type: array
+          items:
+            type: object
+            
+    Success:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "Operation successful"
+        data:
+          type: object
+          
+    School:
+      type: object
+      properties:
+        schoolId:
+          type: string
+          example: "SCH123456"
+        schoolName:
+          type: string
+          example: "Springfield Elementary"
+        email:
+          type: string
+          format: email
+          example: "admin@springfield.edu"
+        phone:
+          type: string
+          example: "+1234567890"
+        address:
+          type: string
+          example: "123 Education St, Springfield"
+        website:
+          type: string
+          format: uri
+          example: "https://springfield.edu"
+        isActive:
+          type: boolean
+          example: true
+        isVerified:
+          type: boolean
+          example: true
+          
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "507f1f77bcf86cd799439011"
+        firstName:
+          type: string
+          example: "John"
+        lastName:
+          type: string
+          example: "Doe"
+        email:
+          type: string
+          format: email
+          example: "john.doe@example.com"
+        role:
+          type: string
+          enum: [admin, teacher, parent]
+          example: "teacher"
+        schoolId:
+          type: string
+          example: "SCH123456"
+        isActive:
+          type: boolean
+          example: true
+        isVerified:
+          type: boolean
+          example: true
+          
+    Student:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "507f1f77bcf86cd799439011"
+        firstName:
+          type: string
+          example: "Jane"
+        lastName:
+          type: string
+          example: "Smith"
+        email:
+          type: string
+          format: email
+          example: "jane.smith@student.edu"
+        class:
+          type: string
+          example: "10A"
+        section:
+          type: string
+          example: "A"
+        rollNumber:
+          type: string
+          example: "001"
+        schoolId:
+          type: string
+          example: "SCH123456"
+        isActive:
+          type: boolean
+          example: true
+
+paths:
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Health check
+      description: Check if the API server is running and healthy
+      responses:
+        '200':
+          description: Server is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "EduConnect API is running"
+                  timestamp:
+                    type: string
+                    format: date-time
+                  environment:
+                    type: string
+                    example: "development"
+
+  /school/auth/register:
+    post:
+      tags:
+        - School Auth
+      summary: Register a new school
+      description: Register a new school with admin user creation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - schoolName
+                - email
+                - password
+                - adminFirstName
+                - adminLastName
+              properties:
+                schoolName:
+                  type: string
+                  example: "Springfield Elementary"
+                email:
+                  type: string
+                  format: email
+                  example: "admin@springfield.edu"
+                password:
+                  type: string
+                  format: password
+                  example: "SecurePass123!"
+                adminFirstName:
+                  type: string
+                  example: "John"
+                adminLastName:
+                  type: string
+                  example: "Doe"
+                phone:
+                  type: string
+                  example: "+1234567890"
+                address:
+                  type: string
+                  example: "123 Education St"
+                website:
+                  type: string
+                  format: uri
+                  example: "https://springfield.edu"
+      responses:
+        '201':
+          description: School registered successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          school:
+                            $ref: '#/components/schemas/School'
+                          admin:
+                            $ref: '#/components/schemas/User'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: School already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /school/auth/login:
+    post:
+      tags:
+        - School Auth
+      summary: School admin login
+      description: Authenticate school admin user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - schoolId
+                - email
+                - password
+              properties:
+                schoolId:
+                  type: string
+                  example: "SCH123456"
+                email:
+                  type: string
+                  format: email
+                  example: "admin@springfield.edu"
+                password:
+                  type: string
+                  format: password
+                  example: "SecurePass123!"
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          user:
+                            $ref: '#/components/schemas/User'
+                          tokens:
+                            type: object
+                            properties:
+                              accessToken:
+                                type: string
+                              refreshToken:
+                                type: string
+                              expiresIn:
+                                type: string
+                                example: "1h"
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /school/auth/verify-email:
+    post:
+      tags:
+        - School Auth
+      summary: Verify school email with OTP
+      description: Verify school email address using OTP sent during registration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - otp
+                - schoolId
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: "admin@springfield.edu"
+                otp:
+                  type: string
+                  example: "123456"
+                schoolId:
+                  type: string
+                  example: "SCH123456"
+      responses:
+        '200':
+          description: Email verified successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+        '400':
+          description: Invalid or expired OTP
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /user/auth/login:
+    post:
+      tags:
+        - User Auth
+      summary: User login (teachers, parents)
+      description: Authenticate teachers and parents
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+                - schoolId
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: "teacher@springfield.edu"
+                password:
+                  type: string
+                  format: password
+                  example: "UserPass123!"
+                schoolId:
+                  type: string
+                  example: "SCH123456"
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          user:
+                            $ref: '#/components/schemas/User'
+                          tokens:
+                            type: object
+                            properties:
+                              accessToken:
+                                type: string
+                              refreshToken:
+                                type: string
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /user/auth/complete-registration:
+    post:
+      tags:
+        - User Auth
+      summary: Complete user registration
+      description: Complete registration for users with temporary passwords
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - schoolId
+                - currentPassword
+                - newPassword
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: "teacher@springfield.edu"
+                schoolId:
+                  type: string
+                  example: "SCH123456"
+                currentPassword:
+                  type: string
+                  example: "temppass123"
+                newPassword:
+                  type: string
+                  format: password
+                  example: "NewSecurePass123!"
+                firstName:
+                  type: string
+                  example: "Jane"
+                lastName:
+                  type: string
+                  example: "Smith"
+                phone:
+                  type: string
+                  example: "+1234567890"
+      responses:
+        '200':
+          description: Registration completed successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          user:
+                            $ref: '#/components/schemas/User'
+
+  /admin/dashboard/analytics:
+    get:
+      tags:
+        - Admin Dashboard
+      summary: Get dashboard analytics
+      description: Retrieve school analytics and statistics (Admin only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: schoolId
+          in: query
+          description: School ID filter
+          schema:
+            type: string
+            example: "SCH123456"
+      responses:
+        '200':
+          description: Analytics retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          userStats:
+                            type: object
+                          studentStats:
+                            type: object
+                          invitationStats:
+                            type: object
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /students:
+    get:
+      tags:
+        - Student Management
+      summary: Get students list
+      description: Retrieve students with filtering and pagination (Admin/Teacher)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: class
+          in: query
+          description: Filter by class
+          schema:
+            type: string
+            example: "10A"
+        - name: status
+          in: query
+          description: Filter by status
+          schema:
+            type: string
+            enum: [active, inactive]
+        - name: page
+          in: query
+          description: Page number
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Items per page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Students retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Student'
+    post:
+      tags:
+        - Student Management
+      summary: Create new student
+      description: Create a new student record (Admin only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - firstName
+                - lastName
+              properties:
+                firstName:
+                  type: string
+                  example: "Jane"
+                lastName:
+                  type: string
+                  example: "Smith"
+                email:
+                  type: string
+                  format: email
+                  example: "jane.smith@student.edu"
+                class:
+                  type: string
+                  example: "10A"
+                section:
+                  type: string
+                  example: "A"
+                rollNumber:
+                  type: string
+                  example: "001"
+      responses:
+        '201':
+          description: Student created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Student'
+
+  /students/{id}:
+    get:
+      tags:
+        - Student Management
+      summary: Get student by ID
+      description: Retrieve a specific student by ID (Admin/Teacher)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Student ID
+          schema:
+            type: string
+            example: "507f1f77bcf86cd799439011"
+      responses:
+        '200':
+          description: Student retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Student'
+        '404':
+          description: Student not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      tags:
+        - Student Management
+      summary: Update student
+      description: Update student information (Admin only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Student ID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                firstName:
+                  type: string
+                lastName:
+                  type: string
+                class:
+                  type: string
+                section:
+                  type: string
+                phone:
+                  type: string
+      responses:
+        '200':
+          description: Student updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Student'
+
+  /students/toggle-status:
+    post:
+      tags:
+        - Student Management
+      summary: Toggle student status
+      description: Activate or deactivate a student (Admin only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - studentId
+                - action
+              properties:
+                studentId:
+                  type: string
+                  example: "507f1f77bcf86cd799439011"
+                action:
+                  type: string
+                  enum: [activate, deactivate]
+                  example: "deactivate"
+                reason:
+                  type: string
+                  example: "Student transferred"
+      responses:
+        '200':
+          description: Student status updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+
+  /parent-management/invite-parent:
+    post:
+      tags:
+        - Parent Management
+      summary: Invite parent
+      description: Send invitation to a parent (Admin only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - firstName
+                - lastName
+                - studentIds
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: "parent@example.com"
+                firstName:
+                  type: string
+                  example: "Bob"
+                lastName:
+                  type: string
+                  example: "Johnson"
+                studentIds:
+                  type: array
+                  items:
+                    type: string
+                  example: ["507f1f77bcf86cd799439011"]
+      responses:
+        '201':
+          description: Parent invitation sent successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+
+  /parent-management/parents:
+    get:
+      tags:
+        - Parent Management
+      summary: Get parents list
+      description: Retrieve all parents with filtering (Admin only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          description: Filter by status
+          schema:
+            type: string
+            enum: [active, inactive]
+        - name: page
+          in: query
+          description: Page number
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Items per page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Parents retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/User'
+
+  /parent-management/parents/{id}:
+    get:
+      tags:
+        - Parent Management
+      summary: Get parent details
+      description: Get specific parent with their children (Admin only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Parent ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Parent details retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          parent:
+                            $ref: '#/components/schemas/User'
+                          children:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/Student'
+
+  /parent-management/parents/{id}/students:
+    put:
+      tags:
+        - Parent Management
+      summary: Update parent-student relationships
+      description: Update which students a parent has access to (Admin only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Parent ID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - studentIds
+              properties:
+                studentIds:
+                  type: array
+                  items:
+                    type: string
+                  example: ["507f1f77bcf86cd799439011", "507f1f77bcf86cd799439012"]
+      responses:
+        '200':
+          description: Parent-student relationships updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+
+  /parent-management/parents/{id}/revoke-access:
+    post:
+      tags:
+        - Parent Management
+      summary: Revoke parent access
+      description: Revoke parent access to the system (Admin only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Parent ID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  example: "Parent requested account deletion"
+      responses:
+        '200':
+          description: Parent access revoked successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+
+  /teacher/dashboard:
+    get:
+      tags:
+        - Teacher Dashboard
+      summary: Get teacher dashboard
+      description: Retrieve teacher dashboard with overview (Teacher only)
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Teacher dashboard retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          teacher:
+                            $ref: '#/components/schemas/User'
+                          studentCount:
+                            type: integer
+                            example: 30
+                          classesAssigned:
+                            type: array
+                            items:
+                              type: string
+                            example: ["10A", "10B"]
+                          recentActivity:
+                            type: array
+                            items:
+                              type: object
+
+  /teacher/students:
+    get:
+      tags:
+        - Teacher Dashboard
+      summary: Get teacher's students
+      description: Retrieve students assigned to the teacher (Teacher only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: class
+          in: query
+          description: Filter by class
+          schema:
+            type: string
+        - name: page
+          in: query
+          description: Page number
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Items per page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Teacher's students retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Student'
+
+  /parent/dashboard:
+    get:
+      tags:
+        - Parent Dashboard
+      summary: Get parent dashboard
+      description: Retrieve parent dashboard with overview (Parent only)
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Parent dashboard retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          parent:
+                            $ref: '#/components/schemas/User'
+                          childrenCount:
+                            type: integer
+                            example: 2
+                          recentUpdates:
+                            type: array
+                            items:
+                              type: object
+
+  /parent/children:
+    get:
+      tags:
+        - Parent Dashboard
+      summary: Get parent's children
+      description: Retrieve children associated with the parent (Parent only)
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Parent's children retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Student'
+
+  /school/profile:
+    get:
+      tags:
+        - School Profile
+      summary: Get school profile
+      description: Retrieve school profile information (Admin only)
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: School profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/School'
+        '403':
+          description: Forbidden - Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      tags:
+        - School Profile
+      summary: Update school profile
+      description: Update school profile information (Admin only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                schoolName:
+                  type: string
+                  example: "Springfield Elementary School"
+                phone:
+                  type: string
+                  example: "+1234567891"
+                address:
+                  type: string
+                  example: "456 New Education Avenue"
+                website:
+                  type: string
+                  format: uri
+                  example: "https://new-springfield.edu"
+      responses:
+        '200':
+          description: School profile updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/School'
+
+  /school/auth/invite-teacher:
+    post:
+      tags:
+        - School Auth
+      summary: Invite teacher
+      description: Send invitation to a teacher (Admin only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - firstName
+                - lastName
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: "teacher@springfield.edu"
+                firstName:
+                  type: string
+                  example: "Jane"
+                lastName:
+                  type: string
+                  example: "Smith"
+                subjects:
+                  type: array
+                  items:
+                    type: string
+                  example: ["Mathematics", "Physics"]
+      responses:
+        '201':
+          description: Teacher invitation sent successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+
+  /school/auth/forgot-password:
+    post:
+      tags:
+        - School Auth
+      summary: Forgot password
+      description: Request password reset for school admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - schoolId
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: "admin@springfield.edu"
+                schoolId:
+                  type: string
+                  example: "SCH123456"
+      responses:
+        '200':
+          description: Password reset email sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+
+  /school/auth/reset-password:
+    post:
+      tags:
+        - School Auth
+      summary: Reset password
+      description: Reset password using OTP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - otp
+                - newPassword
+                - schoolId
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: "admin@springfield.edu"
+                otp:
+                  type: string
+                  example: "123456"
+                newPassword:
+                  type: string
+                  format: password
+                  example: "NewSecurePass123!"
+                schoolId:
+                  type: string
+                  example: "SCH123456"
+      responses:
+        '200':
+          description: Password reset successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+
+  /user/auth/change-password:
+    post:
+      tags:
+        - User Auth
+      summary: Change password
+      description: Change password for authenticated user
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - currentPassword
+                - newPassword
+              properties:
+                currentPassword:
+                  type: string
+                  format: password
+                  example: "OldPassword123!"
+                newPassword:
+                  type: string
+                  format: password
+                  example: "NewPassword123!"
+      responses:
+        '200':
+          description: Password changed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+
+  /user/auth/refresh-token:
+    post:
+      tags:
+        - User Auth
+      summary: Refresh access token
+      description: Get new access token using refresh token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refreshToken
+              properties:
+                refreshToken:
+                  type: string
+                  example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          accessToken:
+                            type: string
+                          expiresIn:
+                            type: string
+                            example: "1h"
+
+  /user/auth/logout:
+    post:
+      tags:
+        - User Auth
+      summary: Logout user
+      description: Invalidate user tokens
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refreshToken
+              properties:
+                refreshToken:
+                  type: string
+                  example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+      responses:
+        '200':
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+
+security:
+  - BearerAuth: []
