@@ -4,7 +4,17 @@ const crypto = require('crypto');
 
 /**
  * User Model
- * Represents users in the system with multiple roles (admin, teacher, parent)
+ * Represents SCHOOL USERS ONLY with multiple roles (admin, teacher, parent)
+ * 
+ * IMPORTANT: System admins are NOT stored in this model!
+ * System admins use pre-configured environment-based authentication
+ * and do not have database records in the User collection.
+ * 
+ * This model is for school-level users only:
+ * - admin: School administrators (tied to specific school)
+ * - teacher: Teachers (tied to specific school)
+ * - parent: Parents (tied to specific school)
+ * 
  * Implements requirements 2.1, 3.4, 4.2, 6.2, 6.3, 6.4
  */
 

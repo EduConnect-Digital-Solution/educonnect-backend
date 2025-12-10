@@ -1,8 +1,11 @@
 const jwt = require('jsonwebtoken');
 const config = require('../config');
+const { verifySystemAdminToken } = require('../services/systemAdminAuthService');
+const { ROLES } = require('./rbac');
 
 /**
  * Authentication middleware to verify JWT tokens
+ * Handles both regular user tokens and system admin tokens
  * Extracts user information from valid tokens and attaches to req.user
  */
 const authenticateToken = async (req, res, next) => {
@@ -33,28 +36,64 @@ const authenticateToken = async (req, res, next) => {
       });
     }
 
-    // Verify the token
-    const decoded = jwt.verify(token, config.jwt.secret);
+    let decoded;
+    let isSystemAdmin = false;
 
+    // Try to verify as system admin token first
+    try {
+      const systemAdminDecoded = verifySystemAdminToken(token);
+      if (systemAdminDecoded && systemAdminDecoded.role === ROLES.SYSTEM_ADMIN) {
+        decoded = systemAdminDecoded;
+        isSystemAdmin = true;
+      }
+    } catch (systemAdminError) {
+      // Not a system admin token, continue to regular token verification
+    }
 
-    // Attach user information to request (only include fields that exist in the token)
-    req.user = {
-      userId: decoded.userId,
-      id: decoded.userId, // For backward compatibility
-      email: decoded.email,
-      role: decoded.role,
-      schoolId: decoded.schoolId
-    };
-    
-    // Only add optional fields if they exist in the decoded token
-    if (decoded.firstName) req.user.firstName = decoded.firstName;
-    if (decoded.lastName) req.user.lastName = decoded.lastName;
-    if (decoded.isSchoolAdmin !== undefined) req.user.isSchoolAdmin = decoded.isSchoolAdmin;
+    // If not a system admin token, verify as regular user token
+    if (!decoded) {
+      decoded = jwt.verify(token, config.jwt.secret);
+    }
+
+    // Attach user information to request
+    if (isSystemAdmin) {
+      // System admin user object
+      req.user = {
+        id: `system_admin_${decoded.email}`,
+        userId: `system_admin_${decoded.email}`, // For backward compatibility
+        email: decoded.email,
+        role: decoded.role,
+        schoolId: null, // System admins are not tied to any school
+        crossSchoolAccess: decoded.crossSchoolAccess,
+        systemAdminLevel: decoded.systemAdminLevel,
+        isSystemAdmin: true
+      };
+
+      // Add system admin specific info
+      req.systemAdmin = {
+        email: decoded.email,
+        level: decoded.systemAdminLevel,
+        loginTime: new Date(decoded.iat * 1000),
+        expiresAt: new Date(decoded.exp * 1000)
+      };
+    } else {
+      // Regular user object
+      req.user = {
+        userId: decoded.userId,
+        id: decoded.userId, // For backward compatibility
+        email: decoded.email,
+        role: decoded.role,
+        schoolId: decoded.schoolId
+      };
+      
+      // Only add optional fields if they exist in the decoded token
+      if (decoded.firstName) req.user.firstName = decoded.firstName;
+      if (decoded.lastName) req.user.lastName = decoded.lastName;
+      if (decoded.isSchoolAdmin !== undefined) req.user.isSchoolAdmin = decoded.isSchoolAdmin;
+    }
 
     next();
   } catch (error) {
-
-
     if (error.name === 'TokenExpiredError') {
       return res.status(401).json({
         success: false,

@@ -41,6 +41,7 @@ A comprehensive educational platform backend with Role-Based Access Control (RBA
 - [Testing](#-testing)
 - [Development](#-development)
 - [Deployment](#-deployment)
+- [System Admin Dashboard](#-system-admin-dashboard)
 - [Contributing](#-contributing)
 
 ## 🚀 Quick Start
@@ -82,7 +83,20 @@ A comprehensive educational platform backend with Role-Based Access Control (RBA
 
 ## 📚 API Documentation
 
-Interactive API documentation is available at `/api-docs` when the server is running.
+### Interactive Documentation
+- **Swagger UI**: http://localhost:3000/api-docs (when server is running)
+- **Health Check**: http://localhost:3000/health
+
+### Documentation Files
+
+#### For Frontend Developers & Designers
+- **[API Endpoints Reference](./docs/API_Endpoints_Reference.md)** ⭐ **START HERE** - Complete API reference organized by user roles (35+ endpoints)
+- **[API Examples](./docs/api-examples.md)** - Practical usage examples with cURL, JavaScript, and React integration
+- **[Swagger Specification](./docs/swagger.yaml)** - OpenAPI specification for import into API tools
+
+#### For Project Management & Stakeholders  
+- **[Project Status Report](./docs/Project_Status_Report.md)** - Comprehensive project overview with 457 passing tests
+- **[Implementation Status](./docs/Implementation_Status.md)** - Detailed implementation checklist and metrics
 
 ### Key Endpoints
 
@@ -104,7 +118,19 @@ Interactive API documentation is available at `/api-docs` when the server is run
 - `GET /api/parent/dashboard` - Parent dashboard
 - `GET /api/parent/children` - Parent's children
 
-### Authentication
+### Authentication Flow
+
+#### For School Admin
+1. Register school → `POST /api/school/auth/register`
+2. Verify email with OTP → `POST /api/school/auth/verify-email`
+3. Login → `POST /api/school/auth/login`
+4. Receive JWT tokens (access + refresh)
+
+#### For Teachers & Parents
+1. Admin sends invitation → `POST /api/parent-management/invite-parent`
+2. User receives email with temporary password
+3. Complete registration → `POST /api/user/auth/complete-registration`
+4. Login → `POST /api/user/auth/login`
 
 Most endpoints require JWT authentication. Include the token in the Authorization header:
 
@@ -350,6 +376,46 @@ CMD ["npm", "start"]
 - Health check endpoint: `GET /health`
 - Returns server status, environment, and timestamp
 - Use for load balancer health checks
+
+## 🔧 System Admin Dashboard
+
+EduConnect includes a comprehensive **System Admin Dashboard** for platform-wide management across multiple schools.
+
+### Features
+- **Cross-School Management**: Manage multiple schools from a single interface
+- **Platform Analytics**: Real-time metrics and performance data across all schools
+- **User Management**: Cross-school user access and security monitoring
+- **School Operations**: Create, configure, and manage schools
+- **Audit Logging**: Comprehensive tracking of all system admin operations
+- **Alert System**: System-wide alert management and resolution
+
+### Authentication
+System Admin uses **pre-configured authentication** with environment-based credentials:
+- No registration endpoints (security by design)
+- Environment variable configuration
+- Separate JWT tokens for system admin access
+- Cross-school access permissions
+
+### Key Endpoints
+- `POST /api/system-admin/auth/login` - System admin login
+- `GET /api/system-admin/platform/overview` - Platform metrics
+- `GET /api/system-admin/schools` - School management
+- `GET /api/system-admin/users` - Cross-school user management
+
+### Documentation
+- **[System Admin API Documentation](./docs/system-admin-api-documentation.md)** - Complete API reference
+- **[System Admin Data Structures](./docs/system-admin-data-structures.md)** - Data models and schemas
+- **[System Admin Business Context](./docs/system-admin-business-context.md)** - Business requirements
+- **[System Admin User Flows](./docs/system-admin-user-flows.md)** - User interaction flows
+
+### Implementation Status
+✅ **MVP Complete** - Core system admin functionality implemented:
+- Pre-configured authentication system
+- Cross-school data aggregation services  
+- Platform overview and metrics
+- School management operations
+- User management across schools
+- Comprehensive audit logging
 
 ## 🤝 Contributing
 

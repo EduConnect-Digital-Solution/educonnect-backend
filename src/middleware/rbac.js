@@ -7,12 +7,14 @@
  * Role hierarchy and permissions
  */
 const ROLES = {
+  SYSTEM_ADMIN: 'system_admin',  // NEW: Platform-wide access
   ADMIN: 'admin',
   TEACHER: 'teacher', 
   PARENT: 'parent'
 };
 
 const ROLE_HIERARCHY = {
+  [ROLES.SYSTEM_ADMIN]: 4,       // NEW: Highest privilege level
   [ROLES.ADMIN]: 3,
   [ROLES.TEACHER]: 2,
   [ROLES.PARENT]: 1
@@ -55,6 +57,28 @@ const requireAdmin = requireRole(ROLES.ADMIN);
  * Require teacher role or higher
  */
 const requireTeacher = requireRole(ROLES.TEACHER);
+
+/**
+ * Require system admin role specifically
+ */
+const requireSystemAdmin = (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({
+      success: false,
+      message: 'Authentication required'
+    });
+  }
+
+  if (req.user.role !== ROLES.SYSTEM_ADMIN) {
+    return res.status(403).json({
+      success: false,
+      message: 'System administrator access required',
+      code: 'SYSTEM_ADMIN_REQUIRED'
+    });
+  }
+
+  next();
+};
 
 /**
  * Require school admin specifically (admin role + isSchoolAdmin flag)
@@ -362,6 +386,7 @@ const validateTeacherAccess = (req, res, next) => {
 /**
  * Validate cross-school access prevention (requirement 6.5)
  * Enhanced version that checks multiple possible school ID locations
+ * System admins are allowed cross-school access
  */
 const preventCrossSchoolAccess = (req, res, next) => {
   if (!req.user) {
@@ -369,6 +394,11 @@ const preventCrossSchoolAccess = (req, res, next) => {
       success: false,
       message: 'Authentication required'
     });
+  }
+
+  // System admins have cross-school access
+  if (req.user.role === ROLES.SYSTEM_ADMIN) {
+    return next();
   }
 
   // Extract all possible school IDs from request
@@ -402,6 +432,47 @@ const preventCrossSchoolAccess = (req, res, next) => {
 };
 
 /**
+ * Validate cross-school access for system admins
+ * Allows system admins to access any school while logging the operation
+ */
+const validateCrossSchoolAccess = (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({
+      success: false,
+      message: 'Authentication required'
+    });
+  }
+
+  // Only system admins can use this middleware
+  if (req.user.role !== ROLES.SYSTEM_ADMIN) {
+    return res.status(403).json({
+      success: false,
+      message: 'System administrator access required for cross-school operations',
+      code: 'SYSTEM_ADMIN_REQUIRED'
+    });
+  }
+
+  // Log cross-school access for audit purposes
+  const requestedSchoolIds = [
+    req.params.schoolId,
+    req.body.schoolId,
+    req.query.schoolId,
+    req.headers['x-school-id']
+  ].filter(Boolean);
+
+  if (requestedSchoolIds.length > 0) {
+    req.crossSchoolAccess = {
+      systemAdminId: req.user.id,
+      requestedSchools: requestedSchoolIds,
+      timestamp: new Date(),
+      operation: `${req.method} ${req.path}`
+    };
+  }
+
+  next();
+};
+
+/**
  * Validate endpoint permissions based on user role and endpoint type
  */
 const validateEndpointPermissions = (endpointType, requiredPermissions = []) => {
@@ -417,12 +488,13 @@ const validateEndpointPermissions = (endpointType, requiredPermissions = []) => 
     
     // Define endpoint permissions
     const endpointPermissions = {
-      'admin-only': [ROLES.ADMIN],
-      'teacher-admin': [ROLES.ADMIN, ROLES.TEACHER],
-      'all-authenticated': [ROLES.ADMIN, ROLES.TEACHER, ROLES.PARENT],
+      'system-admin-only': [ROLES.SYSTEM_ADMIN],
+      'admin-only': [ROLES.SYSTEM_ADMIN, ROLES.ADMIN],
+      'teacher-admin': [ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.TEACHER],
+      'all-authenticated': [ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.TEACHER, ROLES.PARENT],
       'school-admin-only': [], // Special case handled below
-      'read-only': [ROLES.ADMIN, ROLES.TEACHER, ROLES.PARENT],
-      'write-restricted': [ROLES.ADMIN, ROLES.TEACHER]
+      'read-only': [ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.TEACHER, ROLES.PARENT],
+      'write-restricted': [ROLES.SYSTEM_ADMIN, ROLES.ADMIN, ROLES.TEACHER]
     };
 
     // Special case for school admin
@@ -525,6 +597,32 @@ const auditLog = (operation) => {
 };
 
 /**
+ * Enhanced audit logging for system admin operations
+ */
+const auditSystemOperation = (operation) => {
+  return (req, res, next) => {
+    // Enhanced audit info for system admin operations
+    req.systemAuditLog = {
+      operation,
+      systemAdminId: req.user?.id,
+      userRole: req.user?.role,
+      timestamp: new Date(),
+      ip: req.ip || req.connection.remoteAddress,
+      userAgent: req.get('User-Agent'),
+      method: req.method,
+      path: req.path,
+      params: req.params,
+      query: req.query,
+      body: req.method !== 'GET' ? req.body : undefined,
+      crossSchoolAccess: req.crossSchoolAccess || null,
+      severity: 'high' // System admin operations are high severity
+    };
+    
+    next();
+  };
+};
+
+/**
  * Helper function to check if user has permission for specific action
  */
 const hasPermission = (user, action, resource = null) => {
@@ -533,13 +631,33 @@ const hasPermission = (user, action, resource = null) => {
   }
 
   const permissions = {
+    [ROLES.SYSTEM_ADMIN]: {
+      canManageUsers: true,
+      canManageSchool: true,
+      canViewAllData: true,
+      canModifyAllData: true,
+      canAccessAnalytics: true,
+      canManageInvitations: true,
+      canAccessCrossSchool: true,
+      canManagePlatform: true,
+      canViewSystemHealth: true,
+      canManageSystemConfig: true,
+      canImpersonateUsers: true,
+      canAccessAuditLogs: true
+    },
     [ROLES.ADMIN]: {
       canManageUsers: true,
       canManageSchool: true,
       canViewAllData: true,
       canModifyAllData: true,
       canAccessAnalytics: true,
-      canManageInvitations: true
+      canManageInvitations: true,
+      canAccessCrossSchool: false,
+      canManagePlatform: false,
+      canViewSystemHealth: false,
+      canManageSystemConfig: false,
+      canImpersonateUsers: false,
+      canAccessAuditLogs: false
     },
     [ROLES.TEACHER]: {
       canManageUsers: false,
@@ -550,7 +668,13 @@ const hasPermission = (user, action, resource = null) => {
       canManageInvitations: false,
       canViewOwnClasses: true,
       canModifyOwnClasses: true,
-      canViewAssignedStudents: true
+      canViewAssignedStudents: true,
+      canAccessCrossSchool: false,
+      canManagePlatform: false,
+      canViewSystemHealth: false,
+      canManageSystemConfig: false,
+      canImpersonateUsers: false,
+      canAccessAuditLogs: false
     },
     [ROLES.PARENT]: {
       canManageUsers: false,
@@ -560,7 +684,13 @@ const hasPermission = (user, action, resource = null) => {
       canAccessAnalytics: false,
       canManageInvitations: false,
       canViewOwnChildren: true,
-      canModifyOwnProfile: true
+      canModifyOwnProfile: true,
+      canAccessCrossSchool: false,
+      canManagePlatform: false,
+      canViewSystemHealth: false,
+      canManageSystemConfig: false,
+      canImpersonateUsers: false,
+      canAccessAuditLogs: false
     }
   };
 
@@ -656,15 +786,18 @@ module.exports = {
   requireRole,
   requireAdmin,
   requireTeacher,
+  requireSystemAdmin,
   requireSchoolAdmin,
   validateSchoolAccess,
   validateResourceOwnership,
   validateParentAccess,
   validateTeacherAccess,
   preventCrossSchoolAccess,
+  validateCrossSchoolAccess,
   validateEndpointPermissions,
   createRBACChain,
   auditLog,
+  auditSystemOperation,
   hasPermission,
   requirePermission,
   checkDynamicPermission,

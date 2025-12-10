@@ -97,6 +97,181 @@ const schoolSchema = new mongoose.Schema({
     default: true
   },
   
+  // System Administration Configuration
+  systemConfig: {
+    subscriptionTier: {
+      type: String,
+      enum: {
+        values: ['basic', 'standard', 'premium', 'enterprise', 'trial'],
+        message: 'Subscription tier must be one of: basic, standard, premium, enterprise, trial'
+      },
+      default: 'basic',
+      index: true
+    },
+    subscriptionStatus: {
+      type: String,
+      enum: {
+        values: ['active', 'suspended', 'cancelled', 'expired', 'trial'],
+        message: 'Subscription status must be one of: active, suspended, cancelled, expired, trial'
+      },
+      default: 'trial'
+    },
+    subscriptionStartDate: {
+      type: Date,
+      default: Date.now
+    },
+    subscriptionEndDate: {
+      type: Date
+    },
+    features: [{
+      featureName: {
+        type: String,
+        required: true,
+        trim: true
+      },
+      isEnabled: {
+        type: Boolean,
+        default: true
+      },
+      enabledAt: {
+        type: Date,
+        default: Date.now
+      },
+      enabledBy: {
+        type: String, // System admin ID
+        required: true
+      },
+      expiresAt: Date, // For trial features
+      metadata: mongoose.Schema.Types.Mixed
+    }],
+    limits: {
+      maxUsers: {
+        type: Number,
+        default: 100,
+        min: [1, 'Max users must be at least 1']
+      },
+      maxStudents: {
+        type: Number,
+        default: 500,
+        min: [1, 'Max students must be at least 1']
+      },
+      maxTeachers: {
+        type: Number,
+        default: 50,
+        min: [1, 'Max teachers must be at least 1']
+      },
+      maxStorage: {
+        type: Number, // in MB
+        default: 1000,
+        min: [100, 'Max storage must be at least 100 MB']
+      },
+      maxApiCalls: {
+        type: Number, // per day
+        default: 10000,
+        min: [100, 'Max API calls must be at least 100']
+      }
+    },
+    billing: {
+      billingEmail: {
+        type: String,
+        trim: true,
+        lowercase: true,
+        match: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Please enter a valid billing email']
+      },
+      paymentMethod: {
+        type: String,
+        enum: ['credit_card', 'bank_transfer', 'invoice', 'free'],
+        default: 'free'
+      },
+      lastPaymentDate: Date,
+      nextBillingDate: Date,
+      billingCycle: {
+        type: String,
+        enum: ['monthly', 'quarterly', 'yearly'],
+        default: 'monthly'
+      }
+    },
+    compliance: {
+      dataRetentionDays: {
+        type: Number,
+        default: 365,
+        min: [30, 'Data retention must be at least 30 days']
+      },
+      privacyPolicyAccepted: {
+        type: Boolean,
+        default: false
+      },
+      privacyPolicyAcceptedAt: Date,
+      termsAccepted: {
+        type: Boolean,
+        default: false
+      },
+      termsAcceptedAt: Date,
+      gdprCompliant: {
+        type: Boolean,
+        default: false
+      }
+    }
+  },
+  
+  // System Administration Metadata
+  systemMetadata: {
+    createdBy: {
+      type: String, // System admin ID
+      default: 'system'
+    },
+    lastModifiedBy: {
+      type: String // System admin ID
+    },
+    lastSystemAccess: Date,
+    systemNotes: [{
+      note: {
+        type: String,
+        required: true,
+        maxlength: [1000, 'System note cannot exceed 1000 characters']
+      },
+      createdBy: {
+        type: String,
+        required: true
+      },
+      createdAt: {
+        type: Date,
+        default: Date.now
+      },
+      category: {
+        type: String,
+        enum: ['billing', 'support', 'compliance', 'technical', 'general'],
+        default: 'general'
+      }
+    }],
+    flags: [{
+      flagType: {
+        type: String,
+        enum: ['warning', 'attention', 'review', 'escalation'],
+        required: true
+      },
+      reason: {
+        type: String,
+        required: true,
+        maxlength: [500, 'Flag reason cannot exceed 500 characters']
+      },
+      isActive: {
+        type: Boolean,
+        default: true
+      },
+      createdBy: {
+        type: String,
+        required: true
+      },
+      createdAt: {
+        type: Date,
+        default: Date.now
+      },
+      resolvedAt: Date,
+      resolvedBy: String
+    }]
+  },
+  
   // Password reset functionality
   passwordResetToken: {
     type: String,
@@ -409,6 +584,281 @@ schoolSchema.methods.toJSON = function() {
   return school;
 };
 
+// System Administration Methods
+
+/**
+ * Update subscription tier
+ * @param {string} tier - New subscription tier
+ * @param {string} adminId - System admin ID
+ * @returns {Promise<School>} Updated school
+ */
+schoolSchema.methods.updateSubscriptionTier = async function(tier, adminId) {
+  this.systemConfig.subscriptionTier = tier;
+  this.systemMetadata.lastModifiedBy = adminId;
+  this.updatedAt = new Date();
+  return await this.save();
+};
+
+/**
+ * Update subscription status
+ * @param {string} status - New subscription status
+ * @param {string} adminId - System admin ID
+ * @returns {Promise<School>} Updated school
+ */
+schoolSchema.methods.updateSubscriptionStatus = async function(status, adminId) {
+  this.systemConfig.subscriptionStatus = status;
+  this.systemMetadata.lastModifiedBy = adminId;
+  this.updatedAt = new Date();
+  return await this.save();
+};
+
+/**
+ * Enable/disable a feature for the school
+ * @param {string} featureName - Feature name
+ * @param {boolean} isEnabled - Enable or disable
+ * @param {string} adminId - System admin ID
+ * @param {Date} expiresAt - Optional expiration date
+ * @returns {Promise<School>} Updated school
+ */
+schoolSchema.methods.toggleFeature = async function(featureName, isEnabled, adminId, expiresAt = null) {
+  const existingFeatureIndex = this.systemConfig.features.findIndex(
+    f => f.featureName === featureName
+  );
+  
+  if (existingFeatureIndex >= 0) {
+    // Update existing feature
+    this.systemConfig.features[existingFeatureIndex].isEnabled = isEnabled;
+    this.systemConfig.features[existingFeatureIndex].enabledBy = adminId;
+    this.systemConfig.features[existingFeatureIndex].enabledAt = new Date();
+    if (expiresAt) {
+      this.systemConfig.features[existingFeatureIndex].expiresAt = expiresAt;
+    }
+  } else {
+    // Add new feature
+    this.systemConfig.features.push({
+      featureName,
+      isEnabled,
+      enabledBy: adminId,
+      enabledAt: new Date(),
+      expiresAt
+    });
+  }
+  
+  this.systemMetadata.lastModifiedBy = adminId;
+  this.updatedAt = new Date();
+  return await this.save();
+};
+
+/**
+ * Add a system note
+ * @param {string} note - Note content
+ * @param {string} adminId - System admin ID
+ * @param {string} category - Note category
+ * @returns {Promise<School>} Updated school
+ */
+schoolSchema.methods.addSystemNote = async function(note, adminId, category = 'general') {
+  this.systemMetadata.systemNotes.push({
+    note,
+    createdBy: adminId,
+    category,
+    createdAt: new Date()
+  });
+  
+  this.systemMetadata.lastModifiedBy = adminId;
+  this.updatedAt = new Date();
+  return await this.save();
+};
+
+/**
+ * Add a system flag
+ * @param {string} flagType - Flag type
+ * @param {string} reason - Flag reason
+ * @param {string} adminId - System admin ID
+ * @returns {Promise<School>} Updated school
+ */
+schoolSchema.methods.addSystemFlag = async function(flagType, reason, adminId) {
+  this.systemMetadata.flags.push({
+    flagType,
+    reason,
+    isActive: true,
+    createdBy: adminId,
+    createdAt: new Date()
+  });
+  
+  this.systemMetadata.lastModifiedBy = adminId;
+  this.updatedAt = new Date();
+  return await this.save();
+};
+
+/**
+ * Resolve a system flag
+ * @param {string} flagId - Flag ID
+ * @param {string} adminId - System admin ID
+ * @returns {Promise<School>} Updated school
+ */
+schoolSchema.methods.resolveSystemFlag = async function(flagId, adminId) {
+  const flag = this.systemMetadata.flags.id(flagId);
+  if (flag) {
+    flag.isActive = false;
+    flag.resolvedAt = new Date();
+    flag.resolvedBy = adminId;
+    
+    this.systemMetadata.lastModifiedBy = adminId;
+    this.updatedAt = new Date();
+    return await this.save();
+  }
+  throw new Error('Flag not found');
+};
+
+/**
+ * Update usage limits
+ * @param {Object} limits - New limits object
+ * @param {string} adminId - System admin ID
+ * @returns {Promise<School>} Updated school
+ */
+schoolSchema.methods.updateLimits = async function(limits, adminId) {
+  Object.assign(this.systemConfig.limits, limits);
+  this.systemMetadata.lastModifiedBy = adminId;
+  this.updatedAt = new Date();
+  return await this.save();
+};
+
+/**
+ * Get active features for the school
+ * @returns {Array} Array of active features
+ */
+schoolSchema.methods.getActiveFeatures = function() {
+  const now = new Date();
+  return this.systemConfig.features.filter(feature => 
+    feature.isEnabled && 
+    (!feature.expiresAt || feature.expiresAt > now)
+  );
+};
+
+/**
+ * Check if school has a specific feature enabled
+ * @param {string} featureName - Feature name to check
+ * @returns {boolean} True if feature is enabled and not expired
+ */
+schoolSchema.methods.hasFeature = function(featureName) {
+  const feature = this.systemConfig.features.find(f => f.featureName === featureName);
+  if (!feature || !feature.isEnabled) return false;
+  
+  if (feature.expiresAt && feature.expiresAt <= new Date()) {
+    return false;
+  }
+  
+  return true;
+};
+
+/**
+ * Get system administration summary
+ * @returns {Object} System admin summary
+ */
+schoolSchema.methods.getSystemSummary = function() {
+  return {
+    schoolId: this.schoolId,
+    schoolName: this.schoolName,
+    email: this.email,
+    subscriptionTier: this.systemConfig.subscriptionTier,
+    subscriptionStatus: this.systemConfig.subscriptionStatus,
+    isActive: this.isActive,
+    activeFeatures: this.getActiveFeatures().length,
+    totalFeatures: this.systemConfig.features.length,
+    activeFlags: this.systemMetadata.flags.filter(f => f.isActive).length,
+    lastSystemAccess: this.systemMetadata.lastSystemAccess,
+    createdAt: this.createdAt,
+    updatedAt: this.updatedAt
+  };
+};
+
+// Static Methods for System Administration
+
+/**
+ * Get schools by subscription tier
+ * @param {string} tier - Subscription tier
+ * @returns {Promise<Array>} Array of schools
+ */
+schoolSchema.statics.getSchoolsByTier = async function(tier) {
+  return await this.find({ 'systemConfig.subscriptionTier': tier })
+    .select('schoolId schoolName email systemConfig.subscriptionStatus isActive createdAt')
+    .sort({ createdAt: -1 });
+};
+
+/**
+ * Get schools by subscription status
+ * @param {string} status - Subscription status
+ * @returns {Promise<Array>} Array of schools
+ */
+schoolSchema.statics.getSchoolsByStatus = async function(status) {
+  return await this.find({ 'systemConfig.subscriptionStatus': status })
+    .select('schoolId schoolName email systemConfig.subscriptionTier isActive createdAt')
+    .sort({ createdAt: -1 });
+};
+
+/**
+ * Get schools with active flags
+ * @returns {Promise<Array>} Array of schools with active flags
+ */
+schoolSchema.statics.getSchoolsWithFlags = async function() {
+  return await this.find({ 'systemMetadata.flags.isActive': true })
+    .select('schoolId schoolName email systemMetadata.flags systemConfig.subscriptionTier')
+    .sort({ createdAt: -1 });
+};
+
+/**
+ * Get system statistics
+ * @returns {Promise<Object>} System statistics
+ */
+schoolSchema.statics.getSystemStatistics = async function() {
+  const stats = await this.aggregate([
+    {
+      $group: {
+        _id: null,
+        totalSchools: { $sum: 1 },
+        activeSchools: {
+          $sum: { $cond: [{ $eq: ['$isActive', true] }, 1, 0] }
+        },
+        schoolsByTier: {
+          $push: '$systemConfig.subscriptionTier'
+        },
+        schoolsByStatus: {
+          $push: '$systemConfig.subscriptionStatus'
+        }
+      }
+    }
+  ]);
+  
+  if (stats.length === 0) {
+    return {
+      totalSchools: 0,
+      activeSchools: 0,
+      inactiveSchools: 0,
+      tierDistribution: {},
+      statusDistribution: {}
+    };
+  }
+  
+  const result = stats[0];
+  result.inactiveSchools = result.totalSchools - result.activeSchools;
+  
+  // Count by tier and status
+  result.tierDistribution = result.schoolsByTier.reduce((acc, tier) => {
+    acc[tier] = (acc[tier] || 0) + 1;
+    return acc;
+  }, {});
+  
+  result.statusDistribution = result.schoolsByStatus.reduce((acc, status) => {
+    acc[status] = (acc[status] || 0) + 1;
+    return acc;
+  }, {});
+  
+  delete result.schoolsByTier;
+  delete result.schoolsByStatus;
+  
+  return result;
+};
+
 /**
  * Validation for unique email across all schools
  */
@@ -439,6 +889,14 @@ schoolSchema.pre('validate', async function(next) {
   } catch (error) {
     next(error);
   }
+});
+
+// Pre-save middleware to update system metadata
+schoolSchema.pre('save', function(next) {
+  if (this.isModified() && !this.isNew) {
+    this.updatedAt = new Date();
+  }
+  next();
 });
 
 module.exports = mongoose.model('School', schoolSchema);

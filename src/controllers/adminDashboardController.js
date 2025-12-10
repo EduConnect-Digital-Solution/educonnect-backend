@@ -1,4 +1,4 @@
-s/**
+/**
  * Admin Dashboard Controller
  * Handles admin dashboard analytics and school management
  * Requirements: 7.1, 7.2, 7.3

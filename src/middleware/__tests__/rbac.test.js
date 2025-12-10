@@ -293,7 +293,7 @@ describe('RBAC Middleware', () => {
       expect(req.permissionValidation).toEqual({
         endpointType: 'admin-only',
         userRole: ROLES.ADMIN,
-        allowedRoles: [ROLES.ADMIN],
+        allowedRoles: [ROLES.SYSTEM_ADMIN, ROLES.ADMIN],
         timestamp: expect.any(Date)
       });
     });
@@ -307,10 +307,10 @@ describe('RBAC Middleware', () => {
       expect(res.status).toHaveBeenCalledWith(403);
       expect(res.json).toHaveBeenCalledWith({
         success: false,
-        message: `Access denied. Required roles: ${ROLES.ADMIN}`,
+        message: `Access denied. Required roles: ${ROLES.SYSTEM_ADMIN}, ${ROLES.ADMIN}`,
         code: 'INSUFFICIENT_PERMISSIONS',
         userRole: ROLES.TEACHER,
-        requiredRoles: [ROLES.ADMIN]
+        requiredRoles: [ROLES.SYSTEM_ADMIN, ROLES.ADMIN]
       });
       expect(next).not.toHaveBeenCalled();
     });

@@ -1364,5 +1364,720 @@ paths:
               schema:
                 $ref: '#/components/schemas/Success'
 
+  # MISSING ENDPOINTS - ADMIN DASHBOARD
+  /admin/dashboard/users:
+    get:
+      tags:
+        - Admin Dashboard
+      summary: Get user management data
+      description: Retrieve user management data with filtering and pagination (Admin only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: schoolId
+          in: query
+          description: School ID filter
+          schema:
+            type: string
+        - name: role
+          in: query
+          description: Filter by user role
+          schema:
+            type: string
+            enum: [admin, teacher, parent]
+        - name: status
+          in: query
+          description: Filter by user status
+          schema:
+            type: string
+            enum: [active, inactive]
+        - name: page
+          in: query
+          description: Page number
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Items per page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: search
+          in: query
+          description: Search term for user name or email
+          schema:
+            type: string
+      responses:
+        '200':
+          description: User management data retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/User'
+
+  /admin/dashboard/users/toggle-status:
+    post:
+      tags:
+        - Admin Dashboard
+      summary: Toggle user status
+      description: Activate or deactivate user accounts (Admin only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - userId
+                - action
+              properties:
+                userId:
+                  type: string
+                  example: "507f1f77bcf86cd799439011"
+                action:
+                  type: string
+                  enum: [activate, deactivate]
+                  example: "deactivate"
+                reason:
+                  type: string
+                  example: "User requested account deactivation"
+                schoolId:
+                  type: string
+                  example: "SCH123456"
+      responses:
+        '200':
+          description: User status updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+
+  /admin/dashboard/users/remove:
+    delete:
+      tags:
+        - Admin Dashboard
+      summary: Remove user account
+      description: Permanently remove user account (Admin only - use with caution)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - userId
+              properties:
+                userId:
+                  type: string
+                  example: "507f1f77bcf86cd799439011"
+                reason:
+                  type: string
+                  example: "User requested account deletion"
+                schoolId:
+                  type: string
+                  example: "SCH123456"
+      responses:
+        '200':
+          description: User removed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+
+  # MISSING ENDPOINTS - PARENT DASHBOARD
+  /parent/children/{childId}:
+    get:
+      tags:
+        - Parent Dashboard
+      summary: Get specific child details
+      description: Retrieve specific child details (Parent only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: childId
+          in: path
+          required: true
+          description: Child/Student ID
+          schema:
+            type: string
+            example: "507f1f77bcf86cd799439011"
+      responses:
+        '200':
+          description: Child details retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Student'
+
+  /parent/profile:
+    get:
+      tags:
+        - Parent Dashboard
+      summary: Get parent profile
+      description: Get parent profile information (Parent only)
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Parent profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/User'
+    put:
+      tags:
+        - Parent Dashboard
+      summary: Update parent profile
+      description: Update parent profile information (Parent only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                firstName:
+                  type: string
+                  example: "John"
+                lastName:
+                  type: string
+                  example: "Doe"
+                phone:
+                  type: string
+                  example: "+1234567890"
+                address:
+                  type: string
+                  example: "123 Main St, City"
+                occupation:
+                  type: string
+                  example: "Engineer"
+                emergencyContact:
+                  type: string
+                  example: "Jane Doe"
+                emergencyPhone:
+                  type: string
+                  example: "+1987654321"
+      responses:
+        '200':
+          description: Parent profile updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/User'
+
+  # MISSING ENDPOINTS - PARENT MANAGEMENT
+  /parent-management/parents/{id}/students:
+    put:
+      tags:
+        - Parent Management
+      summary: Update parent-student relationships
+      description: Update which students a parent has access to (Admin only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Parent ID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - studentIds
+              properties:
+                studentIds:
+                  type: array
+                  items:
+                    type: string
+                  example: ["507f1f77bcf86cd799439011", "507f1f77bcf86cd799439012"]
+      responses:
+        '200':
+          description: Parent-student relationships updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+
+  /parent-management/parents/{parentId}/link-students:
+    post:
+      tags:
+        - Parent Management
+      summary: Link parent to students
+      description: Link parent to additional students (Admin only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: parentId
+          in: path
+          required: true
+          description: Parent ID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - studentIds
+              properties:
+                studentIds:
+                  type: array
+                  items:
+                    type: string
+                  example: ["507f1f77bcf86cd799439011"]
+      responses:
+        '200':
+          description: Parent linked to students successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+
+  /parent-management/parents/{parentId}/unlink-students:
+    post:
+      tags:
+        - Parent Management
+      summary: Unlink parent from students
+      description: Remove parent access to specific students (Admin only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: parentId
+          in: path
+          required: true
+          description: Parent ID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - studentIds
+              properties:
+                studentIds:
+                  type: array
+                  items:
+                    type: string
+                  example: ["507f1f77bcf86cd799439011"]
+      responses:
+        '200':
+          description: Parent unlinked from students successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+
+  /parent-management/parents/{parentId}:
+    delete:
+      tags:
+        - Parent Management
+      summary: Remove parent
+      description: Remove parent from system (Admin only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: parentId
+          in: path
+          required: true
+          description: Parent ID
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  example: "Parent requested account deletion"
+      responses:
+        '200':
+          description: Parent removed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+
+  # MISSING ENDPOINTS - SCHOOL AUTH
+  /school/auth/refresh-token:
+    post:
+      tags:
+        - School Auth
+      summary: Refresh access token
+      description: Get new access token using refresh token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refreshToken
+              properties:
+                refreshToken:
+                  type: string
+                  example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          accessToken:
+                            type: string
+                          expiresIn:
+                            type: string
+                            example: "1h"
+
+  /school/auth/logout:
+    post:
+      tags:
+        - School Auth
+      summary: Logout school admin
+      description: Logout and invalidate session
+      responses:
+        '200':
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+
+  /school/auth/resend-otp:
+    post:
+      tags:
+        - School Auth
+      summary: Resend OTP
+      description: Resend OTP for email verification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - schoolId
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: "admin@springfield.edu"
+                schoolId:
+                  type: string
+                  example: "SCH123456"
+      responses:
+        '200':
+          description: OTP resent successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+
+  /school/auth/invitations:
+    get:
+      tags:
+        - School Auth
+      summary: List invitations
+      description: List invitations with filtering (Admin only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: schoolId
+          in: query
+          description: School ID filter
+          schema:
+            type: string
+        - name: status
+          in: query
+          description: Filter by invitation status
+          schema:
+            type: string
+            enum: [pending, accepted, expired, cancelled]
+        - name: role
+          in: query
+          description: Filter by role
+          schema:
+            type: string
+            enum: [teacher, parent]
+        - name: page
+          in: query
+          description: Page number
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Items per page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Invitations retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          type: object
+
+  /school/auth/resend-invitation:
+    post:
+      tags:
+        - School Auth
+      summary: Resend invitation
+      description: Resend invitation email (Admin only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - invitationId
+              properties:
+                invitationId:
+                  type: string
+                  example: "507f1f77bcf86cd799439011"
+                schoolId:
+                  type: string
+                  example: "SCH123456"
+      responses:
+        '200':
+          description: Invitation resent successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+
+  /school/auth/cancel-invitation:
+    post:
+      tags:
+        - School Auth
+      summary: Cancel invitation
+      description: Cancel pending invitation (Admin only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - invitationId
+              properties:
+                invitationId:
+                  type: string
+                  example: "507f1f77bcf86cd799439011"
+                reason:
+                  type: string
+                  example: "Position no longer available"
+                schoolId:
+                  type: string
+                  example: "SCH123456"
+      responses:
+        '200':
+          description: Invitation cancelled successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+
+  # MISSING ENDPOINTS - SCHOOL PROFILE
+  /school/profile/admin:
+    put:
+      tags:
+        - School Profile
+      summary: Update admin profile
+      description: Update admin profile information (Admin only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                schoolId:
+                  type: string
+                  example: "SCH123456"
+                firstName:
+                  type: string
+                  example: "John"
+                lastName:
+                  type: string
+                  example: "Doe"
+                phone:
+                  type: string
+                  example: "+1234567890"
+      responses:
+        '200':
+          description: Admin profile updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/User'
+
+  /school/profile/status:
+    post:
+      tags:
+        - School Profile
+      summary: Change school status
+      description: Change school status - activate/deactivate (System Admin only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - schoolId
+                - isActive
+              properties:
+                schoolId:
+                  type: string
+                  example: "SCH123456"
+                isActive:
+                  type: boolean
+                  example: false
+                reason:
+                  type: string
+                  example: "School requested temporary suspension"
+      responses:
+        '200':
+          description: School status updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+
+  # MISSING ENDPOINTS - STUDENT MANAGEMENT
+  /students/remove:
+    delete:
+      tags:
+        - Student Management
+      summary: Remove student
+      description: Permanently remove student record (Admin only - use with caution)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - studentId
+              properties:
+                studentId:
+                  type: string
+                  example: "507f1f77bcf86cd799439011"
+                reason:
+                  type: string
+                  example: "Student transferred to another school"
+                schoolId:
+                  type: string
+                  example: "SCH123456"
+      responses:
+        '200':
+          description: Student removed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+
+  # MISSING ENDPOINTS - TEACHER DASHBOARD
+  /teacher/profile:
+    get:
+      tags:
+        - Teacher Dashboard
+      summary: Get teacher profile
+      description: Get teacher profile information (Teacher only)
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Teacher profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/User'
+
 security:
   - BearerAuth: []

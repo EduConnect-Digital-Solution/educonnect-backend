@@ -11,6 +11,11 @@ const OTP = require('../models/OTP');
 const Invitation = require('../models/Invitation');
 const EmailService = require('../config/email');
 const CacheService = require('./cacheService');
+const { 
+  validateSystemAdminCredentials,
+  generateSystemAdminToken,
+  verifySystemAdminToken 
+} = require('./systemAdminAuthService');
 const jwt = require('jsonwebtoken');
 
 /**
@@ -860,6 +865,340 @@ const invalidateAuthCaches = async (userId, email = null) => {
   }
 };
 
+// ============================================================================
+// SYSTEM ADMIN ENHANCEMENTS
+// ============================================================================
+
+/**
+ * System Admin Credential Validation
+ * Enhanced validation with additional security checks
+ */
+const validateSystemAdminCredentialsEnhanced = async (email, password, requestContext = {}) => {
+  try {
+    // Basic credential validation
+    const isValid = await validateSystemAdminCredentials(email, password);
+    
+    if (!isValid) {
+      // Log failed attempt for security monitoring
+      console.warn(`🚫 System admin login attempt failed: ${email} from ${requestContext.ip || 'unknown IP'}`);
+      return { valid: false, reason: 'invalid_credentials' };
+    }
+
+    // Additional security checks
+    const securityChecks = await performSystemAdminSecurityChecks(email, requestContext);
+    
+    if (!securityChecks.passed) {
+      console.warn(`🚫 System admin security check failed: ${email} - ${securityChecks.reason}`);
+      return { valid: false, reason: securityChecks.reason };
+    }
+
+    // Log successful validation
+    console.log(`✅ System admin credentials validated: ${email}`);
+    
+    return { 
+      valid: true, 
+      email,
+      securityLevel: 'high',
+      validatedAt: new Date()
+    };
+
+  } catch (error) {
+    console.error('System admin credential validation error:', error);
+    return { valid: false, reason: 'validation_error' };
+  }
+};
+
+/**
+ * System Admin Security Checks
+ * Additional security validations for system admin access
+ */
+const performSystemAdminSecurityChecks = async (email, requestContext) => {
+  try {
+    // Check for suspicious IP patterns (basic implementation)
+    if (requestContext.ip) {
+      const suspiciousIPs = await getCachedSuspiciousIPs();
+      if (suspiciousIPs.includes(requestContext.ip)) {
+        return { passed: false, reason: 'suspicious_ip' };
+      }
+    }
+
+    // Check for rate limiting
+    const rateLimitKey = `system_admin_attempts:${email}`;
+    const attempts = await CacheService.get('auth', rateLimitKey) || 0;
+    
+    if (attempts >= 3) { // Max 3 attempts per hour
+      return { passed: false, reason: 'rate_limited' };
+    }
+
+    // Check time-based restrictions (optional - can be configured)
+    const currentHour = new Date().getHours();
+    const allowedHours = process.env.SYSTEM_ADMIN_ALLOWED_HOURS;
+    
+    if (allowedHours) {
+      const allowedHoursList = allowedHours.split(',').map(h => parseInt(h.trim()));
+      if (!allowedHoursList.includes(currentHour)) {
+        return { passed: false, reason: 'time_restricted' };
+      }
+    }
+
+    return { passed: true };
+
+  } catch (error) {
+    console.error('System admin security check error:', error);
+    return { passed: false, reason: 'security_check_error' };
+  }
+};
+
+/**
+ * System Admin Impersonation Service
+ * Allows system admin to impersonate users for support purposes
+ */
+const impersonateUser = async (systemAdminEmail, targetUserId, reason = 'support') => {
+  try {
+    // Verify system admin is authenticated
+    if (!systemAdminEmail) {
+      throw new Error('System admin authentication required');
+    }
+
+    // Find target user
+    const targetUser = await User.findById(targetUserId).populate('schoolId');
+    
+    if (!targetUser) {
+      throw new Error('Target user not found');
+    }
+
+    // Find target user's school
+    const school = await School.findOne({ schoolId: targetUser.schoolId });
+    
+    if (!school) {
+      throw new Error('Target user school not found');
+    }
+
+    // Generate impersonation token with special claims
+    const impersonationToken = jwt.sign(
+      {
+        userId: targetUser._id,
+        schoolId: targetUser.schoolId,
+        role: targetUser.role,
+        type: 'impersonation',
+        systemAdminEmail,
+        impersonationReason: reason,
+        impersonatedAt: new Date(),
+        originalRole: 'system_admin'
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: '2h' } // Shorter expiry for impersonation
+    );
+
+    // Log impersonation for audit
+    const impersonationLog = {
+      systemAdminEmail,
+      targetUserId: targetUser._id,
+      targetUserEmail: targetUser.email,
+      targetSchoolId: targetUser.schoolId,
+      reason,
+      timestamp: new Date(),
+      ipAddress: null, // Will be filled by middleware
+      userAgent: null  // Will be filled by middleware
+    };
+
+    // Cache impersonation session
+    await CacheService.set('auth', `impersonation:${targetUser._id}`, impersonationLog, 7200); // 2 hours
+
+    console.log(`🎭 System admin impersonation started: ${systemAdminEmail} -> ${targetUser.email}`);
+
+    return {
+      success: true,
+      impersonationToken,
+      targetUser: {
+        id: targetUser._id,
+        email: targetUser.email,
+        firstName: targetUser.firstName,
+        lastName: targetUser.lastName,
+        role: targetUser.role,
+        schoolId: targetUser.schoolId,
+        schoolName: school.schoolName
+      },
+      impersonationDetails: {
+        systemAdminEmail,
+        reason,
+        expiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000), // 2 hours
+        impersonatedAt: new Date()
+      }
+    };
+
+  } catch (error) {
+    console.error('Impersonation error:', error);
+    throw new Error(`Impersonation failed: ${error.message}`);
+  }
+};
+
+/**
+ * End Impersonation Session
+ * Terminates an active impersonation session
+ */
+const endImpersonation = async (impersonationToken) => {
+  try {
+    // Verify and decode impersonation token
+    const decoded = jwt.verify(impersonationToken, process.env.JWT_SECRET);
+    
+    if (decoded.type !== 'impersonation') {
+      throw new Error('Invalid impersonation token');
+    }
+
+    // Remove impersonation session from cache
+    await CacheService.del('auth', `impersonation:${decoded.userId}`);
+
+    console.log(`🎭 System admin impersonation ended: ${decoded.systemAdminEmail} -> ${decoded.userId}`);
+
+    return {
+      success: true,
+      message: 'Impersonation session ended',
+      systemAdminEmail: decoded.systemAdminEmail,
+      endedAt: new Date()
+    };
+
+  } catch (error) {
+    console.error('End impersonation error:', error);
+    throw new Error(`Failed to end impersonation: ${error.message}`);
+  }
+};
+
+/**
+ * System Admin Session Management
+ * Enhanced session management for system administrators
+ */
+const manageSystemAdminSession = async (systemAdminEmail, action, sessionData = {}) => {
+  const sessionKey = `system_admin_session:${systemAdminEmail}`;
+  
+  try {
+    switch (action) {
+      case 'create':
+        const newSession = {
+          email: systemAdminEmail,
+          loginAt: new Date(),
+          lastActivity: new Date(),
+          ipAddress: sessionData.ipAddress,
+          userAgent: sessionData.userAgent,
+          sessionId: `sa_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          permissions: ['cross_school_access', 'user_impersonation', 'system_management'],
+          securityLevel: 'maximum'
+        };
+        
+        // Cache session for 8 hours (default system admin session timeout)
+        const timeout = parseInt(process.env.SYSTEM_ADMIN_SESSION_TIMEOUT) || 28800; // 8 hours
+        await CacheService.set('auth', sessionKey, newSession, timeout);
+        
+        console.log(`🔐 System admin session created: ${systemAdminEmail}`);
+        return newSession;
+
+      case 'update':
+        const existingSession = await CacheService.get('auth', sessionKey);
+        if (!existingSession) {
+          throw new Error('Session not found');
+        }
+        
+        const updatedSession = {
+          ...existingSession,
+          lastActivity: new Date(),
+          ...sessionData
+        };
+        
+        const remainingTTL = await CacheService.getTTL('auth', sessionKey);
+        await CacheService.set('auth', sessionKey, updatedSession, remainingTTL || 28800);
+        
+        return updatedSession;
+
+      case 'get':
+        const retrievedSession = await CacheService.get('auth', sessionKey);
+        if (retrievedSession) {
+          console.log(`🔐 System admin session retrieved: ${systemAdminEmail}`);
+        }
+        return retrievedSession;
+
+      case 'destroy':
+        await CacheService.del('auth', sessionKey);
+        console.log(`🔐 System admin session destroyed: ${systemAdminEmail}`);
+        return { destroyed: true };
+
+      default:
+        throw new Error(`Unknown session action: ${action}`);
+    }
+
+  } catch (error) {
+    console.error(`System admin session management error (${action}):`, error);
+    throw error;
+  }
+};
+
+/**
+ * Get Cached Suspicious IPs
+ * Retrieves list of suspicious IP addresses for security checks
+ */
+const getCachedSuspiciousIPs = async () => {
+  try {
+    const suspiciousIPs = await CacheService.get('security', 'suspicious_ips') || [];
+    return suspiciousIPs;
+  } catch (error) {
+    console.error('Error getting suspicious IPs:', error);
+    return [];
+  }
+};
+
+/**
+ * Add Suspicious IP
+ * Adds an IP address to the suspicious list
+ */
+const addSuspiciousIP = async (ipAddress, reason = 'security_violation') => {
+  try {
+    const suspiciousIPs = await getCachedSuspiciousIPs();
+    
+    if (!suspiciousIPs.includes(ipAddress)) {
+      suspiciousIPs.push(ipAddress);
+      await CacheService.set('security', 'suspicious_ips', suspiciousIPs, 86400); // 24 hours
+      
+      console.log(`🚨 IP added to suspicious list: ${ipAddress} (${reason})`);
+    }
+  } catch (error) {
+    console.error('Error adding suspicious IP:', error);
+  }
+};
+
+/**
+ * System Admin Activity Logging
+ * Enhanced logging for system admin activities
+ */
+const logSystemAdminActivity = async (systemAdminEmail, activity, details = {}) => {
+  try {
+    const logEntry = {
+      systemAdminEmail,
+      activity,
+      details,
+      timestamp: new Date(),
+      severity: details.severity || 'medium',
+      category: details.category || 'general'
+    };
+
+    // Store in cache for recent activity tracking
+    const activityKey = `system_admin_activity:${systemAdminEmail}`;
+    const recentActivities = await CacheService.get('audit', activityKey) || [];
+    
+    recentActivities.unshift(logEntry);
+    
+    // Keep only last 100 activities in cache
+    if (recentActivities.length > 100) {
+      recentActivities.splice(100);
+    }
+    
+    await CacheService.set('audit', activityKey, recentActivities, 86400); // 24 hours
+
+    console.log(`📋 System admin activity logged: ${systemAdminEmail} - ${activity}`);
+
+  } catch (error) {
+    console.error('System admin activity logging error:', error);
+  }
+};
+
 module.exports = {
   registerSchool,
   verifyEmail,
@@ -879,5 +1218,14 @@ module.exports = {
   cacheOTPData,
   getCachedOTPData,
   // Cache invalidation
-  invalidateAuthCaches
+  invalidateAuthCaches,
+  // System admin enhancements
+  validateSystemAdminCredentialsEnhanced,
+  performSystemAdminSecurityChecks,
+  impersonateUser,
+  endImpersonation,
+  manageSystemAdminSession,
+  getCachedSuspiciousIPs,
+  addSuspiciousIP,
+  logSystemAdminActivity
 };

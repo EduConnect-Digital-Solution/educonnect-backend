@@ -53,6 +53,7 @@ const authLimiter = rateLimit({
 app.use('/api/auth', authLimiter);
 app.use('/api/school/auth', authLimiter);
 app.use('/api/user/auth', authLimiter);
+app.use('/api/system-admin/auth', authLimiter);
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
@@ -78,6 +79,10 @@ const schoolProfileRoutes = require('./routes/schoolProfile');
 const studentManagementRoutes = require('./routes/studentManagement');
 const parentManagementRoutes = require('./routes/parentManagement');
 
+// System Admin routes
+const systemAdminAuthRoutes = require('./routes/systemAdminAuth');
+const systemAdminRoutes = require('./routes/systemAdmin');
+
 // Import Swagger documentation
 const { specs, swaggerUi, swaggerOptions } = require('./config/swagger');
 
@@ -93,6 +98,10 @@ app.use('/api/parent', parentDashboardRoutes);
 app.use('/api/school/profile', schoolProfileRoutes);
 app.use('/api/students', studentManagementRoutes);
 app.use('/api/parent-management', parentManagementRoutes);
+
+// System Admin routes
+app.use('/api/system-admin/auth', systemAdminAuthRoutes);
+app.use('/api/system-admin', systemAdminRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {
