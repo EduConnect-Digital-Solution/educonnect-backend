@@ -27,7 +27,8 @@ const connectDB = async () => {
 
   } catch (error) {
     console.error('Database connection failed:', error.message);
-    process.exit(1);
+    console.log('Server will continue running without database connection');
+    // Don't exit the process - let the server run without DB for now
   }
 };
 
