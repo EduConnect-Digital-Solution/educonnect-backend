@@ -1,6 +1,6 @@
 openapi: 3.0.3
 info:
-  title: EduConnect Phase 1 API
+  title: EduConnect API - School Management with Grades
   description: |
     A comprehensive educational platform backend with Role-Based Access Control (RBAC) authentication system.
     
@@ -10,6 +10,8 @@ info:
     - Invitation-based Registration
     - JWT Authentication with Refresh Tokens
     - Email Integration with Resend
+    - **Grades and Assessment Management**
+    - Performance Analytics and Statistics
     
     ## Authentication
     Most endpoints require authentication via JWT tokens. Include the token in the Authorization header:
@@ -21,7 +23,15 @@ info:
     - Authentication endpoints: 20 requests per 15 minutes
     - General endpoints: 1000 requests per 15 minutes
     
-  version: 1.0.0
+    ## Grades Management
+    Teachers can:
+    - View assigned classes and subjects
+    - Create and manage student assessments
+    - Calculate grades automatically
+    - Publish grades to parents
+    - View class performance statistics
+    
+  version: 1.1.0
   contact:
     name: EduConnect API Support
     email: support@educonnect.com
@@ -53,6 +63,8 @@ tags:
     description: Parent dashboard and children access
   - name: School Profile
     description: School profile management
+  - name: Grades Management
+    description: Grade assignment, tracking, and analytics for teachers
 
 components:
   securitySchemes:
@@ -179,6 +191,150 @@ components:
         isActive:
           type: boolean
           example: true
+          
+    Grade:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "507f1f77bcf86cd799439011"
+        schoolId:
+          type: string
+          example: "SCH123456"
+        teacherId:
+          oneOf:
+            - type: string
+            - type: object
+              properties:
+                id:
+                  type: string
+                firstName:
+                  type: string
+                lastName:
+                  type: string
+                email:
+                  type: string
+        studentId:
+          oneOf:
+            - type: string
+            - type: object
+              properties:
+                id:
+                  type: string
+                firstName:
+                  type: string
+                lastName:
+                  type: string
+                studentId:
+                  type: string
+                class:
+                  type: string
+                section:
+                  type: string
+        subject:
+          type: string
+          example: "Mathematics"
+        class:
+          type: string
+          example: "JSS1"
+        section:
+          type: string
+          example: "A"
+        term:
+          type: string
+          enum: [First Term, Second Term, Third Term]
+          example: "First Term"
+        academicYear:
+          type: string
+          pattern: '^\\d{4}-\\d{4}$'
+          example: "2024-2025"
+        assessments:
+          type: array
+          items:
+            $ref: '#/components/schemas/Assessment'
+        totalScore:
+          type: number
+          example: 175
+        totalMaxScore:
+          type: number
+          example: 200
+        percentage:
+          type: number
+          example: 87.5
+        letterGrade:
+          type: string
+          enum: [A+, A, A-, B+, B, B-, C+, C, C-, D+, D, F]
+          example: "B+"
+        gradePoints:
+          type: number
+          example: 3.3
+        remarks:
+          type: string
+          example: "Good performance overall"
+        isPublished:
+          type: boolean
+          example: false
+        publishedAt:
+          type: string
+          format: date-time
+        publishedBy:
+          type: string
+        createdBy:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        displayName:
+          type: string
+          description: "Virtual field: Subject - Class (Term)"
+          example: "Mathematics - JSS1 (First Term)"
+        statusDisplay:
+          type: string
+          description: "Virtual field: Draft or Published"
+          example: "Draft"
+          
+    Assessment:
+      type: object
+      required:
+        - type
+        - title
+        - score
+        - maxScore
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum: [Test, Assignment, Quiz, Project, Exam, Practical, Homework]
+          example: "Test"
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          example: "Mid-term Mathematics Test"
+        score:
+          type: number
+          minimum: 0
+          example: 85
+        maxScore:
+          type: number
+          minimum: 1
+          example: 100
+        weight:
+          type: number
+          minimum: 0
+          default: 1
+          example: 1
+        date:
+          type: string
+          format: date-time
+        remarks:
+          type: string
+          maxLength: 500
+          example: "Good performance in algebra"
 
 paths:
   /health:
@@ -1031,6 +1187,555 @@ paths:
                         type: array
                         items:
                           $ref: '#/components/schemas/Student'
+
+  # GRADES MANAGEMENT ENDPOINTS
+  /teacher/classes:
+    get:
+      tags:
+        - Grades Management
+      summary: Get teacher's classes for grading
+      description: Retrieve classes assigned to the teacher for grade management (Teacher only)
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Teacher classes retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          classes:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                name:
+                                  type: string
+                                  example: "JSS1"
+                                studentCount:
+                                  type: number
+                                  example: 25
+                          totalClasses:
+                            type: number
+                            example: 3
+
+  /teacher/classes/{className}/subjects:
+    get:
+      tags:
+        - Grades Management
+      summary: Get subjects by class
+      description: Retrieve subjects taught by the teacher for a specific class (Teacher only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: className
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Class name (e.g., JSS1)
+          example: "JSS1"
+      responses:
+        '200':
+          description: Subjects retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          className:
+                            type: string
+                            example: "JSS1"
+                          subjects:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                name:
+                                  type: string
+                                  example: "Mathematics"
+                                studentCount:
+                                  type: number
+                                  example: 25
+                                gradedCount:
+                                  type: number
+                                  example: 20
+                                gradingProgress:
+                                  type: number
+                                  example: 80
+                          totalSubjects:
+                            type: number
+                            example: 2
+
+  /teacher/classes/{className}/subjects/{subject}/students:
+    get:
+      tags:
+        - Grades Management
+      summary: Get students for grading
+      description: Retrieve students in a class for a specific subject with grade information (Teacher only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: className
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Class name (e.g., JSS1)
+          example: "JSS1"
+        - name: subject
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Subject name (e.g., Mathematics)
+          example: "Mathematics"
+        - name: term
+          in: query
+          schema:
+            type: string
+            enum: [First Term, Second Term, Third Term]
+          description: Academic term
+          example: "First Term"
+        - name: academicYear
+          in: query
+          schema:
+            type: string
+            pattern: '^\\d{4}-\\d{4}$'
+          description: Academic year
+          example: "2024-2025"
+        - name: page
+          in: query
+          schema:
+            type: number
+            default: 1
+          description: Page number
+        - name: limit
+          in: query
+          schema:
+            type: number
+            default: 10
+          description: Items per page
+      responses:
+        '200':
+          description: Students retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          className:
+                            type: string
+                            example: "JSS1"
+                          subject:
+                            type: string
+                            example: "Mathematics"
+                          term:
+                            type: string
+                            example: "First Term"
+                          academicYear:
+                            type: string
+                            example: "2024-2025"
+                          students:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                id:
+                                  type: string
+                                studentId:
+                                  type: string
+                                firstName:
+                                  type: string
+                                lastName:
+                                  type: string
+                                fullName:
+                                  type: string
+                                class:
+                                  type: string
+                                section:
+                                  type: string
+                                grade:
+                                  type: object
+                                  nullable: true
+                                hasGrade:
+                                  type: boolean
+                          pagination:
+                            type: object
+                            properties:
+                              page:
+                                type: number
+                              limit:
+                                type: number
+                              total:
+                                type: number
+                              pages:
+                                type: number
+                          statistics:
+                            type: object
+                            properties:
+                              totalStudents:
+                                type: number
+                              gradedStudents:
+                                type: number
+                              ungradedStudents:
+                                type: number
+                              gradingProgress:
+                                type: number
+
+  /teacher/grades:
+    post:
+      tags:
+        - Grades Management
+      summary: Assign grade to student
+      description: Create or update a grade record for a student (Teacher only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - studentId
+                - subject
+                - class
+                - term
+                - academicYear
+              properties:
+                studentId:
+                  type: string
+                  description: Student ID
+                  example: "507f1f77bcf86cd799439011"
+                subject:
+                  type: string
+                  description: Subject name
+                  example: "Mathematics"
+                class:
+                  type: string
+                  description: Class name
+                  example: "JSS1"
+                section:
+                  type: string
+                  description: Section name
+                  example: "A"
+                term:
+                  type: string
+                  enum: [First Term, Second Term, Third Term]
+                  example: "First Term"
+                academicYear:
+                  type: string
+                  pattern: '^\\d{4}-\\d{4}$'
+                  example: "2024-2025"
+                assessments:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Assessment'
+                remarks:
+                  type: string
+                  example: "Overall good performance. Needs improvement in geometry."
+      responses:
+        '201':
+          description: Grade assigned successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          grade:
+                            $ref: '#/components/schemas/Grade'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Not authorized to teach this subject/class
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /teacher/grades/{gradeId}:
+    get:
+      tags:
+        - Grades Management
+      summary: Get grade details
+      description: Retrieve detailed information about a specific grade (Teacher only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: gradeId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Grade ID
+          example: "507f1f77bcf86cd799439011"
+      responses:
+        '200':
+          description: Grade details retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          grade:
+                            $ref: '#/components/schemas/Grade'
+        '404':
+          description: Grade not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      tags:
+        - Grades Management
+      summary: Update existing grade
+      description: Update an existing grade record (Teacher only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: gradeId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Grade ID
+          example: "507f1f77bcf86cd799439011"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                assessments:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Assessment'
+                remarks:
+                  type: string
+                  example: "Excellent improvement shown throughout the term."
+      responses:
+        '200':
+          description: Grade updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          grade:
+                            $ref: '#/components/schemas/Grade'
+        '404':
+          description: Grade not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags:
+        - Grades Management
+      summary: Delete grade
+      description: Delete a grade record (Teacher only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: gradeId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Grade ID
+          example: "507f1f77bcf86cd799439011"
+      responses:
+        '200':
+          description: Grade deleted successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+        '404':
+          description: Grade not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /teacher/grades/publish:
+    post:
+      tags:
+        - Grades Management
+      summary: Publish grades to parents
+      description: Publish grades for a specific class and subject to make them visible to parents (Teacher only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - class
+                - subject
+                - term
+                - academicYear
+              properties:
+                class:
+                  type: string
+                  description: Class name
+                  example: "JSS1"
+                subject:
+                  type: string
+                  description: Subject name
+                  example: "Mathematics"
+                term:
+                  type: string
+                  enum: [First Term, Second Term, Third Term]
+                  example: "First Term"
+                academicYear:
+                  type: string
+                  pattern: '^\\d{4}-\\d{4}$'
+                  example: "2024-2025"
+      responses:
+        '200':
+          description: Grades published successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          publishedCount:
+                            type: number
+                            example: 25
+
+  /teacher/classes/{className}/subjects/{subject}/statistics:
+    get:
+      tags:
+        - Grades Management
+      summary: Get class performance statistics
+      description: Retrieve performance statistics for a class and subject (Teacher only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: className
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Class name (e.g., JSS1)
+          example: "JSS1"
+        - name: subject
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Subject name (e.g., Mathematics)
+          example: "Mathematics"
+        - name: term
+          in: query
+          schema:
+            type: string
+            enum: [First Term, Second Term, Third Term]
+          description: Academic term
+          example: "First Term"
+        - name: academicYear
+          in: query
+          schema:
+            type: string
+            pattern: '^\\d{4}-\\d{4}$'
+          description: Academic year
+          example: "2024-2025"
+      responses:
+        '200':
+          description: Class statistics retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          className:
+                            type: string
+                            example: "JSS1"
+                          subject:
+                            type: string
+                            example: "Mathematics"
+                          term:
+                            type: string
+                            example: "First Term"
+                          academicYear:
+                            type: string
+                            example: "2024-2025"
+                          statistics:
+                            type: object
+                            properties:
+                              totalStudents:
+                                type: number
+                                example: 25
+                              averagePercentage:
+                                type: number
+                                example: 78.5
+                              highestScore:
+                                type: number
+                                example: 95.0
+                              lowestScore:
+                                type: number
+                                example: 45.0
+                              gradeDistribution:
+                                type: object
+                                additionalProperties:
+                                  type: number
+                                example:
+                                  "A": 5
+                                  "B+": 8
+                                  "B": 7
+                                  "C+": 3
+                                  "C": 2
 
   /parent/dashboard:
     get:

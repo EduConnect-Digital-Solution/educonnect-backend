@@ -13,6 +13,7 @@ A comprehensive educational platform backend with Role-Based Access Control (RBA
 ### Core Functionality
 - **🏫 Multi-tenant School Management**: Each school operates as an isolated tenant with unique school IDs
 - **👥 Role-Based Access Control**: Comprehensive RBAC with Admin, Teacher, and Parent roles
+- **📊 Grades & Assessment Management**: Complete grading system with multi-assessment support, automatic calculations, and analytics
 - **📧 Invitation-based Registration**: Secure email invitations for teachers and parents with temporary passwords
 - **🔐 JWT Authentication**: Secure token-based authentication with refresh token mechanism
 - **📨 Email Integration**: Automated email notifications using Resend service
@@ -20,9 +21,9 @@ A comprehensive educational platform backend with Role-Based Access Control (RBA
 
 ### User Management
 - **School Admins**: Full school management capabilities
-- **Teachers**: Student management and dashboard access
-- **Parents**: Access to their children's information and progress
-- **Students**: Managed by admins with comprehensive profile system
+- **Teachers**: Student management, grades assignment, and dashboard access with class analytics
+- **Parents**: Access to their children's information, grades, and progress reports
+- **Students**: Managed by admins with comprehensive profile system and grade tracking
 
 ### Technical Features
 - **📊 MongoDB Integration**: Robust data persistence with Mongoose ODM
@@ -115,8 +116,19 @@ A comprehensive educational platform backend with Role-Based Access Control (RBA
 #### Dashboards
 - `GET /api/teacher/dashboard` - Teacher dashboard
 - `GET /api/teacher/students` - Teacher's students
+- `GET /api/teacher/classes` - Teacher's classes for grading
+- `GET /api/teacher/classes/:className/subjects` - Subjects by class
+- `GET /api/teacher/classes/:className/subjects/:subject/students` - Students for grading
 - `GET /api/parent/dashboard` - Parent dashboard
 - `GET /api/parent/children` - Parent's children
+
+#### Grades Management (Teachers)
+- `POST /api/teacher/grades` - Assign/update student grades
+- `GET /api/teacher/grades/:gradeId` - Get grade details
+- `PUT /api/teacher/grades/:gradeId` - Update existing grade
+- `DELETE /api/teacher/grades/:gradeId` - Delete grade
+- `POST /api/teacher/grades/publish` - Publish grades to parents
+- `GET /api/teacher/classes/:className/subjects/:subject/statistics` - Class performance analytics
 
 ### Authentication Flow
 

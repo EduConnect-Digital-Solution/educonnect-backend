@@ -1088,3 +1088,321 @@ All responses include rate limiting information:
 6. **Implement proper logout** to invalidate tokens
 7. **Use environment variables** for configuration
 8. **Monitor API usage** and implement proper logging
+#
+# Grades Management
+
+### 33. Get Teacher's Classes for Grading
+
+```bash
+curl -X GET http://localhost:3000/api/teacher/classes \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Teacher classes retrieved successfully",
+  "data": {
+    "classes": [
+      {
+        "name": "JSS1",
+        "studentCount": 25
+      },
+      {
+        "name": "JSS2",
+        "studentCount": 30
+      }
+    ],
+    "totalClasses": 2,
+    "generatedAt": "2024-01-25T10:30:00.000Z"
+  }
+}
+```
+
+### 34. Get Subjects by Class
+
+```bash
+curl -X GET http://localhost:3000/api/teacher/classes/JSS1/subjects \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Subjects retrieved successfully",
+  "data": {
+    "className": "JSS1",
+    "subjects": [
+      {
+        "name": "Mathematics",
+        "studentCount": 25,
+        "gradedCount": 15,
+        "gradingProgress": 60
+      },
+      {
+        "name": "English",
+        "studentCount": 25,
+        "gradedCount": 8,
+        "gradingProgress": 32
+      }
+    ],
+    "totalSubjects": 2
+  }
+}
+```
+
+### 35. Get Students for Grading
+
+```bash
+curl -X GET "http://localhost:3000/api/teacher/classes/JSS1/subjects/Mathematics/students?term=First%20Term&page=1&limit=10" \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Students retrieved successfully",
+  "data": {
+    "className": "JSS1",
+    "subject": "Mathematics",
+    "term": "First Term",
+    "academicYear": "2024-2025",
+    "students": [
+      {
+        "id": "674a927315ec8c579804387e",
+        "studentId": "ST001",
+        "firstName": "John",
+        "lastName": "Doe",
+        "fullName": "John Doe",
+        "class": "JSS1",
+        "section": "A",
+        "grade": null,
+        "hasGrade": false,
+        "parents": []
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 10,
+      "total": 25,
+      "pages": 3
+    },
+    "statistics": {
+      "totalStudents": 25,
+      "gradedStudents": 15,
+      "ungradedStudents": 10,
+      "gradingProgress": 60
+    }
+  }
+}
+```
+
+### 36. Assign Grade to Student
+
+```bash
+curl -X POST http://localhost:3000/api/teacher/grades \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "studentId": "674a927315ec8c579804387e",
+    "subject": "Mathematics",
+    "class": "JSS1",
+    "section": "A",
+    "term": "First Term",
+    "academicYear": "2024-2025",
+    "assessments": [
+      {
+        "type": "Test",
+        "title": "Mid-term Mathematics Test",
+        "score": 85,
+        "maxScore": 100,
+        "weight": 1,
+        "date": "2024-01-15T00:00:00.000Z",
+        "remarks": "Good performance in algebra"
+      },
+      {
+        "type": "Assignment",
+        "title": "Homework Assignment 1",
+        "score": 90,
+        "maxScore": 100,
+        "weight": 1,
+        "date": "2024-01-20T00:00:00.000Z",
+        "remarks": "Excellent work"
+      }
+    ],
+    "remarks": "Overall good performance. Needs improvement in geometry."
+  }'
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Grade assigned successfully",
+  "data": {
+    "grade": {
+      "id": "674b927315ec8c579804388f",
+      "studentId": "674a927315ec8c579804387e",
+      "subject": "Mathematics",
+      "class": "JSS1",
+      "term": "First Term",
+      "academicYear": "2024-2025",
+      "totalScore": 175,
+      "totalMaxScore": 200,
+      "percentage": 87.5,
+      "letterGrade": "B+",
+      "gradePoints": 3.3,
+      "assessments": [
+        {
+          "type": "Test",
+          "title": "Mid-term Mathematics Test",
+          "score": 85,
+          "maxScore": 100,
+          "weight": 1
+        },
+        {
+          "type": "Assignment",
+          "title": "Homework Assignment 1",
+          "score": 90,
+          "maxScore": 100,
+          "weight": 1
+        }
+      ],
+      "remarks": "Overall good performance. Needs improvement in geometry.",
+      "isPublished": false,
+      "createdAt": "2024-01-25T10:30:00.000Z",
+      "updatedAt": "2024-01-25T10:30:00.000Z"
+    }
+  }
+}
+```
+
+### 37. Update Existing Grade
+
+```bash
+curl -X PUT http://localhost:3000/api/teacher/grades/674b927315ec8c579804388f \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "assessments": [
+      {
+        "type": "Test",
+        "title": "Mid-term Mathematics Test",
+        "score": 88,
+        "maxScore": 100,
+        "weight": 1,
+        "date": "2024-01-15T00:00:00.000Z",
+        "remarks": "Improved performance"
+      },
+      {
+        "type": "Assignment",
+        "title": "Homework Assignment 1",
+        "score": 92,
+        "maxScore": 100,
+        "weight": 1,
+        "date": "2024-01-20T00:00:00.000Z"
+      },
+      {
+        "type": "Exam",
+        "title": "Final Exam",
+        "score": 85,
+        "maxScore": 100,
+        "weight": 2,
+        "date": "2024-02-01T00:00:00.000Z",
+        "remarks": "Good exam performance"
+      }
+    ],
+    "remarks": "Excellent improvement shown throughout the term."
+  }'
+```
+
+### 38. Get Grade Details
+
+```bash
+curl -X GET http://localhost:3000/api/teacher/grades/674b927315ec8c579804388f \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+```
+
+### 39. Publish Grades
+
+```bash
+curl -X POST http://localhost:3000/api/teacher/grades/publish \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "class": "JSS1",
+    "subject": "Mathematics",
+    "term": "First Term",
+    "academicYear": "2024-2025"
+  }'
+```
+
+### 40. Get Class Statistics
+
+```bash
+curl -X GET "http://localhost:3000/api/teacher/classes/JSS1/subjects/Mathematics/statistics?term=First%20Term&academicYear=2024-2025" \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+```
+
+### 41. Delete Grade
+
+```bash
+curl -X DELETE http://localhost:3000/api/teacher/grades/674b927315ec8c579804388f \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+```
+
+### 42. Complete Grading Workflow
+
+```bash
+# Step 1: Get teacher's classes
+CLASSES_RESPONSE=$(curl -s -X GET http://localhost:3000/api/teacher/classes \
+  -H "Authorization: Bearer $TEACHER_TOKEN")
+
+# Step 2: Get subjects for a class
+SUBJECTS_RESPONSE=$(curl -s -X GET http://localhost:3000/api/teacher/classes/JSS1/subjects \
+  -H "Authorization: Bearer $TEACHER_TOKEN")
+
+# Step 3: Get students for grading
+STUDENTS_RESPONSE=$(curl -s -X GET "http://localhost:3000/api/teacher/classes/JSS1/subjects/Mathematics/students?term=First%20Term" \
+  -H "Authorization: Bearer $TEACHER_TOKEN")
+
+# Extract first student ID
+STUDENT_ID=$(echo $STUDENTS_RESPONSE | jq -r '.data.students[0].id')
+
+# Step 4: Assign grade
+GRADE_RESPONSE=$(curl -s -X POST http://localhost:3000/api/teacher/grades \
+  -H "Authorization: Bearer $TEACHER_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"studentId\": \"$STUDENT_ID\",
+    \"subject\": \"Mathematics\",
+    \"class\": \"JSS1\",
+    \"section\": \"A\",
+    \"term\": \"First Term\",
+    \"academicYear\": \"2024-2025\",
+    \"assessments\": [
+      {
+        \"type\": \"Test\",
+        \"title\": \"Mid-term Test\",
+        \"score\": 85,
+        \"maxScore\": 100,
+        \"weight\": 1
+      }
+    ],
+    \"remarks\": \"Good performance\"
+  }")
+
+# Step 5: Publish grades
+curl -X POST http://localhost:3000/api/teacher/grades/publish \
+  -H "Authorization: Bearer $TEACHER_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "class": "JSS1",
+    "subject": "Mathematics",
+    "term": "First Term",
+    "academicYear": "2024-2025"
+  }'
+```
