@@ -57,6 +57,8 @@ tags:
     description: Student record management
   - name: Parent Management
     description: Parent invitation and management
+  - name: Teacher Assignment
+    description: Teacher-student linking and assignment management
   - name: Teacher Dashboard
     description: Teacher dashboard and student access
   - name: Parent Dashboard
@@ -1107,6 +1109,403 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Success'
+
+  # TEACHER ASSIGNMENT ENDPOINTS
+  /admin/assign-teacher:
+    post:
+      tags:
+        - Teacher Assignment
+      summary: Assign teacher to students
+      description: Assign a single teacher to one or more students (Admin only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - teacherId
+                - studentIds
+              properties:
+                teacherId:
+                  type: string
+                  description: Teacher ID to assign
+                  example: "507f1f77bcf86cd799439011"
+                studentIds:
+                  type: array
+                  items:
+                    type: string
+                  description: Array of student IDs
+                  example: ["507f1f77bcf86cd799439012", "507f1f77bcf86cd799439013"]
+                schoolId:
+                  type: string
+                  description: School ID (optional)
+                  example: "SCH001"
+      responses:
+        '200':
+          description: Teacher assigned successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          teacherId:
+                            type: string
+                          teacherName:
+                            type: string
+                          assignments:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                studentId:
+                                  type: string
+                                studentName:
+                                  type: string
+                                message:
+                                  type: string
+        '400':
+          description: Validation error or teacher/students not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/assign-teachers-bulk:
+    post:
+      tags:
+        - Teacher Assignment
+      summary: Bulk assign teachers to students
+      description: Assign multiple teachers to multiple students in one operation (Admin only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - assignments
+              properties:
+                assignments:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      teacherId:
+                        type: string
+                      studentIds:
+                        type: array
+                        items:
+                          type: string
+                  example:
+                    - teacherId: "507f1f77bcf86cd799439011"
+                      studentIds: ["507f1f77bcf86cd799439012", "507f1f77bcf86cd799439013"]
+                    - teacherId: "507f1f77bcf86cd799439014"
+                      studentIds: ["507f1f77bcf86cd799439015"]
+                schoolId:
+                  type: string
+                  description: School ID (optional)
+                  example: "SCH001"
+      responses:
+        '200':
+          description: Bulk assignment completed
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          totalAssignments:
+                            type: number
+                          successful:
+                            type: array
+                            items:
+                              type: object
+                          failed:
+                            type: array
+                            items:
+                              type: object
+
+  /admin/unassign-teacher:
+    delete:
+      tags:
+        - Teacher Assignment
+      summary: Unassign teacher from students
+      description: Remove a teacher from one or more students (Admin only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - teacherId
+                - studentIds
+              properties:
+                teacherId:
+                  type: string
+                  description: Teacher ID to unassign
+                  example: "507f1f77bcf86cd799439011"
+                studentIds:
+                  type: array
+                  items:
+                    type: string
+                  description: Array of student IDs
+                  example: ["507f1f77bcf86cd799439012", "507f1f77bcf86cd799439013"]
+                schoolId:
+                  type: string
+                  description: School ID (optional)
+                  example: "SCH001"
+      responses:
+        '200':
+          description: Teacher unassigned successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          teacherId:
+                            type: string
+                          teacherName:
+                            type: string
+                          unassignments:
+                            type: array
+                            items:
+                              type: object
+
+  /admin/students/{studentId}/teachers/{teacherId}:
+    post:
+      tags:
+        - Teacher Assignment
+      summary: Assign specific teacher to specific student
+      description: Assign a teacher to a single student (Admin only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: studentId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Student ID
+          example: "507f1f77bcf86cd799439012"
+        - name: teacherId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Teacher ID
+          example: "507f1f77bcf86cd799439011"
+        - name: schoolId
+          in: query
+          schema:
+            type: string
+          description: School ID (optional)
+          example: "SCH001"
+      responses:
+        '200':
+          description: Teacher assigned to student successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+    delete:
+      tags:
+        - Teacher Assignment
+      summary: Unassign specific teacher from specific student
+      description: Remove a teacher from a single student (Admin only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: studentId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Student ID
+          example: "507f1f77bcf86cd799439012"
+        - name: teacherId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Teacher ID
+          example: "507f1f77bcf86cd799439011"
+        - name: schoolId
+          in: query
+          schema:
+            type: string
+          description: School ID (optional)
+          example: "SCH001"
+      responses:
+        '200':
+          description: Teacher unassigned from student successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+
+  /admin/teachers/{teacherId}/students:
+    get:
+      tags:
+        - Teacher Assignment
+      summary: Get teacher's assigned students
+      description: Retrieve all students assigned to a specific teacher (Admin/Teacher)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: teacherId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Teacher ID
+          example: "507f1f77bcf86cd799439011"
+        - name: schoolId
+          in: query
+          schema:
+            type: string
+          description: School ID (optional)
+          example: "SCH001"
+        - name: page
+          in: query
+          schema:
+            type: number
+            default: 1
+          description: Page number
+        - name: limit
+          in: query
+          schema:
+            type: number
+            default: 20
+          description: Items per page
+      responses:
+        '200':
+          description: Teacher's students retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          teacher:
+                            type: object
+                            properties:
+                              id:
+                                type: string
+                              name:
+                                type: string
+                              email:
+                                type: string
+                              subjects:
+                                type: array
+                                items:
+                                  type: string
+                          students:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/Student'
+                          pagination:
+                            type: object
+                            properties:
+                              page:
+                                type: number
+                              limit:
+                                type: number
+                              total:
+                                type: number
+                              pages:
+                                type: number
+
+  /admin/students/{studentId}/teachers:
+    get:
+      tags:
+        - Teacher Assignment
+      summary: Get student's assigned teachers
+      description: Retrieve all teachers assigned to a specific student (Admin/Teacher/Parent)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: studentId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Student ID
+          example: "507f1f77bcf86cd799439012"
+        - name: schoolId
+          in: query
+          schema:
+            type: string
+          description: School ID (optional)
+          example: "SCH001"
+      responses:
+        '200':
+          description: Student's teachers retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          student:
+                            type: object
+                            properties:
+                              id:
+                                type: string
+                              studentId:
+                                type: string
+                              name:
+                                type: string
+                              class:
+                                type: string
+                              section:
+                                type: string
+                          teachers:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                id:
+                                  type: string
+                                name:
+                                  type: string
+                                email:
+                                  type: string
+                                subjects:
+                                  type: array
+                                  items:
+                                    type: string
+                          totalTeachers:
+                            type: number
 
   /teacher/dashboard:
     get:
