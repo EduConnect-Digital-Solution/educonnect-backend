@@ -185,6 +185,19 @@ const getParentDetails = async (req, res) => {
     const { parentId } = req.params;
     const { schoolId } = req.query;
     
+    // Import required models
+    const User = require('../models/User');
+    const School = require('../models/School');
+    const mongoose = require('mongoose');
+    
+    // Validate ObjectId format
+    if (!mongoose.Types.ObjectId.isValid(parentId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid parent ID format'
+      });
+    }
+    
     // Get school info
     let targetSchoolId = schoolId;
     if (!targetSchoolId) {
@@ -274,9 +287,14 @@ const getParentDetails = async (req, res) => {
 
   } catch (error) {
     console.error('Get parent details error:', error);
+    console.error('Error stack:', error.stack);
+    console.error('Parent ID:', req.params.parentId);
+    console.error('School ID:', req.query.schoolId);
+    
     res.status(500).json({
       success: false,
-      message: 'Internal server error while retrieving parent details'
+      message: 'Internal server error while retrieving parent details',
+      ...(process.env.NODE_ENV === 'development' && { error: error.message })
     });
   }
 };
@@ -299,6 +317,11 @@ const linkParentToStudents = async (req, res) => {
 
     const { parentId } = req.params;
     const { studentIds, schoolId } = req.body;
+    
+    // Import required models
+    const User = require('../models/User');
+    const Student = require('../models/Student');
+    const School = require('../models/School');
     
     // Get school info
     let targetSchoolId = schoolId;
@@ -432,6 +455,11 @@ const unlinkParentFromStudents = async (req, res) => {
     const { parentId } = req.params;
     const { studentIds, schoolId } = req.body;
     
+    // Import required models
+    const User = require('../models/User');
+    const Student = require('../models/Student');
+    const School = require('../models/School');
+    
     // Get school info
     let targetSchoolId = schoolId;
     if (!targetSchoolId) {
@@ -543,6 +571,11 @@ const removeParent = async (req, res) => {
 
     const { parentId } = req.params;
     const { reason, schoolId } = req.body;
+    
+    // Import required models
+    const User = require('../models/User');
+    const Student = require('../models/Student');
+    const School = require('../models/School');
     
     // Get school info
     let targetSchoolId = schoolId;
