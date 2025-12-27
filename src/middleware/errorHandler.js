@@ -84,15 +84,15 @@ const sendErrorProd = (err, req, res) => {
     timestamp: new Date().toISOString(),
     method: req.method,
     url: req.originalUrl,
-    userAgent: req.get('User-Agent'),
-    ip: req.ip || req.connection.remoteAddress,
+    userAgent: req.get ? req.get('User-Agent') : req.headers?.['user-agent'],
+    ip: req.ip || req.connection?.remoteAddress,
     body: req.body ? JSON.stringify(req.body) : 'No body',
     query: req.query ? JSON.stringify(req.query) : 'No query',
     params: req.params ? JSON.stringify(req.params) : 'No params',
     headers: {
-      authorization: req.headers.authorization ? 'Bearer [REDACTED]' : 'None',
-      'content-type': req.headers['content-type'] || 'None',
-      'x-forwarded-for': req.headers['x-forwarded-for'] || 'None'
+      authorization: req.headers?.authorization ? 'Bearer [REDACTED]' : 'None',
+      'content-type': req.headers?.['content-type'] || 'None',
+      'x-forwarded-for': req.headers?.['x-forwarded-for'] || 'None'
     },
     error: {
       name: err.name,

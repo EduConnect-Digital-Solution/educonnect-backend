@@ -127,7 +127,22 @@ const studentSchema = new mongoose.Schema({
     }
   }],
 
-  // Legacy field for backward compatibility
+  teacherIds: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    validate: {
+      validator: async function(teacherId) {
+        // Validate that the referenced user is actually a teacher
+        if (!teacherId) return true;
+        const User = mongoose.model('User');
+        const teacher = await User.findById(teacherId);
+        return teacher && teacher.role === 'teacher';
+      },
+      message: 'Referenced user must be a teacher'
+    }
+  }],
+
+  // Legacy fields for backward compatibility
   parents: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
@@ -241,8 +256,10 @@ studentSchema.index({ schoolId: 1, studentId: 1 }, { unique: true });
 studentSchema.index({ schoolId: 1, email: 1 }, { unique: true, sparse: true });
 studentSchema.index({ schoolId: 1, class: 1, section: 1 });
 studentSchema.index({ schoolId: 1, isActive: 1, isEnrolled: 1 });
-studentSchema.index({ parents: 1 });
-studentSchema.index({ teachers: 1 });
+studentSchema.index({ parentIds: 1 });
+studentSchema.index({ teacherIds: 1 });
+studentSchema.index({ parents: 1 }); // Legacy support
+studentSchema.index({ teachers: 1 }); // Legacy support
 
 /**
  * Pre-validate middleware to generate studentId if not present

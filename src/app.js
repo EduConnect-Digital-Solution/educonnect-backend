@@ -41,6 +41,18 @@ app.use('/api/system-admin/auth', authLimiter);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// Root endpoint
+app.get('/', (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'EduConnect API is running',
+    version: '1.0.0',
+    timestamp: new Date().toISOString(),
+    environment: config.nodeEnv,
+    documentation: '/api-docs'
+  });
+});
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({

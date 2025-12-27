@@ -22,8 +22,9 @@ const ROLE_HIERARCHY = {
 
 /**
  * Check if user has required role or higher
+ * Can accept either a single role string or an array of allowed roles
  */
-const requireRole = (requiredRole) => {
+const requireRole = (requiredRoles) => {
   return (req, res, next) => {
     if (!req.user) {
       return res.status(401).json({
@@ -32,14 +33,26 @@ const requireRole = (requiredRole) => {
       });
     }
 
-    const userRoleLevel = ROLE_HIERARCHY[req.user.role];
-    const requiredRoleLevel = ROLE_HIERARCHY[requiredRole];
+    // Handle both single role and array of roles
+    const allowedRoles = Array.isArray(requiredRoles) ? requiredRoles : [requiredRoles];
+    
+    // Check if user's role is in the allowed roles
+    if (allowedRoles.includes(req.user.role)) {
+      return next();
+    }
 
-    if (!userRoleLevel || userRoleLevel < requiredRoleLevel) {
+    // For backward compatibility, also check role hierarchy
+    const userRoleLevel = ROLE_HIERARCHY[req.user.role];
+    const hasAccess = allowedRoles.some(role => {
+      const requiredRoleLevel = ROLE_HIERARCHY[role];
+      return userRoleLevel && requiredRoleLevel && userRoleLevel >= requiredRoleLevel;
+    });
+
+    if (!hasAccess) {
       return res.status(403).json({
         success: false,
         message: 'Insufficient permissions',
-        required: requiredRole,
+        required: allowedRoles,
         current: req.user.role
       });
     }
@@ -51,7 +64,25 @@ const requireRole = (requiredRole) => {
 /**
  * Require admin role specifically
  */
-const requireAdmin = requireRole(ROLES.ADMIN);
+const requireAdmin = (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({
+      success: false,
+      message: 'Authentication required'
+    });
+  }
+
+  if (req.user.role !== ROLES.ADMIN && req.user.role !== ROLES.SYSTEM_ADMIN) {
+    return res.status(403).json({
+      success: false,
+      message: 'Insufficient permissions',
+      required: 'admin',
+      current: req.user.role
+    });
+  }
+
+  next();
+};
 
 /**
  * Require teacher role or higher
