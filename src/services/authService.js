@@ -160,8 +160,8 @@ const verifyEmail = async (email, otp, requestIP) => {
   // Send school ID email
   const emailResult = await EmailService.sendSchoolIdEmail(
     school.email,
-    school.schoolName,
-    school.schoolId
+    school.schoolId,
+    school.schoolName
   );
 
   return {
