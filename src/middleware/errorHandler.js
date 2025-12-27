@@ -76,7 +76,7 @@ const sendErrorDev = (err, res) => {
  */
 const sendErrorProd = (err, req, res) => {
   // Generate unique error ID for tracking
-  const errorId = `ERR_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const errorId = `ERR_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
   
   // Enhanced error logging for production debugging
   const errorDetails = {
@@ -105,6 +105,30 @@ const sendErrorProd = (err, req, res) => {
   };
 
   if (err.isOperational) {
+    // Log operational errors with context
+    console.warn(`🚨 OPERATIONAL ERROR [${errorId}]:`, JSON.stringify(errorDetails, null, 2));
+    logger.warn('Operational Error', errorDetails);
+    
+    res.status(err.statusCode).json({
+      success: false,
+      message: err.message,
+      code: err.code,
+      errorId: errorId,
+      ...(err.errors && { errors: err.errors })
+    });
+  } else {
+    // Log non-operational errors with full details
+    console.error(`💥 CRITICAL ERROR [${errorId}]:`, JSON.stringify(errorDetails, null, 2));
+    logger.error('Critical Error', errorDetails);
+
+    res.status(500).json({
+      success: false,
+      message: 'Something went wrong!',
+      code: 'INTERNAL_SERVER_ERROR',
+      errorId: errorId
+    });
+  }
+};
 
 /**
  * Global error handling middleware
