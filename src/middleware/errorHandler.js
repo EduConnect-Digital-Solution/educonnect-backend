@@ -74,28 +74,37 @@ const sendErrorDev = (err, res) => {
 /**
  * Send error response in production
  */
-const sendErrorProd = (err, res) => {
-  if (err.isOperational) {
-    res.status(err.statusCode).json({
-      success: false,
+const sendErrorProd = (err, req, res) => {
+  // Generate unique error ID for tracking
+  const errorId = `ERR_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  
+  // Enhanced error logging for production debugging
+  const errorDetails = {
+    errorId,
+    timestamp: new Date().toISOString(),
+    method: req.method,
+    url: req.originalUrl,
+    userAgent: req.get('User-Agent'),
+    ip: req.ip || req.connection.remoteAddress,
+    body: req.body ? JSON.stringify(req.body) : 'No body',
+    query: req.query ? JSON.stringify(req.query) : 'No query',
+    params: req.params ? JSON.stringify(req.params) : 'No params',
+    headers: {
+      authorization: req.headers.authorization ? 'Bearer [REDACTED]' : 'None',
+      'content-type': req.headers['content-type'] || 'None',
+      'x-forwarded-for': req.headers['x-forwarded-for'] || 'None'
+    },
+    error: {
+      name: err.name,
       message: err.message,
       code: err.code,
-      ...(err.errors && { errors: err.errors })
-    });
-  } else {
-    logger.error('ERROR 💥', {
-      message: err.message,
+      statusCode: err.statusCode,
       stack: err.stack,
-      error: err
-    });
+      isOperational: err.isOperational
+    }
+  };
 
-    res.status(500).json({
-      success: false,
-      message: 'Something went wrong!',
-      code: 'INTERNAL_SERVER_ERROR'
-    });
-  }
-};
+  if (err.isOperational) {
 
 /**
  * Global error handling middleware
@@ -137,7 +146,7 @@ const globalErrorHandler = (err, req, res, next) => {
       if (error.message.includes('File too large')) error.code = 'FILE_TOO_LARGE';
     }
 
-    sendErrorProd(error, res);
+    sendErrorProd(error, req, res);
   }
 };
 

@@ -5,29 +5,11 @@ const rateLimit = require('express-rate-limit');
 const config = require('./config');
 const logger = require('./utils/logger');
 const { globalErrorHandler } = require('./middleware/errorHandler');
-
-// Request logging middleware
-const requestLogger = (req, res, next) => {
-  const start = Date.now();
-
-  res.on('finish', () => {
-    const duration = Date.now() - start;
-    logger.info('HTTP Request', {
-      method: req.method,
-      url: req.url,
-      status: res.statusCode,
-      duration: `${duration}ms`,
-      ip: req.ip,
-      userAgent: req.get('User-Agent')
-    });
-  });
-
-  next();
-};
+const requestLogger = require('./middleware/requestLogger');
 
 const app = express();
 
-// Request logging middleware (before other middleware)
+// Enhanced request logging middleware (before other middleware)
 app.use(requestLogger);
 
 // Security middleware
@@ -67,6 +49,37 @@ app.get('/health', (req, res) => {
     timestamp: new Date().toISOString(),
     environment: config.nodeEnv
   });
+});
+
+// Debug endpoint for production troubleshooting
+app.get('/debug', (req, res) => {
+  const debugInfo = {
+    success: true,
+    timestamp: new Date().toISOString(),
+    environment: config.nodeEnv,
+    server: {
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      pid: process.pid,
+      version: process.version,
+      platform: process.platform
+    },
+    database: {
+      connected: require('mongoose').connection.readyState === 1,
+      readyState: require('mongoose').connection.readyState,
+      host: require('mongoose').connection.host || 'Not connected'
+    },
+    env: {
+      nodeEnv: process.env.NODE_ENV,
+      port: process.env.PORT,
+      mongoUri: process.env.MONGODB_URI ? 'Set' : 'Not set',
+      jwtSecret: process.env.JWT_SECRET ? 'Set' : 'Not set',
+      redisUrl: process.env.REDIS_URL ? 'Set' : 'Not set'
+    }
+  };
+
+  console.log('🔍 DEBUG INFO REQUESTED:', JSON.stringify(debugInfo, null, 2));
+  res.status(200).json(debugInfo);
 });
 
 // Import routes

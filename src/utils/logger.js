@@ -22,16 +22,14 @@ const logger = winston.createLogger({
 });
 
 //
-// If we're not in production then log to the `console` with the format:
-// `${info.level}: ${info.message} JSON.stringify({ ...rest }) `
+// Always log to console for better debugging in production
 //
-if (process.env.NODE_ENV !== 'production') {
-    logger.add(new winston.transports.Console({
-        format: winston.format.combine(
-            winston.format.colorize(),
-            winston.format.simple()
-        ),
-    }));
-}
+logger.add(new winston.transports.Console({
+    format: winston.format.combine(
+        winston.format.colorize(),
+        winston.format.simple()
+    ),
+    level: process.env.NODE_ENV === 'production' ? 'warn' : 'debug'
+}));
 
 module.exports = logger;
