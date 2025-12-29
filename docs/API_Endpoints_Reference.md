@@ -7,10 +7,11 @@
 ## 📋 Table of Contents
 1. [Authentication Endpoints](#authentication-endpoints)
 2. [Admin Endpoints](#admin-endpoints)
-3. [Teacher Dashboard Endpoints](#teacher-dashboard-endpoints)
-4. [Parent Dashboard Endpoints](#parent-dashboard-endpoints)
-5. [Request/Response Format](#requestresponse-format)
-6. [Authentication Headers](#authentication-headers)
+3. [Teacher Class Assignment](#teacher-class-assignment)
+4. [Teacher Dashboard Endpoints](#teacher-dashboard-endpoints)
+5. [Parent Dashboard Endpoints](#parent-dashboard-endpoints)
+6. [Request/Response Format](#requestresponse-format)
+7. [Authentication Headers](#authentication-headers)
 
 ---
 
@@ -609,6 +610,123 @@ POST /api/school/auth/cancel-invitation
   "invitationId": "string (required)",
   "reason": "string (optional)",
   "schoolId": "string (optional)"
+}
+```
+
+---
+
+## 👨‍🏫 Teacher Class Assignment
+
+#### 1. Assign Classes to Teacher
+```http
+POST /api/admin/teachers/assign-classes
+```
+**Access:** Admin only  
+**Headers:** `Authorization: Bearer {token}`  
+**Rate Limit:** 20 requests per minute  
+
+**Request Body:**
+```json
+{
+  "teacherId": "507f1f77bcf86cd799439011",
+  "classes": ["JSS1", "JSS2", "JSS3"],
+  "schoolId": "SCH0001"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Teacher assigned to 3 new class(es) successfully",
+  "data": {
+    "teacher": {
+      "id": "507f1f77bcf86cd799439011",
+      "name": "John Smith",
+      "email": "john.smith@school.edu",
+      "employeeId": "EMP001",
+      "classes": ["JSS1", "JSS2", "JSS3"],
+      "subjects": ["Mathematics", "Physics"]
+    },
+    "assignedClasses": ["JSS1", "JSS2", "JSS3"],
+    "totalClasses": 3
+  }
+}
+```
+
+---
+
+#### 2. Assign Subjects to Teacher
+```http
+POST /api/admin/teachers/assign-subjects
+```
+**Access:** Admin only  
+**Headers:** `Authorization: Bearer {token}`  
+**Rate Limit:** 20 requests per minute  
+
+**Request Body:**
+```json
+{
+  "teacherId": "507f1f77bcf86cd799439011",
+  "subjects": ["Mathematics", "Physics", "Chemistry"],
+  "schoolId": "SCH0001"
+}
+```
+
+---
+
+#### 3. Remove Classes from Teacher
+```http
+DELETE /api/admin/teachers/remove-classes
+```
+**Access:** Admin only  
+**Headers:** `Authorization: Bearer {token}`  
+**Rate Limit:** 20 requests per minute  
+
+**Request Body:**
+```json
+{
+  "teacherId": "507f1f77bcf86cd799439011",
+  "classes": ["JSS2"],
+  "schoolId": "SCH0001"
+}
+```
+
+---
+
+#### 4. Get Teacher's Current Assignments
+```http
+GET /api/admin/teachers/{teacherId}/assignments
+```
+**Access:** Admin only  
+**Headers:** `Authorization: Bearer {token}`  
+**Rate Limit:** 60 requests per minute  
+
+**Parameters:**
+- `teacherId` (path): Teacher's MongoDB ObjectId
+- `schoolId` (query): School ID (optional)
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Teacher assignments retrieved successfully",
+  "data": {
+    "teacher": {
+      "id": "507f1f77bcf86cd799439011",
+      "name": "John Smith",
+      "email": "john.smith@school.edu",
+      "employeeId": "EMP001",
+      "phone": "+1234567890",
+      "isActive": true
+    },
+    "assignments": {
+      "classes": ["JSS1", "JSS3"],
+      "subjects": ["Mathematics", "Physics", "Chemistry"],
+      "classCount": 2,
+      "subjectCount": 3
+    }
+  }
 }
 ```
 

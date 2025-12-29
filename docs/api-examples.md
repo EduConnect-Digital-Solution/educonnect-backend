@@ -201,30 +201,158 @@ curl -X POST http://localhost:3000/api/user/auth/complete-registration \
   }'
 ```
 
+## 8. Teacher Class Assignment
+
+### 8.1 Assign Classes to Teacher
+```bash
+# POST /api/admin/teachers/assign-classes
+curl -X POST "https://educonnect-backend.onrender.com/api/admin/teachers/assign-classes" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "teacherId": "507f1f77bcf86cd799439011",
+    "classes": ["JSS1", "JSS2", "JSS3"],
+    "schoolId": "SCH0001"
+  }'
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Teacher assigned to 3 new class(es) successfully",
+  "data": {
+    "teacher": {
+      "id": "507f1f77bcf86cd799439011",
+      "name": "John Smith",
+      "email": "john.smith@school.edu",
+      "employeeId": "EMP001",
+      "classes": ["JSS1", "JSS2", "JSS3"],
+      "subjects": ["Mathematics", "Physics"]
+    },
+    "assignedClasses": ["JSS1", "JSS2", "JSS3"],
+    "totalClasses": 3
+  }
+}
+```
+
+### 8.2 Assign Subjects to Teacher
+```bash
+# POST /api/admin/teachers/assign-subjects
+curl -X POST "https://educonnect-backend.onrender.com/api/admin/teachers/assign-subjects" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "teacherId": "507f1f77bcf86cd799439011",
+    "subjects": ["Mathematics", "Physics", "Chemistry"],
+    "schoolId": "SCH0001"
+  }'
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Teacher assigned to 3 new subject(s) successfully",
+  "data": {
+    "teacher": {
+      "id": "507f1f77bcf86cd799439011",
+      "name": "John Smith",
+      "email": "john.smith@school.edu",
+      "employeeId": "EMP001",
+      "classes": ["JSS1", "JSS2", "JSS3"],
+      "subjects": ["Mathematics", "Physics", "Chemistry"]
+    },
+    "assignedSubjects": ["Mathematics", "Physics", "Chemistry"],
+    "totalSubjects": 3
+  }
+}
+```
+
+### 8.3 Remove Classes from Teacher
+```bash
+# DELETE /api/admin/teachers/remove-classes
+curl -X DELETE "https://educonnect-backend.onrender.com/api/admin/teachers/remove-classes" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "teacherId": "507f1f77bcf86cd799439011",
+    "classes": ["JSS2"],
+    "schoolId": "SCH0001"
+  }'
+```
+
+### 8.4 Get Teacher's Current Assignments
+```bash
+# GET /api/admin/teachers/{teacherId}/assignments
+curl -X GET "https://educonnect-backend.onrender.com/api/admin/teachers/507f1f77bcf86cd799439011/assignments?schoolId=SCH0001" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Teacher assignments retrieved successfully",
+  "data": {
+    "teacher": {
+      "id": "507f1f77bcf86cd799439011",
+      "name": "John Smith",
+      "email": "john.smith@school.edu",
+      "employeeId": "EMP001",
+      "phone": "+1234567890",
+      "isActive": true
+    },
+    "assignments": {
+      "classes": ["JSS1", "JSS3"],
+      "subjects": ["Mathematics", "Physics", "Chemistry"],
+      "classCount": 2,
+      "subjectCount": 3
+    }
+  }
+}
+```
+
+### 8.5 Invite Teacher with Classes and Subjects
+```bash
+# POST /api/admin/invite-teacher (Enhanced)
+curl -X POST "https://educonnect-backend.onrender.com/api/admin/invite-teacher" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "newteacher@example.com",
+    "firstName": "Jane",
+    "lastName": "Doe",
+    "subjects": ["English", "Literature"],
+    "classes": ["JSS1", "JSS2"],
+    "message": "Welcome to our school! You have been assigned to teach English and Literature."
+  }'
+```
+
 ## Dashboard Examples
 
-### 10. Teacher Dashboard
+### 9. Teacher Dashboard
 
 ```bash
 curl -X GET http://localhost:3000/api/teacher/dashboard \
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 ```
 
-### 11. Get Teacher's Students
+### 10. Get Teacher's Students
 
 ```bash
 curl -X GET http://localhost:3000/api/teacher/students \
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 ```
 
-### 12. Parent Dashboard
+### 11. Parent Dashboard
 
 ```bash
 curl -X GET http://localhost:3000/api/parent/dashboard \
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 ```
 
-### 13. Get Parent's Children
+### 12. Get Parent's Children
 
 ```bash
 curl -X GET http://localhost:3000/api/parent/children \
@@ -405,7 +533,7 @@ When rate limited, you'll receive a 429 status code with retry information.
 
 ## School Profile Management
 
-### 14. Get School Profile (Admin Only)
+### 13. Get School Profile (Admin Only)
 
 ```bash
 curl -X GET http://localhost:3000/api/school/profile \
@@ -430,7 +558,7 @@ curl -X GET http://localhost:3000/api/school/profile \
 }
 ```
 
-### 15. Update School Profile (Admin Only)
+### 14. Update School Profile (Admin Only)
 
 ```bash
 curl -X PUT http://localhost:3000/api/school/profile \
@@ -446,7 +574,7 @@ curl -X PUT http://localhost:3000/api/school/profile \
 
 ## Advanced Student Management
 
-### 16. Update Student Information
+### 15. Update Student Information
 
 ```bash
 curl -X PUT http://localhost:3000/api/students/507f1f77bcf86cd799439011 \
@@ -459,7 +587,7 @@ curl -X PUT http://localhost:3000/api/students/507f1f77bcf86cd799439011 \
   }'
 ```
 
-### 17. Toggle Student Status
+### 16. Toggle Student Status
 
 ```bash
 curl -X POST http://localhost:3000/api/students/toggle-status \
@@ -472,7 +600,7 @@ curl -X POST http://localhost:3000/api/students/toggle-status \
   }'
 ```
 
-### 18. Bulk Student Operations
+### 17. Bulk Student Operations
 
 ```bash
 # Bulk update student class
@@ -490,7 +618,7 @@ curl -X POST http://localhost:3000/api/students/bulk-update \
 
 ## Parent Management Advanced Examples
 
-### 19. Get Parent Details with Children
+### 18. Get Parent Details with Children
 
 ```bash
 curl -X GET http://localhost:3000/api/parent-management/parents/507f1f77bcf86cd799439013 \

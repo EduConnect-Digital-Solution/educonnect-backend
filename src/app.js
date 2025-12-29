@@ -104,6 +104,7 @@ const schoolProfileRoutes = require('./routes/schoolProfile');
 const studentManagementRoutes = require('./routes/studentManagement');
 const parentManagementRoutes = require('./routes/parentManagement');
 const teacherAssignmentRoutes = require('./routes/teacherAssignment');
+const teacherClassAssignmentRoutes = require('./routes/teacherClassAssignment');
 
 // System Admin routes
 const systemAdminAuthRoutes = require('./routes/systemAdminAuth');
@@ -125,6 +126,7 @@ app.use('/api/school/profile', schoolProfileRoutes);
 app.use('/api/students', studentManagementRoutes);
 app.use('/api/parent-management', parentManagementRoutes);
 app.use('/api/admin', teacherAssignmentRoutes);
+app.use('/api/admin/teachers', teacherClassAssignmentRoutes);
 
 // System Admin routes
 app.use('/api/system-admin/auth', systemAdminAuthRoutes);

@@ -59,6 +59,8 @@ tags:
     description: Parent invitation and management
   - name: Teacher Assignment
     description: Teacher-student linking and assignment management
+  - name: Teacher Class Assignment
+    description: Admin management of teacher class and subject assignments
   - name: Teacher Dashboard
     description: Teacher dashboard and student access
   - name: Parent Dashboard
@@ -1506,6 +1508,299 @@ paths:
                                     type: string
                           totalTeachers:
                             type: number
+
+  # ============================================================================
+  # TEACHER CLASS ASSIGNMENT ENDPOINTS
+  # ============================================================================
+
+  /admin/teachers/assign-classes:
+    post:
+      tags:
+        - Teacher Class Assignment
+      summary: Assign classes to a teacher
+      description: Admin can assign multiple classes to a teacher (Admin only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - teacherId
+                - classes
+              properties:
+                teacherId:
+                  type: string
+                  format: objectId
+                  description: MongoDB ObjectId of the teacher
+                  example: "507f1f77bcf86cd799439011"
+                classes:
+                  type: array
+                  items:
+                    type: string
+                  description: Array of class names to assign
+                  example: ["JSS1", "JSS2", "JSS3"]
+                schoolId:
+                  type: string
+                  pattern: '^[A-Z]{3}[0-9]{4}$'
+                  description: School ID (optional, defaults to user's school)
+                  example: "SCH0001"
+      responses:
+        '200':
+          description: Classes assigned successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Teacher assigned to 3 new class(es) successfully"
+                  data:
+                    type: object
+                    properties:
+                      teacher:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                          name:
+                            type: string
+                          email:
+                            type: string
+                          employeeId:
+                            type: string
+                          classes:
+                            type: array
+                            items:
+                              type: string
+                          subjects:
+                            type: array
+                            items:
+                              type: string
+                      assignedClasses:
+                        type: array
+                        items:
+                          type: string
+                      totalClasses:
+                        type: integer
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '404':
+          description: Teacher not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/teachers/assign-subjects:
+    post:
+      tags:
+        - Teacher Class Assignment
+      summary: Assign subjects to a teacher
+      description: Admin can assign multiple subjects to a teacher (Admin only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - teacherId
+                - subjects
+              properties:
+                teacherId:
+                  type: string
+                  format: objectId
+                  description: MongoDB ObjectId of the teacher
+                  example: "507f1f77bcf86cd799439011"
+                subjects:
+                  type: array
+                  items:
+                    type: string
+                  description: Array of subject names to assign
+                  example: ["Mathematics", "Physics", "Chemistry"]
+                schoolId:
+                  type: string
+                  pattern: '^[A-Z]{3}[0-9]{4}$'
+                  description: School ID (optional, defaults to user's school)
+                  example: "SCH0001"
+      responses:
+        '200':
+          description: Subjects assigned successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Teacher assigned to 3 new subject(s) successfully"
+                  data:
+                    type: object
+                    properties:
+                      teacher:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                          name:
+                            type: string
+                          email:
+                            type: string
+                          employeeId:
+                            type: string
+                          classes:
+                            type: array
+                            items:
+                              type: string
+                          subjects:
+                            type: array
+                            items:
+                              type: string
+                      assignedSubjects:
+                        type: array
+                        items:
+                          type: string
+                      totalSubjects:
+                        type: integer
+
+  /admin/teachers/remove-classes:
+    delete:
+      tags:
+        - Teacher Class Assignment
+      summary: Remove classes from a teacher
+      description: Admin can remove multiple classes from a teacher (Admin only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - teacherId
+                - classes
+              properties:
+                teacherId:
+                  type: string
+                  format: objectId
+                  description: MongoDB ObjectId of the teacher
+                  example: "507f1f77bcf86cd799439011"
+                classes:
+                  type: array
+                  items:
+                    type: string
+                  description: Array of class names to remove
+                  example: ["JSS2"]
+                schoolId:
+                  type: string
+                  pattern: '^[A-Z]{3}[0-9]{4}$'
+                  description: School ID (optional, defaults to user's school)
+                  example: "SCH0001"
+      responses:
+        '200':
+          description: Classes removed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Teacher removed from 1 class(es) successfully"
+
+  /admin/teachers/{teacherId}/assignments:
+    get:
+      tags:
+        - Teacher Class Assignment
+      summary: Get teacher's current assignments
+      description: Retrieve all classes and subjects assigned to a specific teacher (Admin only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: teacherId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: objectId
+          example: "507f1f77bcf86cd799439011"
+        - name: schoolId
+          in: query
+          schema:
+            type: string
+            pattern: '^[A-Z]{3}[0-9]{4}$'
+          example: "SCH0001"
+      responses:
+        '200':
+          description: Teacher assignments retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Teacher assignments retrieved successfully"
+                  data:
+                    type: object
+                    properties:
+                      teacher:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                          name:
+                            type: string
+                          email:
+                            type: string
+                          employeeId:
+                            type: string
+                          phone:
+                            type: string
+                          isActive:
+                            type: boolean
+                      assignments:
+                        type: object
+                        properties:
+                          classes:
+                            type: array
+                            items:
+                              type: string
+                          subjects:
+                            type: array
+                            items:
+                              type: string
+                          classCount:
+                            type: integer
+                          subjectCount:
+                            type: integer
+
+  # ============================================================================
+  # TEACHER DASHBOARD ENDPOINTS
+  # ============================================================================
 
   /teacher/dashboard:
     get:

@@ -22,6 +22,7 @@ const createTeacherInvitation = async (invitationData, schoolId, adminUserId) =>
     firstName,
     lastName,
     subjects,
+    classes,
     message
   } = invitationData;
 
@@ -73,6 +74,7 @@ const createTeacherInvitation = async (invitationData, schoolId, adminUserId) =>
     verifiedAt: new Date(),
     // Teacher-specific fields
     subjects: subjects || [],
+    classes: classes || [],
     // Set invitation details
     invitedBy: adminUser._id,
     invitedAt: new Date()
@@ -92,7 +94,8 @@ const createTeacherInvitation = async (invitationData, schoolId, adminUserId) =>
       lastName,
       message: message || null,
       userId: teacher._id,
-      tempPassword: tempPassword
+      tempPassword: tempPassword,
+      classes: classes || []
     },
     expiresAt: new Date(Date.now() + 72 * 60 * 60 * 1000) // 72 hours
   });
@@ -116,6 +119,7 @@ const createTeacherInvitation = async (invitationData, schoolId, adminUserId) =>
       loginUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/login`,
       completeRegistrationUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/complete-registration?role=teacher`,
       subjects: subjects ? subjects.join(', ') : 'Not specified',
+      classes: classes ? classes.join(', ') : 'Not specified',
       message: message || null,
       expirationHours: 72
     }
@@ -136,6 +140,7 @@ const createTeacherInvitation = async (invitationData, schoolId, adminUserId) =>
       lastName: teacher.lastName,
       role: teacher.role,
       subjects: teacher.subjects,
+      classes: teacher.classes,
       isActive: teacher.isActive,
       isTemporaryPassword: teacher.isTemporaryPassword
     },
