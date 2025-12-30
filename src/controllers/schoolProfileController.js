@@ -230,10 +230,22 @@ const changeSchoolStatus = catchAsync(async (req, res) => {
     const { schoolId, isActive, reason } = req.body;
     const action = isActive ? 'activate' : 'deactivate';
     
-    // For now, use a placeholder admin user ID - in production this would come from auth middleware
-    const adminUserId = '507f1f77bcf86cd799439011'; // Placeholder
+    // Find an actual admin user for this school instead of using hardcoded ID
+    const User = require('../models/User');
+    const adminUser = await User.findOne({ 
+      schoolId, 
+      role: 'admin',
+      isActive: true 
+    });
     
-    const result = await schoolService.changeSchoolStatus(schoolId, action, adminUserId, reason);
+    if (!adminUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'No admin user found for this school'
+      });
+    }
+    
+    const result = await schoolService.changeSchoolStatus(schoolId, action, adminUser._id, reason);
 
     res.status(200).json({
       success: true,
