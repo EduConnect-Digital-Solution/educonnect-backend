@@ -14,9 +14,33 @@ app.use(requestLogger);
 
 // Security middleware
 app.use(helmet());
+
+// CORS configuration for multiple frontend origins
+const allowedOrigins = [
+  process.env.FRONTEND_URL || 'http://localhost:3000',
+  'http://192.168.3.170:5173',
+  'http://192.168.56.1:5173', 
+  'https://educonnect.com.ng',
+  'http://localhost:5173', // Additional local dev support
+  'http://127.0.0.1:5173'  // Additional local dev support
+];
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-  credentials: true
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.log(`🚫 CORS blocked origin: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+  exposedHeaders: ['X-Total-Count', 'X-Page-Count']
 }));
 
 // Rate limiting for authentication endpoints
@@ -60,6 +84,24 @@ app.get('/health', (req, res) => {
     message: 'EduConnect API is running',
     timestamp: new Date().toISOString(),
     environment: config.nodeEnv
+  });
+});
+
+// CORS test endpoint
+app.get('/cors-test', (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'CORS is working!',
+    origin: req.headers.origin || 'No origin header',
+    timestamp: new Date().toISOString(),
+    allowedOrigins: [
+      process.env.FRONTEND_URL || 'http://localhost:3000',
+      'http://192.168.3.170:5173',
+      'http://192.168.56.1:5173', 
+      'https://educonnect.com.ng',
+      'http://localhost:5173',
+      'http://127.0.0.1:5173'
+    ]
   });
 });
 
