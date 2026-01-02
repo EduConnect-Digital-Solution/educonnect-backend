@@ -25,7 +25,9 @@ const config = {
 
   rateLimiting: {
     authWindowMs: parseInt(process.env.AUTH_RATE_LIMIT_WINDOW_MS) || 900000, // 15 minutes
-    authMaxRequests: parseInt(process.env.AUTH_RATE_LIMIT_MAX_REQUESTS) || 5
+    authMaxRequests: process.env.NODE_ENV === 'development' 
+      ? parseInt(process.env.AUTH_RATE_LIMIT_MAX_REQUESTS) || 1000 // High limit for dev
+      : parseInt(process.env.AUTH_RATE_LIMIT_MAX_REQUESTS) || 5    // Low limit for prod
   },
 
   redis: {

@@ -43,7 +43,7 @@ app.use(cors({
   exposedHeaders: ['X-Total-Count', 'X-Page-Count']
 }));
 
-// Rate limiting for authentication endpoints
+// Rate limiting for authentication endpoints (disabled in development)
 const authLimiter = rateLimit({
   windowMs: config.rateLimiting.authWindowMs,
   max: config.rateLimiting.authMaxRequests,
@@ -53,13 +53,20 @@ const authLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  // Skip rate limiting in development
+  skip: (req) => process.env.NODE_ENV === 'development'
 });
 
-// Apply rate limiting to auth routes
-app.use('/api/auth', authLimiter);
-app.use('/api/school/auth', authLimiter);
-app.use('/api/user/auth', authLimiter);
-app.use('/api/system-admin/auth', authLimiter);
+// Apply rate limiting to auth routes (only in production)
+if (process.env.NODE_ENV !== 'development') {
+  app.use('/api/auth', authLimiter);
+  app.use('/api/school/auth', authLimiter);
+  app.use('/api/user/auth', authLimiter);
+  app.use('/api/system-admin/auth', authLimiter);
+  console.log('🛡️ Rate limiting enabled for production');
+} else {
+  console.log('🚧 Rate limiting disabled for development');
+}
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
