@@ -20,6 +20,7 @@ const getCookieConfig = (req) => {
       httpOnly: true,
       secure: true,              // Required for sameSite: 'none'
       sameSite: 'none',          // Required for cross-origin
+      partitioned: true,         // New attribute for third-party cookies
       maxAge: 7 * 24 * 60 * 60 * 1000,
       path: '/'
     };
