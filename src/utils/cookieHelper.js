@@ -12,8 +12,8 @@ const getCookieConfig = () => {
   
   return {
     httpOnly: true,                    // Prevent XSS attacks
-    secure: isProduction,              // HTTPS only in production
-    sameSite: isProduction ? 'strict' : 'lax', // CSRF protection
+    secure: false,                     // Allow HTTP in development (browsers block secure cookies on HTTP)
+    sameSite: 'lax',                   // More permissive - works with cross-origin requests
     maxAge: 7 * 24 * 60 * 60 * 1000,  // 7 days in milliseconds
     path: '/'                          // Available to all routes
   };
