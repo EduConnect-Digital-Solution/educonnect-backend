@@ -26,8 +26,8 @@ const allowedOrigins = [
   'http://127.0.0.1:5173',  // Alternative localhost
   'http://localhost:3000',  // React dev server
   'http://127.0.0.1:3000',  // Alternative localhost
-  // Add your Vercel domain here when you deploy
-  'https://your-app-name.vercel.app',
+  // Production Vercel deployment
+  'https://educonnect-frontend-one.vercel.app',
   // Vercel preview deployments (optional)
   /^https:\/\/.*\.vercel\.app$/
 ];
