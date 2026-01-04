@@ -10,7 +10,12 @@
 const getCookieConfig = (req) => {
   const isProduction = process.env.NODE_ENV === 'production';
   const origin = req?.headers?.origin;
-  const isLocalhost = origin && (origin.includes('localhost') || origin.includes('127.0.0.1'));
+  const isLocalhost = origin && (
+    origin.includes('localhost') || 
+    origin.includes('127.0.0.1') ||
+    origin.includes(':5173') ||  // Vite dev server
+    origin.includes(':3000')     // React dev server
+  );
   
   let config;
   

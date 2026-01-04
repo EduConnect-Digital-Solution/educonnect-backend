@@ -22,8 +22,10 @@ const allowedOrigins = [
   'http://192.168.3.170:5173',
   'http://192.168.56.1:5173', 
   'https://educonnect.com.ng',
-  'http://localhost:5173', // Additional local dev support
-  'http://127.0.0.1:5173',  // Additional local dev support
+  'http://localhost:5173', // Vite dev server
+  'http://127.0.0.1:5173',  // Alternative localhost
+  'http://localhost:3000',  // React dev server
+  'http://127.0.0.1:3000',  // Alternative localhost
   // Add your Vercel domain here when you deploy
   'https://your-app-name.vercel.app',
   // Vercel preview deployments (optional)
