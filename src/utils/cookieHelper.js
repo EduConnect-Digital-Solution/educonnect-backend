@@ -9,20 +9,36 @@
  */
 const getCookieConfig = (req) => {
   const isProduction = process.env.NODE_ENV === 'production';
+  const origin = req?.headers?.origin;
+  const isLocalhost = origin && (origin.includes('localhost') || origin.includes('127.0.0.1'));
   
-  // Production-ready cookie configuration
-  const config = {
-    httpOnly: true,              // Always use httpOnly for security
-    secure: isProduction,        // Use secure cookies in production (HTTPS)
-    sameSite: 'lax',            // Use lax for better compatibility
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    path: '/'
-  };
+  let config;
+  
+  if (isProduction || !isLocalhost) {
+    // Production or non-localhost: use secure settings
+    config = {
+      httpOnly: true,
+      secure: true,              // Required for sameSite: 'none'
+      sameSite: 'none',          // Required for cross-origin
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      path: '/'
+    };
+  } else {
+    // Development localhost: use less secure but functional settings
+    config = {
+      httpOnly: true,
+      secure: false,             // Can't use secure: true without HTTPS
+      sameSite: 'lax',          // Best we can do without HTTPS
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      path: '/'
+    };
+  }
   
   console.log('🍪 Cookie config:', { 
     ...config, 
-    origin: req?.headers?.origin,
-    isProduction
+    origin,
+    isProduction,
+    isLocalhost
   });
   
   return config;

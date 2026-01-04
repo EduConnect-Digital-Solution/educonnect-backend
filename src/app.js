@@ -23,7 +23,11 @@ const allowedOrigins = [
   'http://192.168.56.1:5173', 
   'https://educonnect.com.ng',
   'http://localhost:5173', // Additional local dev support
-  'http://127.0.0.1:5173'  // Additional local dev support
+  'http://127.0.0.1:5173',  // Additional local dev support
+  // Add your Vercel domain here when you deploy
+  'https://your-app-name.vercel.app',
+  // Vercel preview deployments (optional)
+  /^https:\/\/.*\.vercel\.app$/
 ];
 
 app.use(cors({
