@@ -134,7 +134,7 @@ const loginSchoolAdmin = catchAsync(async (req, res) => {
     const result = await authService.loginSchool(schoolId, email, password);
 
     // Set refresh token as HttpOnly cookie
-    setRefreshTokenCookie(res, result.tokens.refreshToken);
+    setRefreshTokenCookie(res, result.tokens.refreshToken, req);
 
     res.status(200).json({
       success: true,
@@ -211,7 +211,7 @@ const refreshToken = catchAsync(async (req, res) => {
     const result = await authService.refreshToken(refreshTokenValue, source);
 
     // Set new refresh token as HttpOnly cookie
-    setRefreshTokenCookie(res, result.tokens.refreshToken);
+    setRefreshTokenCookie(res, result.tokens.refreshToken, req);
 
     res.status(200).json({
       success: true,
@@ -227,7 +227,7 @@ const refreshToken = catchAsync(async (req, res) => {
     });
   } catch (error) {
     // Clear invalid refresh token cookie
-    clearRefreshTokenCookie(res);
+    clearRefreshTokenCookie(res, req);
     
     if (error.message.includes('Invalid') || error.message.includes('expired') || 
         error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
@@ -250,7 +250,7 @@ const refreshToken = catchAsync(async (req, res) => {
 const logout = catchAsync(async (req, res) => {
   try {
     // Clear refresh token cookie
-    clearRefreshTokenCookie(res);
+    clearRefreshTokenCookie(res, req);
 
     // If user ID is available from auth middleware, invalidate cached session
     if (req.user && req.user.userId) {
@@ -263,7 +263,7 @@ const logout = catchAsync(async (req, res) => {
     });
   } catch (error) {
     // Even if session invalidation fails, clear the cookie
-    clearRefreshTokenCookie(res);
+    clearRefreshTokenCookie(res, req);
     
     res.status(200).json({
       success: true,

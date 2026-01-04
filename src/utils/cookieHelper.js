@@ -7,16 +7,25 @@
  * Cookie Configuration
  * Secure settings for HttpOnly cookies
  */
-const getCookieConfig = () => {
+const getCookieConfig = (req) => {
   const isProduction = process.env.NODE_ENV === 'production';
   
-  return {
-    httpOnly: true,                    // Prevent XSS attacks
-    secure: false,                     // Allow HTTP in development (browsers block secure cookies on HTTP)
-    sameSite: 'lax',                   // More permissive - works with cross-origin requests
-    maxAge: 7 * 24 * 60 * 60 * 1000,  // 7 days in milliseconds
-    path: '/'                          // Available to all routes
+  // Production-ready cookie configuration
+  const config = {
+    httpOnly: true,              // Always use httpOnly for security
+    secure: isProduction,        // Use secure cookies in production (HTTPS)
+    sameSite: 'lax',            // Use lax for better compatibility
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    path: '/'
   };
+  
+  console.log('🍪 Cookie config:', { 
+    ...config, 
+    origin: req?.headers?.origin,
+    isProduction
+  });
+  
+  return config;
 };
 
 /**
@@ -24,9 +33,10 @@ const getCookieConfig = () => {
  * Sets the refresh token as an HttpOnly cookie
  * @param {Object} res - Express response object
  * @param {string} refreshToken - JWT refresh token
+ * @param {Object} req - Express request object (for origin detection)
  */
-const setRefreshTokenCookie = (res, refreshToken) => {
-  const cookieConfig = getCookieConfig();
+const setRefreshTokenCookie = (res, refreshToken, req = null) => {
+  const cookieConfig = getCookieConfig(req);
   
   res.cookie('refreshToken', refreshToken, cookieConfig);
   
@@ -37,9 +47,10 @@ const setRefreshTokenCookie = (res, refreshToken) => {
  * Clear Refresh Token Cookie
  * Removes the refresh token cookie (for logout)
  * @param {Object} res - Express response object
+ * @param {Object} req - Express request object (for origin detection)
  */
-const clearRefreshTokenCookie = (res) => {
-  const cookieConfig = getCookieConfig();
+const clearRefreshTokenCookie = (res, req = null) => {
+  const cookieConfig = getCookieConfig(req);
   
   // Clear the cookie by setting it with past expiration
   res.cookie('refreshToken', '', {
@@ -105,13 +116,18 @@ const getCookieDebugInfo = (req) => {
   
   return {
     cookies: req.cookies,
-    cookieConfig: getCookieConfig(),
+    cookieConfig: getCookieConfig(req),
     security: validateCookieSecurity(req),
     headers: {
       userAgent: req.headers['user-agent'],
       origin: req.headers.origin,
-      referer: req.headers.referer
-    }
+      referer: req.headers.referer,
+      host: req.headers.host,
+      'cookie': req.headers.cookie
+    },
+    environment: process.env.NODE_ENV,
+    url: req.url,
+    method: req.method
   };
 };
 
@@ -120,6 +136,5 @@ module.exports = {
   clearRefreshTokenCookie,
   getRefreshTokenFromCookie,
   validateCookieSecurity,
-  getCookieDebugInfo,
   getCookieConfig
 };

@@ -49,7 +49,7 @@ const login = catchAsync(async (req, res) => {
 
     // Set refresh token as HttpOnly cookie (if available)
     if (result.refreshToken) {
-      setRefreshTokenCookie(res, result.refreshToken);
+      setRefreshTokenCookie(res, result.refreshToken, req);
     }
 
     // Log successful login
@@ -129,7 +129,7 @@ const refresh = catchAsync(async (req, res) => {
 
     // Set new refresh token as HttpOnly cookie (if available)
     if (result.refreshToken) {
-      setRefreshTokenCookie(res, result.refreshToken);
+      setRefreshTokenCookie(res, result.refreshToken, req);
     }
 
     res.status(200).json({
@@ -144,7 +144,7 @@ const refresh = catchAsync(async (req, res) => {
 
   } catch (error) {
     // Clear invalid refresh token cookie
-    clearRefreshTokenCookie(res);
+    clearRefreshTokenCookie(res, req);
     
     res.status(401).json({
       success: false,
@@ -163,7 +163,7 @@ const refresh = catchAsync(async (req, res) => {
 const logout = catchAsync(async (req, res) => {
   try {
     // Clear refresh token cookie
-    clearRefreshTokenCookie(res);
+    clearRefreshTokenCookie(res, req);
 
     // Log the logout for audit purposes
     if (req.user && req.user.role === 'system_admin') {
@@ -180,7 +180,7 @@ const logout = catchAsync(async (req, res) => {
     });
   } catch (error) {
     // Even if there's an error, clear the cookie
-    clearRefreshTokenCookie(res);
+    clearRefreshTokenCookie(res, req);
     
     res.status(200).json({
       success: true,
