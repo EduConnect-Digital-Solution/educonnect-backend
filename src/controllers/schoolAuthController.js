@@ -7,6 +7,11 @@
 const authService = require('../services/authService');
 const catchAsync = require('../utils/catchAsync');
 const { validationResult } = require('express-validator');
+const { 
+  setRefreshTokenCookie, 
+  clearRefreshTokenCookie, 
+  getRefreshTokenFromCookie 
+} = require('../utils/cookieHelper');
 
 // Import services
 const invitationService = require('../services/invitationService');
@@ -128,6 +133,9 @@ const loginSchoolAdmin = catchAsync(async (req, res) => {
     const { schoolId, email, password } = req.body;
     const result = await authService.loginSchool(schoolId, email, password);
 
+    // Set refresh token as HttpOnly cookie
+    setRefreshTokenCookie(res, result.tokens.refreshToken);
+
     res.status(200).json({
       success: true,
       message: 'Login successful',
@@ -141,7 +149,11 @@ const loginSchoolAdmin = catchAsync(async (req, res) => {
           lastName: result.user.lastName,
           role: result.user.role
         },
-        tokens: result.tokens
+        tokens: {
+          accessToken: result.tokens.accessToken,
+          expiresIn: result.tokens.expiresIn
+          // refreshToken is now in HttpOnly cookie
+        }
       }
     });
   } catch (error) {
@@ -174,35 +186,54 @@ const loginSchoolAdmin = catchAsync(async (req, res) => {
 
 /**
  * Refresh JWT Token
- * Generates new access token using refresh token
+ * Generates new access token using refresh token from HttpOnly cookie
  * Requirements: 2.5
  */
 const refreshToken = catchAsync(async (req, res) => {
   try {
-    const { refreshToken: refreshTokenValue } = req.body;
-    const result = await authService.refreshToken(refreshTokenValue);
+    // Try to get refresh token from cookie first, then fallback to body for backward compatibility
+    let refreshTokenValue = getRefreshTokenFromCookie(req);
+    let source = 'cookie';
+    
+    if (!refreshTokenValue && req.body.refreshToken) {
+      refreshTokenValue = req.body.refreshToken;
+      source = 'body';
+      console.log('⚠️ Using refresh token from request body (deprecated)');
+    }
+
+    if (!refreshTokenValue) {
+      return res.status(401).json({
+        success: false,
+        message: 'Refresh token not found. Please login again.'
+      });
+    }
+
+    const result = await authService.refreshToken(refreshTokenValue, source);
+
+    // Set new refresh token as HttpOnly cookie
+    setRefreshTokenCookie(res, result.tokens.refreshToken);
 
     res.status(200).json({
       success: true,
       message: 'Token refreshed successfully',
       data: {
         user: result.user,
-        tokens: result.tokens
+        tokens: {
+          accessToken: result.tokens.accessToken,
+          expiresIn: result.tokens.expiresIn
+          // refreshToken is now in HttpOnly cookie
+        }
       }
     });
   } catch (error) {
-    // Handle specific business logic errors
-    if (error.message === 'Refresh token is required' || error.message === 'Invalid refresh token') {
+    // Clear invalid refresh token cookie
+    clearRefreshTokenCookie(res);
+    
+    if (error.message.includes('Invalid') || error.message.includes('expired') || 
+        error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
       return res.status(401).json({
         success: false,
-        message: error.message
-      });
-    }
-
-    if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid or expired refresh token'
+        message: 'Invalid or expired refresh token. Please login again.'
       });
     }
 
@@ -213,32 +244,33 @@ const refreshToken = catchAsync(async (req, res) => {
 
 /**
  * Logout
- * Invalidates the current session
+ * Clears HttpOnly cookie and invalidates the current session
  * Requirements: 2.5
  */
-const logout = async (req, res) => {
+const logout = catchAsync(async (req, res) => {
   try {
-    // In a more sophisticated implementation, you might:
-    // 1. Add the token to a blacklist
-    // 2. Store active sessions in Redis
-    // 3. Implement token revocation
-    
-    // For now, we'll just return success
-    // The client should remove the token from storage
+    // Clear refresh token cookie
+    clearRefreshTokenCookie(res);
+
+    // If user ID is available from auth middleware, invalidate cached session
+    if (req.user && req.user.userId) {
+      await authService.invalidateUserSession(req.user.userId);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Logged out successfully'
+    });
+  } catch (error) {
+    // Even if session invalidation fails, clear the cookie
+    clearRefreshTokenCookie(res);
     
     res.status(200).json({
       success: true,
       message: 'Logged out successfully'
     });
-
-  } catch (error) {
-    console.error('Logout error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error during logout'
-    });
   }
-};
+});
 
 /**
  * Forgot Password

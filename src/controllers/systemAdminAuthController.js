@@ -11,6 +11,11 @@ const {
   isSystemAdminConfigured 
 } = require('../services/systemAdminAuthService');
 const catchAsync = require('../utils/catchAsync');
+const { 
+  setRefreshTokenCookie, 
+  clearRefreshTokenCookie, 
+  getRefreshTokenFromCookie 
+} = require('../utils/cookieHelper');
 
 /**
  * System Admin Login
@@ -41,6 +46,11 @@ const login = catchAsync(async (req, res) => {
   try {
     // Attempt login
     const result = await loginSystemAdmin(email, password);
+
+    // Set refresh token as HttpOnly cookie (if available)
+    if (result.refreshToken) {
+      setRefreshTokenCookie(res, result.refreshToken);
+    }
 
     // Log successful login
     console.log(`🔐 System admin login successful: ${email} at ${new Date().toISOString()}`);
@@ -90,12 +100,23 @@ const verify = catchAsync(async (req, res) => {
 /**
  * Refresh System Admin Token
  * POST /api/system-admin/auth/refresh
- * Refreshes the current system admin token
+ * Refreshes the current system admin token using HttpOnly cookie or Authorization header
  */
 const refresh = catchAsync(async (req, res) => {
-  const authHeader = req.headers.authorization;
+  // Try to get refresh token from cookie first, then fallback to Authorization header
+  let currentToken = getRefreshTokenFromCookie(req);
+  let source = 'cookie';
   
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  if (!currentToken) {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      currentToken = authHeader.substring(7);
+      source = 'header';
+      console.log('⚠️ Using token from Authorization header for system admin refresh (deprecated)');
+    }
+  }
+
+  if (!currentToken) {
     return res.status(401).json({
       success: false,
       message: 'Token required for refresh',
@@ -103,10 +124,13 @@ const refresh = catchAsync(async (req, res) => {
     });
   }
 
-  const currentToken = authHeader.substring(7);
-
   try {
     const result = await refreshSystemAdminToken(currentToken);
+
+    // Set new refresh token as HttpOnly cookie (if available)
+    if (result.refreshToken) {
+      setRefreshTokenCookie(res, result.refreshToken);
+    }
 
     res.status(200).json({
       success: true,
@@ -119,6 +143,9 @@ const refresh = catchAsync(async (req, res) => {
     });
 
   } catch (error) {
+    // Clear invalid refresh token cookie
+    clearRefreshTokenCookie(res);
+    
     res.status(401).json({
       success: false,
       message: 'Token refresh failed',
@@ -129,25 +156,41 @@ const refresh = catchAsync(async (req, res) => {
 });
 
 /**
- * System Admin Logout (Optional)
+ * System Admin Logout
  * POST /api/system-admin/auth/logout
- * Logs out system admin (mainly for client-side token cleanup)
+ * Logs out system admin and clears HttpOnly cookie
  */
 const logout = catchAsync(async (req, res) => {
-  // Since we're using stateless JWT tokens, logout is mainly client-side
-  // Log the logout for audit purposes
-  if (req.user && req.user.role === 'system_admin') {
-    console.log(`🔓 System admin logout: ${req.user.email} at ${new Date().toISOString()}`);
-  }
+  try {
+    // Clear refresh token cookie
+    clearRefreshTokenCookie(res);
 
-  res.status(200).json({
-    success: true,
-    message: 'Logout successful',
-    data: {
-      loggedOut: true,
-      timestamp: new Date().toISOString()
+    // Log the logout for audit purposes
+    if (req.user && req.user.role === 'system_admin') {
+      console.log(`🔓 System admin logout: ${req.user.email} at ${new Date().toISOString()}`);
     }
-  });
+
+    res.status(200).json({
+      success: true,
+      message: 'Logout successful',
+      data: {
+        loggedOut: true,
+        timestamp: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    // Even if there's an error, clear the cookie
+    clearRefreshTokenCookie(res);
+    
+    res.status(200).json({
+      success: true,
+      message: 'Logout successful',
+      data: {
+        loggedOut: true,
+        timestamp: new Date().toISOString()
+      }
+    });
+  }
 });
 
 /**

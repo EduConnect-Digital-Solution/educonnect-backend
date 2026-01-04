@@ -482,7 +482,8 @@ describe('School Authentication Controller', () => {
       expect(response.body.message).toBe('Login successful');
       expect(response.body.data.user).toBeDefined();
       expect(response.body.data.tokens.accessToken).toBe('access-token');
-      expect(response.body.data.tokens.refreshToken).toBe('refresh-token');
+      expect(response.body.data.tokens.refreshToken).toBeUndefined(); // Refresh token is now in HttpOnly cookie
+      expect(response.body.data.tokens.expiresIn).toBeDefined();
       expect(activeSchool.comparePassword).toHaveBeenCalledWith('password123');
     });
 
@@ -636,7 +637,7 @@ describe('School Authentication Controller', () => {
         .expect(401);
 
       expect(response.body.success).toBe(false);
-      expect(response.body.message).toBe('Refresh token is required');
+      expect(response.body.message).toBe('Refresh token not found. Please login again.');
     });
   });
 

@@ -623,8 +623,9 @@ const generateTokens = (userId, schoolId, role) => {
 /**
  * Token Refresh Service
  * Generates new access token using refresh token
+ * Supports both cookie-based and body-based refresh tokens
  */
-const refreshToken = async (refreshTokenValue) => {
+const refreshToken = async (refreshTokenValue, source = 'body') => {
   if (!refreshTokenValue) {
     throw new Error('Refresh token is required');
   }
@@ -660,8 +661,11 @@ const refreshToken = async (refreshTokenValue) => {
       lastName: user.lastName,
       role: user.role
     },
-    tokenRefreshedAt: new Date().toISOString()
+    tokenRefreshedAt: new Date().toISOString(),
+    refreshSource: source // Track if refresh came from cookie or body
   });
+
+  console.log(`🔄 Token refreshed for user ${user._id} via ${source}`);
 
   return {
     user: {

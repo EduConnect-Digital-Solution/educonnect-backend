@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const cookieParser = require('cookie-parser');
 const config = require('./config');
 const logger = require('./utils/logger');
 const { globalErrorHandler } = require('./middleware/errorHandler');
@@ -71,6 +72,9 @@ if (process.env.NODE_ENV !== 'development') {
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Cookie parsing middleware
+app.use(cookieParser());
 
 // Root endpoint
 app.get('/', (req, res) => {

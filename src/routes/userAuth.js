@@ -54,6 +54,23 @@ router.post('/login',
   userAuthController.loginUser
 );
 
+/**
+ * @route   POST /api/user/auth/refresh-token
+ * @desc    Refresh access token using HttpOnly cookie
+ * @access  Public (requires refresh token in cookie)
+ */
+router.post('/refresh-token',
+  rateLimiter.authLimiter,
+  userAuthController.refreshToken
+);
 
+/**
+ * @route   POST /api/user/auth/logout
+ * @desc    Logout user and clear HttpOnly cookie
+ * @access  Public
+ */
+router.post('/logout',
+  userAuthController.logout
+);
 
 module.exports = router;
