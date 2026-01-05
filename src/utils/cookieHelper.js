@@ -17,15 +17,27 @@ const getCookieConfig = (req) => {
     origin.includes(':3000')     // React dev server
   );
   
+  // Check if this is a Vercel production request (cross-origin)
+  const isVercelProduction = origin && origin.includes('vercel.app');
+  
   let config;
   
-  if (isProduction || !isLocalhost) {
-    // Production or non-localhost: use secure settings
+  if (isVercelProduction || (isProduction && !isLocalhost)) {
+    // Production cross-origin (Vercel -> Render): use cross-origin settings
     config = {
       httpOnly: true,
       secure: true,              // Required for sameSite: 'none'
       sameSite: 'none',          // Required for cross-origin
-      partitioned: true,         // New attribute for third-party cookies
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      path: '/'
+      // Removed partitioned for now - it might be causing issues
+    };
+  } else if (isProduction && isLocalhost) {
+    // Production but localhost (same-origin): use secure settings
+    config = {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'lax',           // Same-origin can use lax
       maxAge: 7 * 24 * 60 * 60 * 1000,
       path: '/'
     };
@@ -44,7 +56,8 @@ const getCookieConfig = (req) => {
     ...config, 
     origin,
     isProduction,
-    isLocalhost
+    isLocalhost,
+    isVercelProduction
   });
   
   return config;
