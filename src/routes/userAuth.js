@@ -73,35 +73,6 @@ router.post('/logout',
   userAuthController.logout
 );
 
-/**
- * @route   GET /api/user/auth/cookie-test
- * @desc    Test cookie functionality - sets and reads cookies
- * @access  Public
- */
-router.get('/cookie-test', (req, res) => {
-  const { setRefreshTokenCookie, getRefreshTokenFromCookie } = require('../utils/cookieHelper');
-  
-  // Set a test cookie
-  setRefreshTokenCookie(res, 'test-cookie-value-123');
-  
-  // Try to read existing cookies
-  const existingCookie = getRefreshTokenFromCookie(req);
-  
-  res.json({
-    success: true,
-    message: 'Cookie test endpoint',
-    data: {
-      cookieSet: 'test-cookie-value-123',
-      cookieRead: existingCookie,
-      allCookies: req.cookies,
-      headers: {
-        cookie: req.headers.cookie,
-        origin: req.headers.origin,
-        userAgent: req.headers['user-agent']
-      },
-      environment: process.env.NODE_ENV
-    }
-  });
-});
+// Test endpoint removed - was causing duplicate cookies in browser
 
 module.exports = router;

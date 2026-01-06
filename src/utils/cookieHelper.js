@@ -171,5 +171,6 @@ module.exports = {
   clearRefreshTokenCookie,
   getRefreshTokenFromCookie,
   validateCookieSecurity,
-  getCookieConfig
+  getCookieConfig,
+  getCookieDebugInfo
 };

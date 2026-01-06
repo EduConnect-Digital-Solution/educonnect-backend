@@ -22,6 +22,8 @@ const {
   validateRateLimit
 } = require('../middleware/schoolAuthValidation');
 const rateLimiter = require('../middleware/rateLimiter');
+const { authenticateToken } = require('../middleware/auth');
+const { requireRole } = require('../middleware/rbac');
 
 /**
  * @route   POST /api/school/auth/register
@@ -126,6 +128,8 @@ router.post('/reset-password',
  */
 router.post('/invite-teacher',
   rateLimiter.authLimiter,
+  authenticateToken,
+  requireRole(['admin']),
   sanitizeSchoolData,
   validateTeacherInvitation,
   schoolAuthController.createTeacherInvitation
@@ -139,6 +143,8 @@ router.post('/invite-teacher',
  */
 router.post('/invite-parent',
   rateLimiter.authLimiter,
+  authenticateToken,
+  requireRole(['admin']),
   sanitizeSchoolData,
   validateParentInvitation,
   schoolAuthController.createParentInvitation
@@ -152,6 +158,8 @@ router.post('/invite-parent',
  */
 router.post('/resend-invitation',
   rateLimiter.authLimiter,
+  authenticateToken,
+  requireRole(['admin']),
   validateInvitationResend,
   schoolAuthController.resendInvitation
 );
@@ -164,6 +172,8 @@ router.post('/resend-invitation',
  */
 router.get('/invitations',
   rateLimiter.generalLimiter,
+  authenticateToken,
+  requireRole(['admin']),
   schoolAuthController.listInvitations
 );
 
@@ -175,6 +185,8 @@ router.get('/invitations',
  */
 router.post('/cancel-invitation',
   rateLimiter.authLimiter,
+  authenticateToken,
+  requireRole(['admin']),
   validateInvitationCancel,
   schoolAuthController.cancelInvitation
 );
