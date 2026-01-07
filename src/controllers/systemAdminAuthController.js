@@ -212,10 +212,80 @@ const getStatus = catchAsync(async (req, res) => {
   });
 });
 
+/**
+ * Get Current System Admin Profile
+ * Returns system admin information based on refresh token from HttpOnly cookie
+ * Requirements: Session management, System admin profile access
+ */
+const getMe = catchAsync(async (req, res) => {
+  try {
+    // Get refresh token from HttpOnly cookie
+    const refreshToken = getRefreshTokenFromCookie(req);
+    
+    if (!refreshToken) {
+      // Clear any existing cookies and return unauthorized
+      clearRefreshTokenCookie(res, req);
+      return res.status(401).json({
+        success: false,
+        message: 'No active session found'
+      });
+    }
+
+    // Verify refresh token using system admin auth service
+    const { verifySystemAdminRefreshToken } = require('../services/systemAdminAuthService');
+    let decoded;
+    
+    try {
+      decoded = verifySystemAdminRefreshToken(refreshToken);
+    } catch (error) {
+      // Token is invalid or expired, clear cookies
+      clearRefreshTokenCookie(res, req);
+      return res.status(401).json({
+        success: false,
+        message: 'Session expired. Please log in again.'
+      });
+    }
+
+    // Return system admin profile data
+    res.status(200).json({
+      success: true,
+      user: {
+        id: `system_admin_${decoded.email}`,
+        email: decoded.email,
+        firstName: 'System',
+        lastName: 'Administrator',
+        fullName: 'System Administrator',
+        role: 'system_admin',
+        schoolId: null,
+        school: null,
+        isActive: true,
+        isVerified: true,
+        isSystemAdmin: true,
+        systemAdminLevel: decoded.systemAdminLevel,
+        crossSchoolAccess: decoded.crossSchoolAccess,
+        loginTime: new Date(decoded.iat * 1000),
+        expiresAt: new Date(decoded.exp * 1000)
+      }
+    });
+
+  } catch (error) {
+    console.error('Error in getMe (system admin):', error);
+    
+    // Clear cookies on any error
+    clearRefreshTokenCookie(res, req);
+    
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
 module.exports = {
   login,
   verify,
   refresh,
   logout,
-  getStatus
+  getStatus,
+  getMe
 };

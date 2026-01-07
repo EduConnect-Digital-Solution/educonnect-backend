@@ -73,6 +73,16 @@ router.post('/logout',
   userAuthController.logout
 );
 
+/**
+ * @route   GET /api/user/auth/me
+ * @desc    Get current user profile from HttpOnly cookie
+ * @access  Public (requires refresh token in cookie)
+ */
+router.get('/me',
+  rateLimiter.generalLimiter,
+  userAuthController.getMe
+);
+
 // Test endpoint removed - was causing duplicate cookies in browser
 
 module.exports = router;

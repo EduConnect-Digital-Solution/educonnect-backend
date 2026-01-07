@@ -85,6 +85,16 @@ router.post('/logout',
 );
 
 /**
+ * @route   GET /api/school/auth/me
+ * @desc    Get current school admin profile from HttpOnly cookie
+ * @access  Public (requires refresh token in cookie)
+ */
+router.get('/me',
+  rateLimiter.generalLimiter,
+  schoolAuthController.getMe
+);
+
+/**
  * @route   POST /api/school/auth/resend-otp
  * @desc    Resend OTP for email verification
  * @access  Public

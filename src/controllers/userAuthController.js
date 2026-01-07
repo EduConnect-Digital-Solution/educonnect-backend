@@ -231,9 +231,113 @@ const logout = catchAsync(async (req, res) => {
   }
 });
 
+/**
+ * Get Current User Profile
+ * Returns user information based on refresh token from HttpOnly cookie
+ * Requirements: Session management, User profile access
+ */
+const getMe = catchAsync(async (req, res) => {
+  try {
+    // Get refresh token from HttpOnly cookie
+    const refreshToken = getRefreshTokenFromCookie(req);
+    
+    if (!refreshToken) {
+      // Clear any existing cookies and return unauthorized
+      clearRefreshTokenCookie(res, req);
+      return res.status(401).json({
+        success: false,
+        message: 'No active session found'
+      });
+    }
+
+    // Verify refresh token using auth middleware function
+    const { verifyRefreshToken } = require('../middleware/auth');
+    let decoded;
+    
+    try {
+      decoded = verifyRefreshToken(refreshToken);
+    } catch (error) {
+      // Token is invalid or expired, clear cookies
+      clearRefreshTokenCookie(res, req);
+      return res.status(401).json({
+        success: false,
+        message: 'Session expired. Please log in again.'
+      });
+    }
+
+    // Fetch user data from database
+    const user = await User.findById(decoded.userId)
+      .populate('school', 'schoolName email address phone website')
+      .populate('studentIds', 'firstName lastName studentId class grade')
+      .select('-password -invitationToken -passwordResetToken');
+
+    if (!user) {
+      // User not found, clear cookies
+      clearRefreshTokenCookie(res, req);
+      return res.status(401).json({
+        success: false,
+        message: 'User not found. Please log in again.'
+      });
+    }
+
+    // Check if user is still active
+    if (!user.isActive) {
+      clearRefreshTokenCookie(res, req);
+      return res.status(401).json({
+        success: false,
+        message: 'Account has been deactivated. Please contact your administrator.'
+      });
+    }
+
+    // Return user profile data
+    res.status(200).json({
+      success: true,
+      user: {
+        id: user._id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        fullName: user.fullName,
+        role: user.role,
+        schoolId: user.schoolId,
+        school: user.school,
+        phone: user.phone,
+        profileImage: user.profileImage,
+        isActive: user.isActive,
+        isVerified: user.isVerified,
+        isSchoolAdmin: user.isSchoolAdmin,
+        lastLogin: user.lastLogin,
+        createdAt: user.createdAt,
+        // Role-specific fields
+        ...(user.role === 'teacher' && {
+          employeeId: user.employeeId,
+          subjects: user.subjects,
+          classes: user.classes
+        }),
+        ...(user.role === 'parent' && {
+          studentIds: user.studentIds,
+          children: user.studentIds // For backward compatibility
+        })
+      }
+    });
+
+  } catch (error) {
+    console.error('Error in getMe:', error);
+    
+    // Clear cookies on any error
+    clearRefreshTokenCookie(res, req);
+    
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
 module.exports = {
   completeRegistration,
   loginUser,
   refreshToken,
-  logout
+  logout,
+  getMe
 };

@@ -822,8 +822,107 @@ const cancelInvitation = catchAsync(async (req, res) => {
     // Re-throw for global error handler
     throw error;
   }
-});module.
-exports = {
+});
+
+/**
+ * Get Current User Profile (School Admin)
+ * Returns school admin information based on refresh token from HttpOnly cookie
+ * Requirements: Session management, User profile access
+ */
+const getMe = catchAsync(async (req, res) => {
+  try {
+    // Get refresh token from HttpOnly cookie
+    const refreshToken = getRefreshTokenFromCookie(req);
+    
+    if (!refreshToken) {
+      // Clear any existing cookies and return unauthorized
+      clearRefreshTokenCookie(res, req);
+      return res.status(401).json({
+        success: false,
+        message: 'No active session found'
+      });
+    }
+
+    // Verify refresh token using auth middleware function
+    const { verifyRefreshToken } = require('../middleware/auth');
+    let decoded;
+    
+    try {
+      decoded = verifyRefreshToken(refreshToken);
+    } catch (error) {
+      // Token is invalid or expired, clear cookies
+      clearRefreshTokenCookie(res, req);
+      return res.status(401).json({
+        success: false,
+        message: 'Session expired. Please log in again.'
+      });
+    }
+
+    // For school admins, fetch school data instead of user data
+    const School = require('../models/School');
+    const school = await School.findOne({ schoolId: decoded.schoolId })
+      .select('-password');
+
+    if (!school) {
+      // School not found, clear cookies
+      clearRefreshTokenCookie(res, req);
+      return res.status(401).json({
+        success: false,
+        message: 'School not found. Please log in again.'
+      });
+    }
+
+    // Check if school is still active
+    if (!school.isActive) {
+      clearRefreshTokenCookie(res, req);
+      return res.status(401).json({
+        success: false,
+        message: 'School account has been deactivated. Please contact support.'
+      });
+    }
+
+    // Return school admin profile data
+    res.status(200).json({
+      success: true,
+      user: {
+        id: school._id,
+        email: school.email,
+        firstName: decoded.firstName || 'School',
+        lastName: decoded.lastName || 'Admin',
+        fullName: `${decoded.firstName || 'School'} ${decoded.lastName || 'Admin'}`,
+        role: 'admin',
+        schoolId: school.schoolId,
+        school: {
+          _id: school._id,
+          schoolName: school.schoolName,
+          email: school.email,
+          address: school.address,
+          phone: school.phone,
+          website: school.website
+        },
+        phone: school.phone,
+        isActive: school.isActive,
+        isVerified: school.isVerified,
+        isSchoolAdmin: true,
+        lastLogin: school.lastLogin,
+        createdAt: school.createdAt
+      }
+    });
+
+  } catch (error) {
+    console.error('Error in getMe (school):', error);
+    
+    // Clear cookies on any error
+    clearRefreshTokenCookie(res, req);
+    
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
+module.exports = {
   registerSchool,
   verifySchoolEmail,
   loginSchoolAdmin,
@@ -836,5 +935,6 @@ exports = {
   createParentInvitation,
   resendInvitation,
   listInvitations,
-  cancelInvitation
+  cancelInvitation,
+  getMe
 };

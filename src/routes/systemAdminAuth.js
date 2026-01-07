@@ -13,7 +13,8 @@ const {
   verify,
   refresh,
   logout,
-  getStatus
+  getStatus,
+  getMe
 } = require('../controllers/systemAdminAuthController');
 
 // Import middleware
@@ -22,6 +23,7 @@ const {
   auditSystemOperation 
 } = require('../middleware/systemAdminAuth');
 const { createCustomLimiter } = require('../middleware/rateLimiter');
+const rateLimiter = require('../middleware/rateLimiter');
 const {
   validateLogin,
   validateRefresh,
@@ -72,6 +74,16 @@ router.post('/logout',
   requireSystemAdmin,
   auditSystemOperation('system_admin_logout'),
   logout
+);
+
+/**
+ * @route   GET /api/system-admin/auth/me
+ * @desc    Get current system admin profile from HttpOnly cookie
+ * @access  Public (requires refresh token in cookie)
+ */
+router.get('/me',
+  rateLimiter.generalLimiter,
+  getMe
 );
 
 /**

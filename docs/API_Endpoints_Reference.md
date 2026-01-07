@@ -85,7 +85,40 @@ POST /api/school/auth/logout
 ```
 **Access:** Public
 
-#### 6. Resend OTP
+#### 6. Get Current User Profile
+```http
+GET /api/school/auth/me
+```
+**Access:** Public (requires refresh token in HttpOnly cookie)  
+**Response:**
+```json
+{
+  "success": true,
+  "user": {
+    "id": "string",
+    "email": "string",
+    "firstName": "string",
+    "lastName": "string",
+    "fullName": "string",
+    "role": "admin",
+    "schoolId": "string",
+    "school": {
+      "schoolName": "string",
+      "email": "string",
+      "address": "string",
+      "phone": "string",
+      "website": "string"
+    },
+    "isActive": true,
+    "isVerified": true,
+    "isSchoolAdmin": true,
+    "lastLogin": "ISO date string",
+    "createdAt": "ISO date string"
+  }
+}
+```
+
+#### 7. Resend OTP
 ```http
 POST /api/school/auth/resend-otp
 ```
@@ -170,6 +203,94 @@ POST /api/user/auth/complete-registration
   "occupation": "string (optional)",
   "emergencyContact": "string (optional)",
   "emergencyPhone": "string (optional)"
+}
+```
+
+#### 11. Get Current User Profile
+```http
+GET /api/user/auth/me
+```
+**Access:** Public (requires refresh token in HttpOnly cookie)  
+**Response:**
+```json
+{
+  "success": true,
+  "user": {
+    "id": "string",
+    "email": "string",
+    "firstName": "string",
+    "lastName": "string",
+    "fullName": "string",
+    "role": "teacher|parent",
+    "schoolId": "string",
+    "school": {
+      "schoolName": "string",
+      "email": "string",
+      "address": "string"
+    },
+    "phone": "string",
+    "isActive": true,
+    "isVerified": true,
+    "lastLogin": "ISO date string",
+    "createdAt": "ISO date string",
+    
+    // For Teachers:
+    "employeeId": "string",
+    "subjects": ["array of subjects"],
+    "classes": ["array of classes"],
+    
+    // For Parents:
+    "studentIds": ["array of student objects"],
+    "children": ["array of student objects (legacy)"]
+  }
+}
+```
+
+---
+
+---
+
+### System Admin Authentication
+
+#### 12. System Admin Login
+```http
+POST /api/system-admin/auth/login
+```
+**Access:** Public (requires system admin credentials)  
+**Body:**
+```json
+{
+  "email": "string (required)",
+  "password": "string (required)"
+}
+```
+
+#### 13. Get System Admin Profile
+```http
+GET /api/system-admin/auth/me
+```
+**Access:** Public (requires refresh token in HttpOnly cookie)  
+**Response:**
+```json
+{
+  "success": true,
+  "user": {
+    "id": "string",
+    "email": "string",
+    "firstName": "System",
+    "lastName": "Administrator",
+    "fullName": "System Administrator",
+    "role": "system_admin",
+    "schoolId": null,
+    "school": null,
+    "isActive": true,
+    "isVerified": true,
+    "isSystemAdmin": true,
+    "systemAdminLevel": "string",
+    "crossSchoolAccess": true,
+    "loginTime": "ISO date string",
+    "expiresAt": "ISO date string"
+  }
 }
 ```
 
