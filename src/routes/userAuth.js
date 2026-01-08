@@ -84,6 +84,26 @@ router.get('/me',
   userAuthController.getMe
 );
 
+/**
+ * @route   GET /api/user/auth/debug-cookies
+ * @desc    Debug endpoint to check cookie configuration (development only)
+ * @access  Public
+ */
+router.get('/debug-cookies', (req, res) => {
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(404).json({ message: 'Not found' });
+  }
+  
+  const { getCookieDebugInfo } = require('../utils/cookieHelper');
+  const debugInfo = getCookieDebugInfo(req);
+  
+  res.json({
+    success: true,
+    debug: debugInfo,
+    message: 'Cookie debug information (development only)'
+  });
+});
+
 // Test endpoint removed - was causing duplicate cookies in browser
 
 module.exports = router;

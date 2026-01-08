@@ -258,13 +258,25 @@ const getMe = catchAsync(async (req, res) => {
     
     try {
       decoded = verifyRefreshToken(refreshToken);
-    } catch (error) {
+      console.log('✅ Regular token verified successfully');
+    } catch (regularTokenError) {
+      console.log('❌ Regular token verification failed:', regularTokenError.message);
+      
       // If regular token verification fails, try system admin token
       try {
         const { verifySystemAdminToken } = require('../services/systemAdminAuthService');
-        decoded = verifySystemAdminToken(refreshToken);
-        userType = 'system_admin';
+        const systemAdminDecoded = verifySystemAdminToken(refreshToken);
+        
+        if (systemAdminDecoded) {
+          decoded = systemAdminDecoded;
+          userType = 'system_admin';
+          console.log('✅ System admin token verified successfully');
+        } else {
+          throw new Error('System admin token verification returned null');
+        }
       } catch (systemAdminError) {
+        console.log('❌ System admin token verification failed:', systemAdminError.message);
+        
         // Both token verifications failed, clear cookies
         clearRefreshTokenCookie(res, req);
         return res.status(401).json({
@@ -274,9 +286,22 @@ const getMe = catchAsync(async (req, res) => {
       }
     }
 
+    // Ensure we have a decoded token
+    if (!decoded) {
+      console.log('❌ No decoded token available');
+      clearRefreshTokenCookie(res, req);
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token. Please log in again.'
+      });
+    }
+
+    console.log('🔍 Token decoded successfully:', { userType, email: decoded.email, role: decoded.role });
+
     // Handle different user types based on token content and type
     if (userType === 'system_admin') {
       // System Admin User
+      console.log('👑 Returning system admin profile');
       return res.status(200).json({
         success: true,
         user: {
@@ -291,8 +316,8 @@ const getMe = catchAsync(async (req, res) => {
           isActive: true,
           isVerified: true,
           isSystemAdmin: true,
-          systemAdminLevel: decoded.systemAdminLevel,
-          crossSchoolAccess: decoded.crossSchoolAccess,
+          systemAdminLevel: decoded.systemAdminLevel || 'super',
+          crossSchoolAccess: decoded.crossSchoolAccess || true,
           loginTime: new Date(decoded.iat * 1000),
           expiresAt: new Date(decoded.exp * 1000)
         }
@@ -302,12 +327,14 @@ const getMe = catchAsync(async (req, res) => {
     // For regular users, determine if it's a school admin or regular user
     if (decoded.schoolId && !decoded.userId) {
       // This is a school admin token (has schoolId but no userId)
-      const School = require('../models/School');
+      console.log('🏫 Processing school admin token');
+      
       const school = await School.findOne({ schoolId: decoded.schoolId })
         .select('-password');
 
       if (!school) {
         // School not found, clear cookies
+        console.log('❌ School not found for schoolId:', decoded.schoolId);
         clearRefreshTokenCookie(res, req);
         return res.status(401).json({
           success: false,
@@ -317,6 +344,7 @@ const getMe = catchAsync(async (req, res) => {
 
       // Check if school is still active
       if (!school.isActive) {
+        console.log('❌ School is inactive:', decoded.schoolId);
         clearRefreshTokenCookie(res, req);
         return res.status(401).json({
           success: false,
@@ -325,6 +353,7 @@ const getMe = catchAsync(async (req, res) => {
       }
 
       // Return school admin profile data
+      console.log('✅ Returning school admin profile');
       return res.status(200).json({
         success: true,
         user: {
@@ -355,13 +384,15 @@ const getMe = catchAsync(async (req, res) => {
 
     // Regular user (teacher/parent) - has userId in token
     if (decoded.userId) {
+      console.log('👤 Processing regular user token for userId:', decoded.userId);
+      
       const user = await User.findById(decoded.userId)
-        .populate('school', 'schoolName email address phone website')
         .populate('studentIds', 'firstName lastName studentId class grade')
         .select('-password -invitationToken -passwordResetToken');
 
       if (!user) {
         // User not found, clear cookies
+        console.log('❌ User not found for userId:', decoded.userId);
         clearRefreshTokenCookie(res, req);
         return res.status(401).json({
           success: false,
@@ -371,6 +402,7 @@ const getMe = catchAsync(async (req, res) => {
 
       // Check if user is still active
       if (!user.isActive) {
+        console.log('❌ User is inactive:', decoded.userId);
         clearRefreshTokenCookie(res, req);
         return res.status(401).json({
           success: false,
@@ -378,7 +410,26 @@ const getMe = catchAsync(async (req, res) => {
         });
       }
 
+      // Manually fetch school data since schoolId is a string, not a reference
+      let schoolData = null;
+      if (user.schoolId) {
+        const school = await School.findOne({ schoolId: user.schoolId })
+          .select('schoolName email address phone website');
+        
+        if (school) {
+          schoolData = {
+            _id: school._id,
+            schoolName: school.schoolName,
+            email: school.email,
+            address: school.address,
+            phone: school.phone,
+            website: school.website
+          };
+        }
+      }
+
       // Return user profile data
+      console.log('✅ Returning regular user profile');
       return res.status(200).json({
         success: true,
         user: {
@@ -389,7 +440,7 @@ const getMe = catchAsync(async (req, res) => {
           fullName: user.fullName,
           role: user.role,
           schoolId: user.schoolId,
-          school: user.school,
+          school: schoolData,
           phone: user.phone,
           profileImage: user.profileImage,
           isActive: user.isActive,
@@ -412,6 +463,7 @@ const getMe = catchAsync(async (req, res) => {
     }
 
     // If we reach here, token format is unexpected
+    console.log('❌ Unexpected token format:', { decoded });
     clearRefreshTokenCookie(res, req);
     return res.status(401).json({
       success: false,
@@ -419,14 +471,16 @@ const getMe = catchAsync(async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error in unified getMe:', error);
+    console.error('💥 Error in unified getMe:', error);
+    console.error('Error stack:', error.stack);
     
     // Clear cookies on any error
     clearRefreshTokenCookie(res, req);
     
     res.status(500).json({
       success: false,
-      message: 'Internal server error'
+      message: 'Internal server error',
+      ...(process.env.NODE_ENV !== 'production' && { error: error.message })
     });
   }
 });
