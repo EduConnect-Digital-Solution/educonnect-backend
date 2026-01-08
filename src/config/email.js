@@ -21,7 +21,7 @@ class EmailService {
     this.config = {
       fromEmail: process.env.FROM_EMAIL || 'noreply@educonnect.com',
       fromName: process.env.FROM_NAME || 'EduConnect',
-      frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
+      frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173/',
       supportEmail: process.env.SUPPORT_EMAIL || 'support@educonnect.com',
       companyName: process.env.COMPANY_NAME || 'EduConnect',
       logoUrl: process.env.LOGO_URL || null,

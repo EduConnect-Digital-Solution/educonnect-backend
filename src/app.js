@@ -18,7 +18,7 @@ app.use(helmet());
 
 // CORS configuration for multiple frontend origins
 const allowedOrigins = [
-  process.env.FRONTEND_URL || 'http://localhost:3000',
+  process.env.FRONTEND_URL || 'http://localhost:5173/',
   'http://192.168.3.170:5173',
   'http://192.168.56.1:5173', 
   'https://educonnect.com.ng',
@@ -112,7 +112,7 @@ app.get('/cors-test', (req, res) => {
     origin: req.headers.origin || 'No origin header',
     timestamp: new Date().toISOString(),
     allowedOrigins: [
-      process.env.FRONTEND_URL || 'http://localhost:3000',
+      process.env.FRONTEND_URL || 'http://localhost:5173/',
       'http://192.168.3.170:5173',
       'http://192.168.56.1:5173', 
       'https://educonnect.com.ng',

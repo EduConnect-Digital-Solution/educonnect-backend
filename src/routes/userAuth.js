@@ -75,8 +75,9 @@ router.post('/logout',
 
 /**
  * @route   GET /api/user/auth/me
- * @desc    Get current user profile from HttpOnly cookie
+ * @desc    Get current user profile from HttpOnly cookie (ALL USER TYPES)
  * @access  Public (requires refresh token in cookie)
+ * @supports Teachers, Parents, School Admins, System Admins
  */
 router.get('/me',
   rateLimiter.generalLimiter,

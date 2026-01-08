@@ -77,16 +77,6 @@ router.post('/logout',
 );
 
 /**
- * @route   GET /api/system-admin/auth/me
- * @desc    Get current system admin profile from HttpOnly cookie
- * @access  Public (requires refresh token in cookie)
- */
-router.get('/me',
-  rateLimiter.generalLimiter,
-  getMe
-);
-
-/**
  * @route   GET /api/system-admin/auth/status
  * @desc    Get system admin configuration status
  * @access  Public (for setup verification)

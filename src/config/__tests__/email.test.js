@@ -32,7 +32,7 @@ describe('EmailService', () => {
     process.env.RESEND_API_KEY = 'test-api-key';
     process.env.FROM_EMAIL = 'test@educonnect.com';
     process.env.FROM_NAME = 'EduConnect Test';
-    process.env.FRONTEND_URL = 'http://localhost:3000';
+    process.env.FRONTEND_URL = 'http://localhost:5173/';
     
     // Clear module cache to get fresh class
     jest.clearAllMocks();
@@ -51,7 +51,7 @@ describe('EmailService', () => {
     test('should initialize with required environment variables', () => {
       expect(emailService.config.fromEmail).toBe('test@educonnect.com');
       expect(emailService.config.fromName).toBe('EduConnect Test');
-      expect(emailService.config.frontendUrl).toBe('http://localhost:3000');
+      expect(emailService.config.frontendUrl).toBe('http://localhost:5173/');
     });
 
     test('should throw error without RESEND_API_KEY', () => {

@@ -232,8 +232,9 @@ const logout = catchAsync(async (req, res) => {
 });
 
 /**
- * Get Current User Profile
+ * Get Current User Profile (Unified for All User Types)
  * Returns user information based on refresh token from HttpOnly cookie
+ * Handles: teachers, parents, school admins, system admins
  * Requirements: Session management, User profile access
  */
 const getMe = catchAsync(async (req, res) => {
@@ -250,79 +251,175 @@ const getMe = catchAsync(async (req, res) => {
       });
     }
 
-    // Verify refresh token using auth middleware function
+    // First, try to verify as regular user token
     const { verifyRefreshToken } = require('../middleware/auth');
     let decoded;
+    let userType = 'user'; // Default to regular user
     
     try {
       decoded = verifyRefreshToken(refreshToken);
     } catch (error) {
-      // Token is invalid or expired, clear cookies
-      clearRefreshTokenCookie(res, req);
-      return res.status(401).json({
-        success: false,
-        message: 'Session expired. Please log in again.'
-      });
-    }
-
-    // Fetch user data from database
-    const user = await User.findById(decoded.userId)
-      .populate('school', 'schoolName email address phone website')
-      .populate('studentIds', 'firstName lastName studentId class grade')
-      .select('-password -invitationToken -passwordResetToken');
-
-    if (!user) {
-      // User not found, clear cookies
-      clearRefreshTokenCookie(res, req);
-      return res.status(401).json({
-        success: false,
-        message: 'User not found. Please log in again.'
-      });
-    }
-
-    // Check if user is still active
-    if (!user.isActive) {
-      clearRefreshTokenCookie(res, req);
-      return res.status(401).json({
-        success: false,
-        message: 'Account has been deactivated. Please contact your administrator.'
-      });
-    }
-
-    // Return user profile data
-    res.status(200).json({
-      success: true,
-      user: {
-        id: user._id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        fullName: user.fullName,
-        role: user.role,
-        schoolId: user.schoolId,
-        school: user.school,
-        phone: user.phone,
-        profileImage: user.profileImage,
-        isActive: user.isActive,
-        isVerified: user.isVerified,
-        isSchoolAdmin: user.isSchoolAdmin,
-        lastLogin: user.lastLogin,
-        createdAt: user.createdAt,
-        // Role-specific fields
-        ...(user.role === 'teacher' && {
-          employeeId: user.employeeId,
-          subjects: user.subjects,
-          classes: user.classes
-        }),
-        ...(user.role === 'parent' && {
-          studentIds: user.studentIds,
-          children: user.studentIds // For backward compatibility
-        })
+      // If regular token verification fails, try system admin token
+      try {
+        const { verifySystemAdminToken } = require('../services/systemAdminAuthService');
+        decoded = verifySystemAdminToken(refreshToken);
+        userType = 'system_admin';
+      } catch (systemAdminError) {
+        // Both token verifications failed, clear cookies
+        clearRefreshTokenCookie(res, req);
+        return res.status(401).json({
+          success: false,
+          message: 'Session expired. Please log in again.'
+        });
       }
+    }
+
+    // Handle different user types based on token content and type
+    if (userType === 'system_admin') {
+      // System Admin User
+      return res.status(200).json({
+        success: true,
+        user: {
+          id: `system_admin_${decoded.email}`,
+          email: decoded.email,
+          firstName: 'System',
+          lastName: 'Administrator',
+          fullName: 'System Administrator',
+          role: 'system_admin',
+          schoolId: null,
+          school: null,
+          isActive: true,
+          isVerified: true,
+          isSystemAdmin: true,
+          systemAdminLevel: decoded.systemAdminLevel,
+          crossSchoolAccess: decoded.crossSchoolAccess,
+          loginTime: new Date(decoded.iat * 1000),
+          expiresAt: new Date(decoded.exp * 1000)
+        }
+      });
+    }
+
+    // For regular users, determine if it's a school admin or regular user
+    if (decoded.schoolId && !decoded.userId) {
+      // This is a school admin token (has schoolId but no userId)
+      const School = require('../models/School');
+      const school = await School.findOne({ schoolId: decoded.schoolId })
+        .select('-password');
+
+      if (!school) {
+        // School not found, clear cookies
+        clearRefreshTokenCookie(res, req);
+        return res.status(401).json({
+          success: false,
+          message: 'School not found. Please log in again.'
+        });
+      }
+
+      // Check if school is still active
+      if (!school.isActive) {
+        clearRefreshTokenCookie(res, req);
+        return res.status(401).json({
+          success: false,
+          message: 'School account has been deactivated. Please contact support.'
+        });
+      }
+
+      // Return school admin profile data
+      return res.status(200).json({
+        success: true,
+        user: {
+          id: school._id,
+          email: school.email,
+          firstName: decoded.firstName || 'School',
+          lastName: decoded.lastName || 'Admin',
+          fullName: `${decoded.firstName || 'School'} ${decoded.lastName || 'Admin'}`,
+          role: 'admin',
+          schoolId: school.schoolId,
+          school: {
+            _id: school._id,
+            schoolName: school.schoolName,
+            email: school.email,
+            address: school.address,
+            phone: school.phone,
+            website: school.website
+          },
+          phone: school.phone,
+          isActive: school.isActive,
+          isVerified: school.isVerified,
+          isSchoolAdmin: true,
+          lastLogin: school.lastLogin,
+          createdAt: school.createdAt
+        }
+      });
+    }
+
+    // Regular user (teacher/parent) - has userId in token
+    if (decoded.userId) {
+      const user = await User.findById(decoded.userId)
+        .populate('school', 'schoolName email address phone website')
+        .populate('studentIds', 'firstName lastName studentId class grade')
+        .select('-password -invitationToken -passwordResetToken');
+
+      if (!user) {
+        // User not found, clear cookies
+        clearRefreshTokenCookie(res, req);
+        return res.status(401).json({
+          success: false,
+          message: 'User not found. Please log in again.'
+        });
+      }
+
+      // Check if user is still active
+      if (!user.isActive) {
+        clearRefreshTokenCookie(res, req);
+        return res.status(401).json({
+          success: false,
+          message: 'Account has been deactivated. Please contact your administrator.'
+        });
+      }
+
+      // Return user profile data
+      return res.status(200).json({
+        success: true,
+        user: {
+          id: user._id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          fullName: user.fullName,
+          role: user.role,
+          schoolId: user.schoolId,
+          school: user.school,
+          phone: user.phone,
+          profileImage: user.profileImage,
+          isActive: user.isActive,
+          isVerified: user.isVerified,
+          isSchoolAdmin: user.isSchoolAdmin,
+          lastLogin: user.lastLogin,
+          createdAt: user.createdAt,
+          // Role-specific fields
+          ...(user.role === 'teacher' && {
+            employeeId: user.employeeId,
+            subjects: user.subjects,
+            classes: user.classes
+          }),
+          ...(user.role === 'parent' && {
+            studentIds: user.studentIds,
+            children: user.studentIds // For backward compatibility
+          })
+        }
+      });
+    }
+
+    // If we reach here, token format is unexpected
+    clearRefreshTokenCookie(res, req);
+    return res.status(401).json({
+      success: false,
+      message: 'Invalid token format. Please log in again.'
     });
 
   } catch (error) {
-    console.error('Error in getMe:', error);
+    console.error('Error in unified getMe:', error);
     
     // Clear cookies on any error
     clearRefreshTokenCookie(res, req);

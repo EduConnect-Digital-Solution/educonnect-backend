@@ -85,10 +85,11 @@ POST /api/school/auth/logout
 ```
 **Access:** Public
 
-#### 6. Get Current User Profile
+#### 6. Get Current User Profile (DEPRECATED - Use /api/user/auth/me)
 ```http
 GET /api/school/auth/me
 ```
+**Status:** DEPRECATED - This endpoint has been consolidated into `/api/user/auth/me`  
 **Access:** Public (requires refresh token in HttpOnly cookie)  
 **Response:**
 ```json
@@ -206,11 +207,13 @@ POST /api/user/auth/complete-registration
 }
 ```
 
-#### 11. Get Current User Profile
+#### 11. Get Current User Profile (UNIFIED FOR ALL USER TYPES)
 ```http
 GET /api/user/auth/me
 ```
 **Access:** Public (requires refresh token in HttpOnly cookie)  
+**Supports:** Teachers, Parents, School Admins, System Admins  
+**Description:** This unified endpoint automatically detects user type from the refresh token and returns appropriate user data.  
 **Response:**
 ```json
 {
@@ -265,10 +268,11 @@ POST /api/system-admin/auth/login
 }
 ```
 
-#### 13. Get System Admin Profile
+#### 13. Get System Admin Profile (DEPRECATED - Use /api/user/auth/me)
 ```http
 GET /api/system-admin/auth/me
 ```
+**Status:** DEPRECATED - This endpoint has been consolidated into `/api/user/auth/me`  
 **Access:** Public (requires refresh token in HttpOnly cookie)  
 **Response:**
 ```json
