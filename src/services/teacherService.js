@@ -47,7 +47,10 @@ class TeacherService {
     // Get students assigned to this teacher (if any)
     const myStudents = await Student.find({
       schoolId: schoolId,
-      teachers: teacher._id,
+      $or: [
+        { teacherIds: teacher._id }, // Updated to use new field name
+        { teachers: teacher._id }    // Keep legacy field for backward compatibility
+      ],
       isActive: true
     }).select('firstName lastName studentId class section grade');
 
@@ -201,7 +204,8 @@ class TeacherService {
       schoolId: schoolId,
       isActive: true,
       $or: [
-        { teachers: teacher._id }, // Students directly assigned to teacher
+        { teacherIds: teacher._id }, // Updated to use new field name
+        { teachers: teacher._id }, // Keep legacy field for backward compatibility
         ...(teacher.classes && teacher.classes.length > 0 ? [
           { class: { $in: teacher.classes } } // Students in teacher's classes
         ] : [])
@@ -249,7 +253,8 @@ class TeacherService {
         email: parent.email,
         phone: parent.phone
       })),
-      isDirectlyAssigned: student.teachers && student.teachers.includes(teacher._id)
+      isDirectlyAssigned: (student.teacherIds && student.teacherIds.includes(teacher._id)) || 
+                       (student.teachers && student.teachers.includes(teacher._id))
     }));
 
     const studentsData = {
