@@ -369,54 +369,158 @@ class GradeService {
   }
 
   /**
+   * Get all grades for a specific student
+   * @param {string} teacherId - Teacher user ID
+   * @param {string} studentId - Student ID
+   * @param {Object} options - Query options
+   * @returns {Object} Student grades data
+   */
+  static async getStudentGrades(teacherId, studentId, options = {}) {
+    const { term, academicYear, subject, publishedOnly = false } = options;
+    
+    const cacheKey = `student-grades:${teacherId}:${studentId}:${term || 'all'}:${academicYear || 'current'}:${subject || 'all'}:${publishedOnly}`;
+    
+    // Try cache first
+    const cachedData = await CacheService.get('grades', cacheKey);
+    if (cachedData) {
+      return cachedData;
+    }
+
+    // Verify teacher access
+    const teacher = await User.findById(teacherId);
+    if (!teacher || teacher.role !== 'teacher') {
+      throw new Error('Access denied. Teacher role required.');
+    }
+
+    // Verify student exists and is in the same school
+    const student = await Student.findById(studentId);
+    if (!student || student.schoolId !== teacher.schoolId) {
+      throw new Error('Student not found or not in your school.');
+    }
+
+    // Get current academic year if not provided
+    const currentAcademicYear = academicYear || (() => {
+      const currentYear = new Date().getFullYear();
+      return `${currentYear}-${currentYear + 1}`;
+    })();
+
+    // Build query options
+    const queryOptions = {
+      publishedOnly: publishedOnly
+    };
+    
+    if (term) queryOptions.term = term;
+    if (currentAcademicYear) queryOptions.academicYear = currentAcademicYear;
+    if (subject) queryOptions.subject = subject;
+
+    // Get grades for the student
+    const grades = await Grade.findByStudent(studentId, queryOptions);
+
+    // Filter grades to only include those from teachers in the same school
+    // and optionally filter by teacher's subjects if specified
+    const filteredGrades = grades.filter(grade => {
+      // Basic school check (already done by student validation, but extra safety)
+      if (grade.schoolId !== teacher.schoolId) return false;
+      
+      // If teacher doesn't teach all subjects, only show grades for subjects they teach
+      // This is optional - you might want to show all grades regardless
+      // Uncomment the next two lines if you want to restrict by teacher's subjects
+      // if (teacher.subjects && teacher.subjects.length > 0 && !teacher.subjects.includes(grade.subject)) return false;
+      
+      return true;
+    });
+
+    // Group grades by subject for better organization
+    const gradesBySubject = {};
+    let totalGradePoints = 0;
+    let totalCredits = 0;
+
+    filteredGrades.forEach(grade => {
+      if (!gradesBySubject[grade.subject]) {
+        gradesBySubject[grade.subject] = [];
+      }
+      gradesBySubject[grade.subject].push({
+        id: grade._id,
+        subject: grade.subject,
+        class: grade.class,
+        section: grade.section,
+        term: grade.term,
+        academicYear: grade.academicYear,
+        totalScore: grade.totalScore,
+        totalMaxScore: grade.totalMaxScore,
+        percentage: grade.percentage,
+        letterGrade: grade.letterGrade,
+        gradePoints: grade.gradePoints,
+        assessments: grade.assessments,
+        remarks: grade.remarks,
+        isPublished: grade.isPublished,
+        teacher: {
+          id: grade.teacherId._id,
+          name: `${grade.teacherId.firstName} ${grade.teacherId.lastName}`
+        },
+        createdAt: grade.createdAt,
+        updatedAt: grade.updatedAt
+      });
+
+      // Calculate GPA (only for published grades)
+      if (grade.isPublished && grade.gradePoints !== undefined) {
+        totalGradePoints += grade.gradePoints;
+        totalCredits += 1; // Assuming each subject has equal weight
+      }
+    });
+
+    // Calculate GPA
+    const gpa = totalCredits > 0 ? Math.round((totalGradePoints / totalCredits) * 100) / 100 : 0;
+
+    const result = {
+      student: {
+        id: student._id,
+        studentId: student.studentId,
+        firstName: student.firstName,
+        lastName: student.lastName,
+        fullName: `${student.firstName} ${student.lastName}`,
+        class: student.class,
+        section: student.section
+      },
+      academicYear: currentAcademicYear,
+      term: term || 'All Terms',
+      subject: subject || 'All Subjects',
+      gradesBySubject: gradesBySubject,
+      summary: {
+        totalSubjects: Object.keys(gradesBySubject).length,
+        totalGrades: filteredGrades.length,
+        publishedGrades: filteredGrades.filter(g => g.isPublished).length,
+        unpublishedGrades: filteredGrades.filter(g => !g.isPublished).length,
+        gpa: gpa,
+        averagePercentage: filteredGrades.length > 0 ? 
+          Math.round((filteredGrades.reduce((sum, g) => sum + (g.percentage || 0), 0) / filteredGrades.length) * 100) / 100 : 0
+      },
+      generatedAt: new Date().toISOString()
+    };
+
+    // Cache for 5 minutes
+    await CacheService.set('grades', cacheKey, result, 300);
+    
+    return result;
+  }
+
+  /**
    * Get grade details for a specific student
    * @param {string} teacherId - Teacher user ID
    * @param {string} gradeId - Grade ID
    * @returns {Object} Grade details
    */
   static async getGradeDetails(teacherId, gradeId) {
-    console.log(`🔍 Looking for grade with ID: ${gradeId} for teacher: ${teacherId}`);
-    
-    // Enhanced debugging - check if grade exists at all first
-    const gradeExists = await Grade.findById(gradeId);
-    console.log(`📋 Grade exists in database: ${!!gradeExists}`);
-    
-    if (gradeExists) {
-      console.log(`📋 Grade found - Teacher: ${gradeExists.teacherId}, Subject: ${gradeExists.subject}, Class: ${gradeExists.class}`);
-      console.log(`📋 Grade published: ${gradeExists.isPublished}, Created: ${gradeExists.createdAt}`);
-    }
-    
-    // Check all grades for this teacher to help debug
-    const teacherGrades = await Grade.find({ teacherId: teacherId });
-    console.log(`📊 Teacher has ${teacherGrades.length} total grades. All IDs:`, 
-      teacherGrades.map(g => g._id.toString()));
-    
     const grade = await Grade.findById(gradeId)
       .populate('studentId', 'firstName lastName studentId class section')
       .populate('teacherId', 'firstName lastName');
 
     if (!grade) {
-      console.log(`❌ Grade not found with ID: ${gradeId}`);
-      
-      // Check if grade exists but populate failed
-      const gradeWithoutPopulate = await Grade.findById(gradeId);
-      if (gradeWithoutPopulate) {
-        console.log(`⚠️ Grade exists but populate failed. Raw grade:`, {
-          id: gradeWithoutPopulate._id,
-          teacherId: gradeWithoutPopulate.teacherId,
-          studentId: gradeWithoutPopulate.studentId,
-          subject: gradeWithoutPopulate.subject
-        });
-      }
-      
       throw new Error('Grade not found.');
     }
 
-    console.log(`✅ Found grade: ${grade._id} for student: ${grade.studentId?.firstName} ${grade.studentId?.lastName}`);
-
     // Verify teacher owns this grade
     if (grade.teacherId._id.toString() !== teacherId) {
-      console.log(`❌ Access denied: Grade belongs to teacher ${grade.teacherId._id}, not ${teacherId}`);
       throw new Error('Access denied. You can only view your own grades.');
     }
 
@@ -486,8 +590,6 @@ class GradeService {
       academicYear: currentAcademicYear
     });
 
-    console.log(`📊 Publishing grades: Found ${existingGrades.length} existing grades for ${subject} in ${className}`);
-
     if (existingGrades.length === 0) {
       throw new Error(`No grades found to publish for ${subject} in ${className}. Please assign grades to students first.`);
     }
@@ -507,8 +609,6 @@ class GradeService {
         publishedBy: teacherId
       }
     );
-
-    console.log(`📊 Published ${result.modifiedCount} grades for ${subject} in ${className}`);
 
     // Invalidate related caches
     await this.invalidateGradeCaches(teacher.schoolId, teacherId, className, subject);
@@ -536,11 +636,8 @@ class GradeService {
     // Try cache first
     const cachedData = await CacheService.get('grades', cacheKey);
     if (cachedData) {
-      console.log(`📊 Grade statistics cache HIT for ${cacheKey}`);
       return cachedData;
     }
-
-    console.log(`📊 Grade statistics cache MISS for ${cacheKey}`);
 
     const stats = await Grade.getClassStatistics(teacherId, className, subject, term, academicYear);
     
@@ -558,8 +655,6 @@ class GradeService {
    * @param {string} subject - Subject name (optional)
    */
   static async invalidateGradeCaches(schoolId, teacherId, className = null, subject = null) {
-    console.log(`🗑️ Invalidating grade caches for teacher ${teacherId}`);
-    
     // Invalidate teacher-specific caches
     await CacheService.del('grades', `classes:${teacherId}`);
     
@@ -577,7 +672,9 @@ class GradeService {
       }
     }
     
-    console.log(`🗑️ Grade caches invalidated for teacher ${teacherId}`);
+    // Invalidate student grades caches (since we don't know which students are affected)
+    const studentGradesPattern = `educonnect:grades:student-grades:${teacherId}*`;
+    await CacheService.delPattern(studentGradesPattern);
   }
 }
 

@@ -137,14 +137,54 @@ const assignGrade = catchAsync(async (req, res) => {
 });
 
 /**
+ * Get Student Grades
+ * Returns all grades for a specific student
+ */
+const getStudentGrades = catchAsync(async (req, res) => {
+  const { userId: teacherId } = req.user;
+  const { studentId } = req.params;
+  const { term, academicYear, subject, publishedOnly } = req.query;
+
+  if (!studentId) {
+    return res.status(400).json({
+      success: false,
+      message: 'Student ID is required'
+    });
+  }
+
+  try {
+    const data = await GradeService.getStudentGrades(teacherId, studentId, {
+      term,
+      academicYear,
+      subject,
+      publishedOnly: publishedOnly === 'true'
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Student grades retrieved successfully',
+      data
+    });
+  } catch (error) {
+    if (error.message.includes('Access denied') || 
+        error.message.includes('not found') ||
+        error.message.includes('not in')) {
+      return res.status(403).json({
+        success: false,
+        message: error.message
+      });
+    }
+    throw error;
+  }
+});
+
+/**
  * Get Grade Details
  * Returns detailed information about a specific grade
  */
 const getGradeDetails = catchAsync(async (req, res) => {
   const { userId: teacherId } = req.user;
   const { gradeId } = req.params;
-
-  console.log(`🎯 Controller: Getting grade details for ID: ${gradeId}, Teacher: ${teacherId}`);
 
   if (!gradeId) {
     return res.status(400).json({
@@ -156,16 +196,12 @@ const getGradeDetails = catchAsync(async (req, res) => {
   try {
     const grade = await GradeService.getGradeDetails(teacherId, gradeId);
 
-    console.log(`✅ Controller: Successfully retrieved grade ${gradeId}`);
-
     res.status(200).json({
       success: true,
       message: 'Grade details retrieved successfully',
       data: { grade }
     });
   } catch (error) {
-    console.log(`❌ Controller: Error retrieving grade ${gradeId}:`, error.message);
-    
     if (error.message.includes('not found') || error.message.includes('Access denied')) {
       return res.status(404).json({
         success: false,
@@ -347,6 +383,7 @@ module.exports = {
   getSubjectsByClass,
   getStudentsByClassAndSubject,
   assignGrade,
+  getStudentGrades,
   getGradeDetails,
   updateGrade,
   deleteGrade,

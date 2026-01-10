@@ -15,6 +15,7 @@ const {
   validatePublishGrades,
   validateClassName,
   validateSubject,
+  validateStudentId,
   validateGradeId,
   validateStudentQuery,
   validateStatisticsQuery,
@@ -102,6 +103,17 @@ router.post('/grades',
   sanitizeGradeData,
   validateGradeAssignment,
   gradeController.assignGrade
+);
+
+/**
+ * @route   GET /api/teacher/students/:studentId/grades
+ * @desc    Get all grades for a specific student
+ * @access  Teacher
+ */
+router.get('/students/:studentId/grades',
+  validateStudentId,
+  validateStudentQuery,
+  gradeController.getStudentGrades
 );
 
 /**
