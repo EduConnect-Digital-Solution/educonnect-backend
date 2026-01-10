@@ -44,7 +44,7 @@ class TeacherService {
       throw new Error('School not found');
     }
 
-    // Get students assigned to this teacher (if any)
+    // Get students assigned to this teacher (directly assigned only)
     const myStudents = await Student.find({
       schoolId: schoolId,
       $or: [
@@ -54,19 +54,14 @@ class TeacherService {
       isActive: true
     }).select('firstName lastName studentId class section grade');
 
-    // Get all students in teacher's subjects/classes for broader view
-    const allStudents = await Student.find({
-      schoolId: schoolId,
-      isActive: true,
-      ...(teacher.classes && teacher.classes.length > 0 && {
-        class: { $in: teacher.classes }
-      })
-    }).select('firstName lastName studentId class section grade');
+    // REMOVED: Don't get all students in teacher's classes
+    // Teachers should only see students explicitly assigned to them
+    const allStudents = myStudents; // Use the same list
 
     // Calculate statistics
     const stats = {
       myStudents: myStudents.length,
-      totalStudentsInClasses: allStudents.length,
+      totalStudentsInClasses: myStudents.length, // Same as myStudents now
       subjects: teacher.subjects ? teacher.subjects.length : 0,
       classes: teacher.classes ? teacher.classes.length : 0
     };
@@ -199,17 +194,16 @@ class TeacherService {
       throw new Error('Access denied. Teacher role required.');
     }
 
-    // Build query for students
+    // Build query for students - ONLY directly assigned students
     const query = {
       schoolId: schoolId,
       isActive: true,
       $or: [
         { teacherIds: teacher._id }, // Updated to use new field name
-        { teachers: teacher._id }, // Keep legacy field for backward compatibility
-        ...(teacher.classes && teacher.classes.length > 0 ? [
-          { class: { $in: teacher.classes } } // Students in teacher's classes
-        ] : [])
+        { teachers: teacher._id }    // Keep legacy field for backward compatibility
       ]
+      // REMOVED: Don't show all students in teacher's classes automatically
+      // Teachers should only see students explicitly assigned to them
     };
 
     // Add filters

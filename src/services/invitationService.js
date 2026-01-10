@@ -72,9 +72,9 @@ const createTeacherInvitation = async (invitationData, schoolId, adminUserId) =>
     isActive: false, // Inactive until they complete registration
     isTemporaryPassword: true, // Flag to force password change on first login
     verifiedAt: new Date(),
-    // Teacher-specific fields
+    // Teacher-specific fields - ONLY subjects, NO classes initially
     subjects: subjects || [],
-    classes: classes || [],
+    // classes: classes || [], // ← REMOVED: Teachers should not get classes automatically
     // Set invitation details
     invitedBy: adminUser._id,
     invitedAt: new Date()
@@ -119,7 +119,7 @@ const createTeacherInvitation = async (invitationData, schoolId, adminUserId) =>
       loginUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173/'}/login`,
       completeRegistrationUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173/'}/complete-registration?role=teacher`,
       subjects: subjects ? subjects.join(', ') : 'Not specified',
-      classes: classes ? classes.join(', ') : 'Not specified',
+      // classes: classes ? classes.join(', ') : 'Not specified', // ← REMOVED: Don't mention classes in invitation
       message: message || null,
       expirationHours: 72
     }
@@ -140,7 +140,7 @@ const createTeacherInvitation = async (invitationData, schoolId, adminUserId) =>
       lastName: teacher.lastName,
       role: teacher.role,
       subjects: teacher.subjects,
-      classes: teacher.classes,
+      // classes: teacher.classes, // ← REMOVED: Don't return classes in response
       isActive: teacher.isActive,
       isTemporaryPassword: teacher.isTemporaryPassword
     },
