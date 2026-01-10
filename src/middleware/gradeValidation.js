@@ -184,6 +184,12 @@ const validateGradeId = [
     .withMessage('Grade ID is required')
     .isMongoId()
     .withMessage('Grade ID must be a valid MongoDB ObjectId')
+    .custom((value, { req }) => {
+      console.log(`🔍 Validation: Checking grade ID: ${value}`);
+      console.log(`🔍 Validation: Is valid ObjectId: ${require('mongoose').Types.ObjectId.isValid(value)}`);
+      console.log(`🔍 Validation: Teacher ID: ${req.user?.userId}`);
+      return true;
+    })
 ];
 
 /**

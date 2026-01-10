@@ -238,6 +238,7 @@ class GradeService {
           lastUpdated: existingGrade.updatedAt
         } : null,
         hasGrade: !!existingGrade,
+        hasPublishedGrade: existingGrade ? existingGrade.isPublished : false,
         parents: student.parentIds.map(parent => ({
           id: parent._id,
           name: `${parent.firstName} ${parent.lastName}`,
@@ -374,16 +375,48 @@ class GradeService {
    * @returns {Object} Grade details
    */
   static async getGradeDetails(teacherId, gradeId) {
+    console.log(`🔍 Looking for grade with ID: ${gradeId} for teacher: ${teacherId}`);
+    
+    // Enhanced debugging - check if grade exists at all first
+    const gradeExists = await Grade.findById(gradeId);
+    console.log(`📋 Grade exists in database: ${!!gradeExists}`);
+    
+    if (gradeExists) {
+      console.log(`📋 Grade found - Teacher: ${gradeExists.teacherId}, Subject: ${gradeExists.subject}, Class: ${gradeExists.class}`);
+      console.log(`📋 Grade published: ${gradeExists.isPublished}, Created: ${gradeExists.createdAt}`);
+    }
+    
+    // Check all grades for this teacher to help debug
+    const teacherGrades = await Grade.find({ teacherId: teacherId });
+    console.log(`📊 Teacher has ${teacherGrades.length} total grades. All IDs:`, 
+      teacherGrades.map(g => g._id.toString()));
+    
     const grade = await Grade.findById(gradeId)
       .populate('studentId', 'firstName lastName studentId class section')
       .populate('teacherId', 'firstName lastName');
 
     if (!grade) {
+      console.log(`❌ Grade not found with ID: ${gradeId}`);
+      
+      // Check if grade exists but populate failed
+      const gradeWithoutPopulate = await Grade.findById(gradeId);
+      if (gradeWithoutPopulate) {
+        console.log(`⚠️ Grade exists but populate failed. Raw grade:`, {
+          id: gradeWithoutPopulate._id,
+          teacherId: gradeWithoutPopulate.teacherId,
+          studentId: gradeWithoutPopulate.studentId,
+          subject: gradeWithoutPopulate.subject
+        });
+      }
+      
       throw new Error('Grade not found.');
     }
 
+    console.log(`✅ Found grade: ${grade._id} for student: ${grade.studentId?.firstName} ${grade.studentId?.lastName}`);
+
     // Verify teacher owns this grade
     if (grade.teacherId._id.toString() !== teacherId) {
+      console.log(`❌ Access denied: Grade belongs to teacher ${grade.teacherId._id}, not ${teacherId}`);
       throw new Error('Access denied. You can only view your own grades.');
     }
 
@@ -436,17 +469,37 @@ class GradeService {
       throw new Error('Access denied. Teacher role required.');
     }
 
+    // Get current academic year if not provided
+    const currentAcademicYear = academicYear || (() => {
+      const currentYear = new Date().getFullYear();
+      return `${currentYear}-${currentYear + 1}`;
+    })();
+
+    const currentTerm = term || 'First Term';
+
+    // First, check if any grades exist for this class/subject combination
+    const existingGrades = await Grade.find({
+      teacherId: teacherId,
+      class: className,
+      subject: subject,
+      term: currentTerm,
+      academicYear: currentAcademicYear
+    });
+
+    console.log(`📊 Publishing grades: Found ${existingGrades.length} existing grades for ${subject} in ${className}`);
+
+    if (existingGrades.length === 0) {
+      throw new Error(`No grades found to publish for ${subject} in ${className}. Please assign grades to students first.`);
+    }
+
     // Update all grades for this class/subject to published
     const result = await Grade.updateMany(
       {
         teacherId: teacherId,
         class: className,
         subject: subject,
-        term: term || 'First Term',
-        academicYear: academicYear || (() => {
-          const currentYear = new Date().getFullYear();
-          return `${currentYear}-${currentYear + 1}`;
-        })()
+        term: currentTerm,
+        academicYear: currentAcademicYear
       },
       {
         isPublished: true,
@@ -455,13 +508,16 @@ class GradeService {
       }
     );
 
+    console.log(`📊 Published ${result.modifiedCount} grades for ${subject} in ${className}`);
+
     // Invalidate related caches
     await this.invalidateGradeCaches(teacher.schoolId, teacherId, className, subject);
 
     return {
       success: true,
       message: `Published ${result.modifiedCount} grades for ${subject} in ${className}`,
-      publishedCount: result.modifiedCount
+      publishedCount: result.modifiedCount,
+      gradeIds: existingGrades.map(grade => grade._id.toString())
     };
   }
 

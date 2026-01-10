@@ -144,6 +144,8 @@ const getGradeDetails = catchAsync(async (req, res) => {
   const { userId: teacherId } = req.user;
   const { gradeId } = req.params;
 
+  console.log(`🎯 Controller: Getting grade details for ID: ${gradeId}, Teacher: ${teacherId}`);
+
   if (!gradeId) {
     return res.status(400).json({
       success: false,
@@ -154,12 +156,16 @@ const getGradeDetails = catchAsync(async (req, res) => {
   try {
     const grade = await GradeService.getGradeDetails(teacherId, gradeId);
 
+    console.log(`✅ Controller: Successfully retrieved grade ${gradeId}`);
+
     res.status(200).json({
       success: true,
       message: 'Grade details retrieved successfully',
       data: { grade }
     });
   } catch (error) {
+    console.log(`❌ Controller: Error retrieving grade ${gradeId}:`, error.message);
+    
     if (error.message.includes('not found') || error.message.includes('Access denied')) {
       return res.status(404).json({
         success: false,
