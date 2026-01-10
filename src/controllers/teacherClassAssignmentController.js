@@ -5,6 +5,7 @@
 
 const User = require('../models/User');
 const School = require('../models/School');
+const TeacherService = require('../services/teacherService');
 const catchAsync = require('../utils/catchAsync');
 const { validationResult } = require('express-validator');
 
@@ -62,6 +63,9 @@ const assignClassesToTeacher = catchAsync(async (req, res) => {
   if (newClasses.length > 0) {
     teacher.classes = [...existingClasses, ...newClasses];
     await teacher.save();
+
+    // Invalidate teacher caches after class assignment
+    await TeacherService.invalidateTeacherCaches(targetSchoolId, teacherId);
   }
 
   res.status(200).json({
@@ -206,6 +210,9 @@ const removeClassesFromTeacher = catchAsync(async (req, res) => {
   const originalClasses = teacher.classes || [];
   teacher.classes = originalClasses.filter(cls => !classes.includes(cls));
   await teacher.save();
+
+  // Invalidate teacher caches after class removal
+  await TeacherService.invalidateTeacherCaches(targetSchoolId, teacherId);
 
   const removedClasses = originalClasses.filter(cls => classes.includes(cls));
 

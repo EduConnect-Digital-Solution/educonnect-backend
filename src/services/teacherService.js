@@ -44,8 +44,9 @@ class TeacherService {
       throw new Error('School not found');
     }
 
-    // Get students assigned to this teacher (directly assigned only)
-    const myStudents = await Student.find({
+    // Get students assigned to this teacher
+    // 1. Students directly assigned to teacher (via teacherIds field)
+    const directlyAssignedStudents = await Student.find({
       schoolId: schoolId,
       $or: [
         { teacherIds: teacher._id }, // Updated to use new field name
@@ -54,14 +55,26 @@ class TeacherService {
       isActive: true
     }).select('firstName lastName studentId class section grade');
 
-    // REMOVED: Don't get all students in teacher's classes
-    // Teachers should only see students explicitly assigned to them
-    const allStudents = myStudents; // Use the same list
+    // 2. Students in teacher's assigned classes (only if teacher has classes assigned)
+    let studentsInClasses = [];
+    if (teacher.classes && teacher.classes.length > 0) {
+      studentsInClasses = await Student.find({
+        schoolId: schoolId,
+        class: { $in: teacher.classes },
+        isActive: true,
+        // Exclude students already directly assigned to avoid duplicates
+        _id: { $nin: directlyAssignedStudents.map(s => s._id) }
+      }).select('firstName lastName studentId class section grade');
+    }
+
+    // Combine both lists - directly assigned students + students in assigned classes
+    const allStudents = [...directlyAssignedStudents, ...studentsInClasses];
+    const myStudents = directlyAssignedStudents; // Keep track of directly assigned for stats
 
     // Calculate statistics
     const stats = {
-      myStudents: myStudents.length,
-      totalStudentsInClasses: myStudents.length, // Same as myStudents now
+      myStudents: myStudents.length, // Directly assigned students
+      totalStudentsInClasses: allStudents.length, // All students teacher can see
       subjects: teacher.subjects ? teacher.subjects.length : 0,
       classes: teacher.classes ? teacher.classes.length : 0
     };
@@ -96,9 +109,9 @@ class TeacherService {
     const quickActions = [
       {
         title: 'View My Students',
-        description: 'See students assigned to you',
+        description: 'See all students you can access',
         action: 'view_students',
-        count: myStudents.length
+        count: allStudents.length
       },
       {
         title: 'Manage Classes',
@@ -134,14 +147,15 @@ class TeacherService {
         email: school.email
       },
       statistics: stats,
-      myStudents: myStudents.map(student => ({
+      myStudents: allStudents.map(student => ({
         id: student._id,
         studentId: student.studentId,
         name: `${student.firstName} ${student.lastName}`,
         class: student.class,
         section: student.section,
         classDisplay: student.class && student.section ? `${student.class}-${student.section}` : student.class || 'Not Assigned',
-        grade: student.grade
+        grade: student.grade,
+        isDirectlyAssigned: myStudents.some(ms => ms._id.equals(student._id))
       })),
       studentsByClass: studentsByClass,
       recentActivity: recentActivity,
@@ -194,35 +208,60 @@ class TeacherService {
       throw new Error('Access denied. Teacher role required.');
     }
 
-    // Build query for students - ONLY directly assigned students
-    const query = {
+    // Build query for students - both directly assigned AND in teacher's classes
+    let studentQuery = {
       schoolId: schoolId,
-      isActive: true,
+      isActive: true
+    };
+
+    // Get directly assigned students
+    const directAssignmentQuery = {
+      ...studentQuery,
       $or: [
         { teacherIds: teacher._id }, // Updated to use new field name
         { teachers: teacher._id }    // Keep legacy field for backward compatibility
       ]
-      // REMOVED: Don't show all students in teacher's classes automatically
-      // Teachers should only see students explicitly assigned to them
     };
 
-    // Add filters
+    // Get students in teacher's classes (if teacher has classes)
+    const classAssignmentQuery = teacher.classes && teacher.classes.length > 0 ? {
+      ...studentQuery,
+      class: { $in: teacher.classes }
+    } : null;
+
+    // Combine queries using $or to get both directly assigned and class-based students
+    const combinedQuery = {
+      ...studentQuery,
+      $or: [
+        // Directly assigned students
+        ...(directAssignmentQuery.$or || []),
+        // Students in teacher's classes (if teacher has classes)
+        ...(classAssignmentQuery ? [{ class: { $in: teacher.classes } }] : [])
+      ]
+    };
+
+    // If teacher has no classes and no direct assignments, show empty result
+    if ((!teacher.classes || teacher.classes.length === 0) && !combinedQuery.$or.length) {
+      combinedQuery._id = null; // This will return no results
+    }
+
+    // Add filters to the combined query
     if (studentClass && studentClass !== 'all') {
-      query.class = studentClass;
+      combinedQuery.class = studentClass;
     }
     if (section && section !== 'all') {
-      query.section = section;
+      combinedQuery.section = section;
     }
 
     // Get students with pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);
-    const students = await Student.find(query)
+    const students = await Student.find(combinedQuery)
       .sort({ class: 1, section: 1, firstName: 1 })
       .skip(skip)
       .limit(parseInt(limit))
       .populate('parentIds', 'firstName lastName email phone');
 
-    const total = await Student.countDocuments(query);
+    const total = await Student.countDocuments(combinedQuery);
 
     // Format response
     const formattedStudents = students.map(student => ({

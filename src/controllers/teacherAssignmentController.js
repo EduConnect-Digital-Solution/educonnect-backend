@@ -4,6 +4,7 @@
  */
 
 const teacherAssignmentService = require('../services/teacherAssignmentService');
+const TeacherService = require('../services/teacherService');
 const catchAsync = require('../utils/catchAsync');
 const { validationResult } = require('express-validator');
 
@@ -30,6 +31,9 @@ const assignTeacher = catchAsync(async (req, res) => {
     targetSchoolId,
     req.user.id
   );
+
+  // Invalidate teacher caches after assignment
+  await TeacherService.invalidateTeacherCaches(targetSchoolId, teacherId);
 
   res.status(200).json({
     success: true,
@@ -60,6 +64,11 @@ const assignTeachersBulk = catchAsync(async (req, res) => {
     targetSchoolId,
     req.user.id
   );
+
+  // Invalidate caches for all affected teachers
+  for (const assignment of assignments) {
+    await TeacherService.invalidateTeacherCaches(targetSchoolId, assignment.teacherId);
+  }
 
   res.status(200).json({
     success: true,
@@ -92,6 +101,9 @@ const unassignTeacher = catchAsync(async (req, res) => {
     req.user.id
   );
 
+  // Invalidate teacher caches after unassignment
+  await TeacherService.invalidateTeacherCaches(targetSchoolId, teacherId);
+
   res.status(200).json({
     success: true,
     message: 'Teacher unassigned successfully',
@@ -115,6 +127,9 @@ const assignTeacherToStudent = catchAsync(async (req, res) => {
     req.user.id
   );
 
+  // Invalidate teacher caches after assignment
+  await TeacherService.invalidateTeacherCaches(targetSchoolId, teacherId);
+
   res.status(200).json({
     success: true,
     message: 'Teacher assigned to student successfully',
@@ -137,6 +152,9 @@ const unassignTeacherFromStudent = catchAsync(async (req, res) => {
     targetSchoolId,
     req.user.id
   );
+
+  // Invalidate teacher caches after unassignment
+  await TeacherService.invalidateTeacherCaches(targetSchoolId, teacherId);
 
   res.status(200).json({
     success: true,
