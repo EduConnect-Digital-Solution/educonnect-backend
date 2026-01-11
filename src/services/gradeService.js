@@ -37,40 +37,12 @@ class GradeService {
     console.log(`👨‍🏫 Teacher found: ${teacher.firstName} ${teacher.lastName}`);
     console.log(`📚 Teacher classes from profile: ${JSON.stringify(teacher.classes)}`);
 
-    // Use the SAME logic as TeacherService for consistency
-    // 1. Students directly assigned to teacher (via teacherIds field)
-    const directlyAssignedStudents = await Student.find({
-      schoolId: schoolId,
-      $or: [
-        { teacherIds: teacher._id },
-        { teachers: teacher._id }
-      ],
-      isActive: true
-    }).select('class');
-
-    // 2. Students in teacher's assigned classes (only if teacher has classes assigned)
-    let studentsInClasses = [];
-    if (teacher.classes && teacher.classes.length > 0) {
-      studentsInClasses = await Student.find({
-        schoolId: schoolId,
-        class: { $in: teacher.classes },
-        isActive: true,
-        // Exclude students already directly assigned to avoid duplicates
-        _id: { $nin: directlyAssignedStudents.map(s => s._id) }
-      }).select('class');
-    }
-
-    // Combine both lists and get unique classes
-    const allStudents = [...directlyAssignedStudents, ...studentsInClasses];
-    const uniqueClasses = [...new Set(allStudents.map(s => s.class).filter(c => c))];
+    // Use the SAME logic as the dashboard - simply return teacher.classes
+    const teacherClasses = teacher.classes || [];
     
-    console.log(`📚 Classes from directly assigned students: ${JSON.stringify(directlyAssignedStudents.map(s => s.class))}`);
-    console.log(`📚 Classes from teacher profile: ${JSON.stringify(teacher.classes)}`);
-    console.log(`📚 Final unique classes: ${JSON.stringify(uniqueClasses)}`);
-    
-    // Get student count for each class
+    // Format classes with student counts (same as dashboard expects)
     const classesWithCounts = await Promise.all(
-      uniqueClasses.map(async (className) => {
+      teacherClasses.map(async (className) => {
         const studentCount = await Student.countDocuments({
           schoolId: schoolId,
           class: className,
@@ -89,7 +61,7 @@ class GradeService {
 
     const result = {
       classes: classesWithCounts,
-      totalClasses: uniqueClasses.length,
+      totalClasses: teacherClasses.length,
       generatedAt: new Date().toISOString()
     };
 
