@@ -567,58 +567,130 @@ class GradeService {
   static async publishGrades(teacherId, publishData) {
     const { class: className, subject, term, academicYear } = publishData;
 
-    // Verify teacher access
-    const teacher = await User.findById(teacherId);
-    if (!teacher || teacher.role !== 'teacher') {
-      throw new Error('Access denied. Teacher role required.');
-    }
+    console.log(`📚 Starting grade publishing process for teacher ${teacherId}`);
+    console.log(`📋 Publish data:`, { className, subject, term, academicYear });
 
-    // Get current academic year if not provided
-    const currentAcademicYear = academicYear || (() => {
-      const currentYear = new Date().getFullYear();
-      return `${currentYear}-${currentYear + 1}`;
-    })();
+    try {
+      // Verify teacher access
+      const teacher = await User.findById(teacherId);
+      if (!teacher || teacher.role !== 'teacher') {
+        console.error(`❌ Teacher verification failed for ${teacherId}: ${teacher ? 'Invalid role' : 'Teacher not found'}`);
+        throw new Error('Access denied. Teacher role required.');
+      }
 
-    const currentTerm = term || 'First Term';
+      console.log(`👨‍🏫 Teacher verified: ${teacher.firstName} ${teacher.lastName} (${teacher.email})`);
 
-    // First, check if any grades exist for this class/subject combination
-    const existingGrades = await Grade.find({
-      teacherId: teacherId,
-      class: className,
-      subject: subject,
-      term: currentTerm,
-      academicYear: currentAcademicYear
-    });
+      // Verify teacher teaches this subject and class
+      if (!teacher.subjects?.includes(subject)) {
+        console.error(`❌ Teacher ${teacherId} does not teach subject: ${subject}. Teacher subjects:`, teacher.subjects);
+        throw new Error(`Access denied. You do not teach the subject "${subject}". Please contact your administrator if this is incorrect.`);
+      }
 
-    if (existingGrades.length === 0) {
-      throw new Error(`No grades found to publish for ${subject} in ${className}. Please assign grades to students first.`);
-    }
+      if (!teacher.classes?.includes(className)) {
+        console.error(`❌ Teacher ${teacherId} does not teach class: ${className}. Teacher classes:`, teacher.classes);
+        throw new Error(`Access denied. You do not teach the class "${className}". Please contact your administrator if this is incorrect.`);
+      }
 
-    // Update all grades for this class/subject to published
-    const result = await Grade.updateMany(
-      {
+      console.log(`✅ Teacher authorization verified for ${subject} in ${className}`);
+
+      // Get current academic year if not provided
+      const currentAcademicYear = academicYear || (() => {
+        const currentYear = new Date().getFullYear();
+        return `${currentYear}-${currentYear + 1}`;
+      })();
+
+      const currentTerm = term || 'First Term';
+
+      console.log(`📅 Using academic year: ${currentAcademicYear}, term: ${currentTerm}`);
+
+      // First, check if any grades exist for this class/subject combination
+      const existingGrades = await Grade.find({
         teacherId: teacherId,
         class: className,
         subject: subject,
         term: currentTerm,
         academicYear: currentAcademicYear
-      },
-      {
-        isPublished: true,
-        publishedAt: new Date(),
-        publishedBy: teacherId
+      });
+
+      console.log(`📊 Found ${existingGrades.length} existing grades for ${subject} in ${className}`);
+
+      if (existingGrades.length === 0) {
+        console.error(`❌ No grades found for publishing: ${subject} in ${className} for ${currentTerm} ${currentAcademicYear}`);
+        throw new Error(`No grades found to publish for ${subject} in ${className} for ${currentTerm} ${currentAcademicYear}. Please assign grades to students first.`);
       }
-    );
 
-    // Invalidate related caches
-    await this.invalidateGradeCaches(teacher.schoolId, teacherId, className, subject);
+      // Log details about existing grades
+      const publishedCount = existingGrades.filter(g => g.isPublished).length;
+      const unpublishedCount = existingGrades.length - publishedCount;
+      console.log(`📈 Grade status: ${publishedCount} already published, ${unpublishedCount} unpublished`);
 
-    return {
-      success: true,
-      message: `Published ${result.modifiedCount} grades for ${subject} in ${className}`,
-      publishedCount: result.modifiedCount,
-      gradeIds: existingGrades.map(grade => grade._id.toString())
-    };
+      // Update all grades for this class/subject to published
+      console.log(`🔄 Updating grades to published status...`);
+      const result = await Grade.updateMany(
+        {
+          teacherId: teacherId,
+          class: className,
+          subject: subject,
+          term: currentTerm,
+          academicYear: currentAcademicYear
+        },
+        {
+          isPublished: true,
+          publishedAt: new Date(),
+          publishedBy: teacherId
+        }
+      );
+
+      console.log(`✅ Grade update result:`, {
+        matched: result.matchedCount,
+        modified: result.modifiedCount,
+        acknowledged: result.acknowledged
+      });
+
+      if (result.matchedCount === 0) {
+        console.error(`❌ No grades matched the update criteria`);
+        throw new Error(`No grades found matching the specified criteria. Please verify the class, subject, term, and academic year.`);
+      }
+
+      // Invalidate related caches
+      console.log(`🗑️ Invalidating caches for teacher ${teacherId}, class ${className}, subject ${subject}`);
+      await this.invalidateGradeCaches(teacher.schoolId, teacherId, className, subject);
+
+      const successMessage = `Published ${result.modifiedCount} grades for ${subject} in ${className} (${currentTerm} ${currentAcademicYear})`;
+      console.log(`🎉 ${successMessage}`);
+
+      return {
+        success: true,
+        message: successMessage,
+        publishedCount: result.modifiedCount,
+        totalGrades: result.matchedCount,
+        gradeIds: existingGrades.map(grade => grade._id.toString()),
+        details: {
+          className: className,
+          subject: subject,
+          term: currentTerm,
+          academicYear: currentAcademicYear,
+          teacherId: teacherId,
+          teacherName: `${teacher.firstName} ${teacher.lastName}`,
+          publishedAt: new Date().toISOString()
+        }
+      };
+
+    } catch (error) {
+      console.error(`❌ Error in publishGrades service:`, {
+        teacherId,
+        publishData,
+        error: error.message,
+        stack: error.stack
+      });
+      
+      // Re-throw the error with additional context if it's not already detailed
+      if (!error.message.includes('Access denied') && !error.message.includes('No grades found')) {
+        throw new Error(`Failed to publish grades: ${error.message}`);
+      }
+      
+      throw error;
+    }
   }
 
   /**

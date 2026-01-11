@@ -308,30 +308,140 @@ const publishGrades = catchAsync(async (req, res) => {
     return res.status(400).json({
       success: false,
       message: 'Validation failed',
-      errors: errors.array()
+      errors: errors.array(),
+      details: 'Please check the required fields: class, subject, term, and academicYear'
     });
   }
 
-  const { userId: teacherId } = req.user;
+  const { userId: teacherId, schoolId } = req.user;
+  const { class: className, subject, term, academicYear } = req.body;
+
+  // Enhanced input validation
+  if (!className || typeof className !== 'string' || className.trim().length === 0) {
+    return res.status(400).json({
+      success: false,
+      message: 'Class name is required and must be a non-empty string',
+      field: 'class'
+    });
+  }
+
+  if (!subject || typeof subject !== 'string' || subject.trim().length === 0) {
+    return res.status(400).json({
+      success: false,
+      message: 'Subject is required and must be a non-empty string',
+      field: 'subject'
+    });
+  }
+
+  console.log(`📚 Publishing grades for teacher ${teacherId}, class: ${className}, subject: ${subject}, term: ${term || 'First Term'}`);
 
   try {
     const result = await GradeService.publishGrades(teacherId, req.body);
+
+    console.log(`✅ Successfully published ${result.publishedCount} grades for ${subject} in ${className}`);
 
     res.status(200).json({
       success: true,
       message: result.message,
       data: {
-        publishedCount: result.publishedCount
+        publishedCount: result.publishedCount,
+        gradeIds: result.gradeIds,
+        details: {
+          teacherId: teacherId,
+          schoolId: schoolId,
+          class: className,
+          subject: subject,
+          term: term || 'First Term',
+          academicYear: academicYear || `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`,
+          publishedAt: new Date().toISOString()
+        }
       }
     });
   } catch (error) {
+    console.error(`❌ Error publishing grades for teacher ${teacherId}:`, error);
+
+    // Handle specific error types with detailed messages
     if (error.message.includes('Access denied')) {
       return res.status(403).json({
         success: false,
-        message: error.message
+        message: 'Access denied. You do not have permission to publish grades for this class/subject.',
+        details: error.message,
+        context: {
+          teacherId: teacherId,
+          class: className,
+          subject: subject
+        }
       });
     }
-    throw error;
+
+    if (error.message.includes('No grades found')) {
+      return res.status(404).json({
+        success: false,
+        message: 'No grades found to publish',
+        details: error.message,
+        context: {
+          class: className,
+          subject: subject,
+          term: term || 'First Term',
+          academicYear: academicYear || `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`
+        },
+        suggestion: 'Please assign grades to students first before publishing.'
+      });
+    }
+
+    if (error.message.includes('Teacher role required')) {
+      return res.status(403).json({
+        success: false,
+        message: 'Teacher role required',
+        details: 'Only teachers can publish grades',
+        context: {
+          userId: teacherId,
+          requiredRole: 'teacher'
+        }
+      });
+    }
+
+    // Database connection errors
+    if (error.name === 'MongoError' || error.name === 'MongooseError') {
+      return res.status(500).json({
+        success: false,
+        message: 'Database error occurred while publishing grades',
+        details: 'Please try again in a moment. If the problem persists, contact support.',
+        errorType: 'DATABASE_ERROR',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // Validation errors from Mongoose
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Grade data validation failed',
+        details: error.message,
+        errors: Object.keys(error.errors).map(key => ({
+          field: key,
+          message: error.errors[key].message
+        }))
+      });
+    }
+
+    // Generic error with more context
+    return res.status(500).json({
+      success: false,
+      message: 'An unexpected error occurred while publishing grades',
+      details: error.message,
+      errorType: 'INTERNAL_SERVER_ERROR',
+      context: {
+        teacherId: teacherId,
+        schoolId: schoolId,
+        class: className,
+        subject: subject,
+        term: term,
+        academicYear: academicYear
+      },
+      timestamp: new Date().toISOString(),
+      suggestion: 'Please try again. If the problem persists, contact support with this error information.'
+    });
   }
 });
 
