@@ -34,18 +34,51 @@ class GradeService {
       throw new Error('Access denied. Teacher role required.');
     }
 
-    // Get classes from teacher's profile
-    const classes = teacher.classes || [];
+    console.log(`👨‍🏫 Teacher found: ${teacher.firstName} ${teacher.lastName}`);
+    console.log(`📚 Teacher classes from profile: ${JSON.stringify(teacher.classes)}`);
+
+    // Use the SAME logic as TeacherService for consistency
+    // 1. Students directly assigned to teacher (via teacherIds field)
+    const directlyAssignedStudents = await Student.find({
+      schoolId: schoolId,
+      $or: [
+        { teacherIds: teacher._id },
+        { teachers: teacher._id }
+      ],
+      isActive: true
+    }).select('class');
+
+    // 2. Students in teacher's assigned classes (only if teacher has classes assigned)
+    let studentsInClasses = [];
+    if (teacher.classes && teacher.classes.length > 0) {
+      studentsInClasses = await Student.find({
+        schoolId: schoolId,
+        class: { $in: teacher.classes },
+        isActive: true,
+        // Exclude students already directly assigned to avoid duplicates
+        _id: { $nin: directlyAssignedStudents.map(s => s._id) }
+      }).select('class');
+    }
+
+    // Combine both lists and get unique classes
+    const allStudents = [...directlyAssignedStudents, ...studentsInClasses];
+    const uniqueClasses = [...new Set(allStudents.map(s => s.class).filter(c => c))];
+    
+    console.log(`📚 Classes from directly assigned students: ${JSON.stringify(directlyAssignedStudents.map(s => s.class))}`);
+    console.log(`📚 Classes from teacher profile: ${JSON.stringify(teacher.classes)}`);
+    console.log(`📚 Final unique classes: ${JSON.stringify(uniqueClasses)}`);
     
     // Get student count for each class
     const classesWithCounts = await Promise.all(
-      classes.map(async (className) => {
+      uniqueClasses.map(async (className) => {
         const studentCount = await Student.countDocuments({
           schoolId: schoolId,
           class: className,
           isActive: true,
           isEnrolled: true
         });
+        
+        console.log(`👥 Class ${className}: ${studentCount} students`);
         
         return {
           name: className,
@@ -56,12 +89,14 @@ class GradeService {
 
     const result = {
       classes: classesWithCounts,
-      totalClasses: classes.length,
+      totalClasses: uniqueClasses.length,
       generatedAt: new Date().toISOString()
     };
 
-    // Cache for 10 minutes
-    await CacheService.set('grades', cacheKey, result, 600);
+    console.log(`📊 Final result: ${JSON.stringify(result)}`);
+
+    // Cache for 5 minutes (shorter for debugging)
+    await CacheService.set('grades', cacheKey, result, 300);
     
     return result;
   }
@@ -727,26 +762,33 @@ class GradeService {
    * @param {string} subject - Subject name (optional)
    */
   static async invalidateGradeCaches(schoolId, teacherId, className = null, subject = null) {
+    console.log(`🗑️ Invalidating grade caches for teacher ${teacherId}, school ${schoolId}`);
+    
     // Invalidate teacher-specific caches
     await CacheService.del('grades', `classes:${teacherId}`);
+    console.log(`🗑️ Invalidated teacher classes cache`);
     
     if (className) {
       await CacheService.del('grades', `subjects:${teacherId}:${className}`);
+      console.log(`🗑️ Invalidated subjects cache for ${className}`);
       
       if (subject) {
         // Invalidate all student lists for this class/subject combination
         const studentPattern = `educonnect:grades:students:${teacherId}:${className}:${subject}*`;
-        await CacheService.delPattern(studentPattern);
+        const deletedStudents = await CacheService.delPattern(studentPattern);
+        console.log(`🗑️ Invalidated ${deletedStudents} student cache entries`);
         
         // Invalidate statistics
         const statsPattern = `educonnect:grades:stats:${teacherId}:${className}:${subject}*`;
-        await CacheService.delPattern(statsPattern);
+        const deletedStats = await CacheService.delPattern(statsPattern);
+        console.log(`🗑️ Invalidated ${deletedStats} statistics cache entries`);
       }
     }
     
     // Invalidate student grades caches (since we don't know which students are affected)
     const studentGradesPattern = `educonnect:grades:student-grades:${teacherId}*`;
-    await CacheService.delPattern(studentGradesPattern);
+    const deletedGrades = await CacheService.delPattern(studentGradesPattern);
+    console.log(`🗑️ Invalidated ${deletedGrades} student grades cache entries`);
   }
 }
 

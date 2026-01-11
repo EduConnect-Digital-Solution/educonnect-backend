@@ -172,4 +172,13 @@ router.get('/classes/:className/subjects/:subject/statistics',
   gradeController.getClassStatistics
 );
 
+/**
+ * @route   POST /api/teacher/grades/clear-cache
+ * @desc    Clear all teacher caches (for debugging)
+ * @access  Teacher
+ */
+router.post('/grades/clear-cache',
+  gradeController.clearTeacherCaches
+);
+
 module.exports = router;

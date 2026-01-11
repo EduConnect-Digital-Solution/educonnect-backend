@@ -488,6 +488,31 @@ const getClassStatistics = catchAsync(async (req, res) => {
   });
 });
 
+/**
+ * Clear Teacher Caches (for debugging)
+ * Clears all caches for the current teacher
+ */
+const clearTeacherCaches = catchAsync(async (req, res) => {
+  const { userId: teacherId, schoolId } = req.user;
+
+  // Clear grade service caches
+  await GradeService.invalidateGradeCaches(schoolId, teacherId);
+  
+  // Clear teacher service caches
+  const TeacherService = require('../services/teacherService');
+  await TeacherService.invalidateTeacherCaches(schoolId, teacherId);
+
+  res.status(200).json({
+    success: true,
+    message: 'All teacher caches cleared successfully',
+    data: {
+      teacherId: teacherId,
+      schoolId: schoolId,
+      clearedAt: new Date().toISOString()
+    }
+  });
+});
+
 module.exports = {
   getTeacherClasses,
   getSubjectsByClass,
@@ -498,5 +523,6 @@ module.exports = {
   updateGrade,
   deleteGrade,
   publishGrades,
-  getClassStatistics
+  getClassStatistics,
+  clearTeacherCaches
 };
