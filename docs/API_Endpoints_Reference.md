@@ -127,8 +127,7 @@ POST /api/school/auth/resend-otp
 **Body:**
 ```json
 {
-  "email": "string (required)",
-  "schoolId": "string (required)"
+  "email": "string (required)"
 }
 ```
 

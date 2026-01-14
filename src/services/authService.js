@@ -542,6 +542,30 @@ const completeRegistration = async (userData) => {
 
   await user.save();
 
+  // Update invitation status to 'accepted' when user completes registration
+  try {
+    const invitation = await Invitation.findOne({
+      email: email.toLowerCase(),
+      schoolId,
+      role: user.role,
+      status: 'pending'
+    });
+
+    if (invitation) {
+      await invitation.accept(user._id);
+      console.log(`✅ Invitation status updated to 'accepted' for ${email}`);
+      
+      // Invalidate invitation-related caches
+      const { invalidateInvitationCaches } = require('./invitationService');
+      await invalidateInvitationCaches(schoolId);
+    } else {
+      console.log(`⚠️ No pending invitation found for ${email} in school ${schoolId}`);
+    }
+  } catch (invitationError) {
+    // Don't fail the registration if invitation update fails
+    console.error(`❌ Failed to update invitation status for ${email}:`, invitationError.message);
+  }
+
   // Generate tokens for immediate login
   const tokens = generateTokens(user._id, user.schoolId, user.role);
 

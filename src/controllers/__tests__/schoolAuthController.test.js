@@ -836,8 +836,7 @@ describe('School Authentication Controller', () => {
       EmailService.sendOTPEmail.mockResolvedValue({ success: true });
 
       const resendData = {
-        email: 'admin@testschool.com',
-        schoolId: 'SCH001'
+        email: 'admin@testschool.com'
       };
 
       const response = await request(app)
@@ -882,8 +881,7 @@ describe('School Authentication Controller', () => {
       EmailService.sendOTPEmail.mockResolvedValue({ success: false });
 
       const resendData = {
-        email: 'admin@testschool.com',
-        schoolId: 'SCH001'
+        email: 'admin@testschool.com'
       };
 
       const response = await request(app)

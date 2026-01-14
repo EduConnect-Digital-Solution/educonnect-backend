@@ -88,7 +88,7 @@ router.post('/logout',
  * @route   POST /api/school/auth/resend-otp
  * @desc    Resend OTP for email verification
  * @access  Public
- * @body    {email, schoolId}
+ * @body    {email}
  */
 router.post('/resend-otp',
   rateLimiter.authLimiter,

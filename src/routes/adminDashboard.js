@@ -11,6 +11,9 @@ const {
   validateUserManagementQuery,
   validateUserStatusToggle,
   validateUserRemoval,
+  validateInvitationQuery,
+  validateInvitationCancel,
+  validateInvitationResend,
   sanitizeAdminData
 } = require('../middleware/adminDashboardValidation');
 const rateLimiter = require('../middleware/rateLimiter');
@@ -69,6 +72,44 @@ router.delete('/users/remove',
   sanitizeAdminData,
   validateUserRemoval,
   adminDashboardController.removeUser
+);
+
+/**
+ * @route   GET /api/admin/dashboard/invitations
+ * @desc    List all invitations with filtering and pagination (Admin only)
+ * @access  Private (Admin)
+ * @query   {schoolId?, status?, role?, page?, limit?}
+ */
+router.get('/invitations',
+  rateLimiter.generalLimiter,
+  validateInvitationQuery,
+  adminDashboardController.listInvitations
+);
+
+/**
+ * @route   DELETE /api/admin/dashboard/invitations/:invitationId
+ * @desc    Cancel pending invitation (Admin only)
+ * @access  Private (Admin)
+ * @body    {reason?, schoolId?}
+ */
+router.delete('/invitations/:invitationId',
+  rateLimiter.authLimiter,
+  sanitizeAdminData,
+  validateInvitationCancel,
+  adminDashboardController.cancelInvitation
+);
+
+/**
+ * @route   POST /api/admin/dashboard/invitations/:invitationId/resend
+ * @desc    Resend pending invitation (Admin only)
+ * @access  Private (Admin)
+ * @body    {schoolId?}
+ */
+router.post('/invitations/:invitationId/resend',
+  rateLimiter.authLimiter,
+  sanitizeAdminData,
+  validateInvitationResend,
+  adminDashboardController.resendInvitation
 );
 
 module.exports = router;

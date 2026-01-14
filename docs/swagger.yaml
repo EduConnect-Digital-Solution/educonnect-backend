@@ -3207,15 +3207,11 @@ paths:
               type: object
               required:
                 - email
-                - schoolId
               properties:
                 email:
                   type: string
                   format: email
                   example: "admin@springfield.edu"
-                schoolId:
-                  type: string
-                  example: "SCH123456"
       responses:
         '200':
           description: OTP resent successfully

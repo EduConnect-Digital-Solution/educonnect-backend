@@ -96,6 +96,62 @@ const validateUserRemoval = [
 ];
 
 /**
+ * Validation for invitation list query parameters
+ */
+const validateInvitationQuery = [
+  query('schoolId')
+    .optional()
+    .matches(/^[A-Z]{3}[0-9]{4}$/)
+    .withMessage('Invalid school ID format'),
+
+  query('status')
+    .optional()
+    .isIn(['pending', 'accepted', 'expired', 'cancelled'])
+    .withMessage('Status must be one of: pending, accepted, expired, cancelled'),
+
+  query('role')
+    .optional()
+    .isIn(['teacher', 'parent'])
+    .withMessage('Role must be either teacher or parent'),
+
+  query('page')
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage('Page must be a positive integer'),
+
+  query('limit')
+    .optional()
+    .isInt({ min: 1, max: 100 })
+    .withMessage('Limit must be between 1 and 100')
+];
+
+/**
+ * Validation for invitation cancellation
+ */
+const validateInvitationCancel = [
+  body('reason')
+    .optional()
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage('Reason cannot exceed 500 characters'),
+
+  body('schoolId')
+    .optional()
+    .matches(/^[A-Z]{3}[0-9]{4}$/)
+    .withMessage('Invalid school ID format')
+];
+
+/**
+ * Validation for invitation resend
+ */
+const validateInvitationResend = [
+  body('schoolId')
+    .optional()
+    .matches(/^[A-Z]{3}[0-9]{4}$/)
+    .withMessage('Invalid school ID format')
+];
+
+/**
  * Sanitization middleware for admin dashboard data
  */
 const sanitizeAdminData = (req, res, next) => {
@@ -113,5 +169,8 @@ module.exports = {
   validateUserManagementQuery,
   validateUserStatusToggle,
   validateUserRemoval,
+  validateInvitationQuery,
+  validateInvitationCancel,
+  validateInvitationResend,
   sanitizeAdminData
 };
