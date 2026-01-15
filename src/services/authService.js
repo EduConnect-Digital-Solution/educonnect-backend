@@ -544,22 +544,52 @@ const completeRegistration = async (userData) => {
 
   // Update invitation status to 'accepted' when user completes registration
   try {
-    const invitation = await Invitation.findOne({
+    // First try to find by exact match
+    let invitation = await Invitation.findOne({
       email: email.toLowerCase(),
       schoolId,
       role: user.role,
       status: 'pending'
     });
 
+    // If not found, try to find any invitation for this email and school (might be expired or different status)
+    if (!invitation) {
+      invitation = await Invitation.findOne({
+        email: email.toLowerCase(),
+        schoolId,
+        role: user.role
+      }).sort({ createdAt: -1 }); // Get the most recent one
+    }
+
     if (invitation) {
-      await invitation.accept(user._id);
-      console.log(`✅ Invitation status updated to 'accepted' for ${email}`);
+      // Check if invitation is already accepted
+      if (invitation.status === 'accepted') {
+        console.log(`ℹ️ Invitation already marked as accepted for ${email}`);
+      } else {
+        // Update invitation status regardless of current status (pending, expired, etc.)
+        invitation.status = 'accepted';
+        invitation.acceptedAt = new Date();
+        invitation.acceptedBy = user._id;
+        await invitation.save();
+        console.log(`✅ Invitation status updated to 'accepted' for ${email} (was: ${invitation.status})`);
+      }
       
       // Invalidate invitation-related caches
       const { invalidateInvitationCaches } = require('./invitationService');
       await invalidateInvitationCaches(schoolId);
     } else {
-      console.log(`⚠️ No pending invitation found for ${email} in school ${schoolId}`);
+      console.log(`⚠️ No invitation found for ${email} in school ${schoolId} with role ${user.role}`);
+      
+      // Log all invitations for this email to help debug
+      const allInvitations = await Invitation.find({ email: email.toLowerCase() });
+      console.log(`📊 Found ${allInvitations.length} total invitations for ${email}:`, 
+        allInvitations.map(inv => ({ 
+          schoolId: inv.schoolId, 
+          role: inv.role, 
+          status: inv.status, 
+          createdAt: inv.createdAt 
+        }))
+      );
     }
   } catch (invitationError) {
     // Don't fail the registration if invitation update fails
