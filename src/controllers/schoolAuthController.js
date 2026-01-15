@@ -428,42 +428,25 @@ const createTeacherInvitation = catchAsync(async (req, res) => {
   }
 
   try {
-    // For testing, allow schoolId in body, in production this would come from auth middleware
-    const { schoolId } = req.body;
-    let targetSchoolId = schoolId;
+    // Use authenticated user's schoolId from JWT token
+    const targetSchoolId = req.user.schoolId;
+    const adminUserId = req.user.userId;
     
     if (!targetSchoolId) {
-      // If no schoolId provided, find the most recent active school for testing
-      const School = require('../models/School');
-      const recentSchool = await School.findOne({ 
-        isActive: true, 
-        isVerified: true 
-      }).sort({ createdAt: -1 });
-      
-      if (!recentSchool) {
-        return res.status(404).json({
-          success: false,
-          message: 'No active school found. Please provide schoolId or ensure school is registered and verified.'
-        });
-      }
-      targetSchoolId = recentSchool.schoolId;
-    }
-
-    // For testing, find admin user. In production, this would be req.user.userId from auth middleware
-    const User = require('../models/User');
-    const adminUser = await User.findOne({ 
-      schoolId: targetSchoolId, 
-      role: 'admin' 
-    });
-    
-    if (!adminUser) {
       return res.status(400).json({
         success: false,
-        message: 'No admin user found for this school'
+        message: 'School ID not found in authentication token'
       });
     }
 
-    const result = await invitationService.createTeacherInvitation(req.body, targetSchoolId, adminUser._id);
+    if (!adminUserId) {
+      return res.status(400).json({
+        success: false,
+        message: 'User ID not found in authentication token'
+      });
+    }
+
+    const result = await invitationService.createTeacherInvitation(req.body, targetSchoolId, adminUserId);
 
     res.status(201).json({
       success: true,
@@ -526,42 +509,25 @@ const createParentInvitation = catchAsync(async (req, res) => {
   }
 
   try {
-    // For testing, allow schoolId in body, in production this would come from auth middleware
-    const { schoolId } = req.body;
-    let targetSchoolId = schoolId;
+    // Use authenticated user's schoolId from JWT token
+    const targetSchoolId = req.user.schoolId;
+    const adminUserId = req.user.userId;
     
     if (!targetSchoolId) {
-      // If no schoolId provided, find the most recent active school for testing
-      const School = require('../models/School');
-      const recentSchool = await School.findOne({ 
-        isActive: true, 
-        isVerified: true 
-      }).sort({ createdAt: -1 });
-      
-      if (!recentSchool) {
-        return res.status(404).json({
-          success: false,
-          message: 'No active school found. Please provide schoolId or ensure school is registered and verified.'
-        });
-      }
-      targetSchoolId = recentSchool.schoolId;
-    }
-
-    // For testing, find admin user. In production, this would be req.user.userId from auth middleware
-    const User = require('../models/User');
-    const adminUser = await User.findOne({ 
-      schoolId: targetSchoolId, 
-      role: 'admin' 
-    });
-    
-    if (!adminUser) {
       return res.status(400).json({
         success: false,
-        message: 'No admin user found for this school'
+        message: 'School ID not found in authentication token'
       });
     }
 
-    const result = await invitationService.createParentInvitation(req.body, targetSchoolId, adminUser._id);
+    if (!adminUserId) {
+      return res.status(400).json({
+        success: false,
+        message: 'User ID not found in authentication token'
+      });
+    }
+
+    const result = await invitationService.createParentInvitation(req.body, targetSchoolId, adminUserId);
 
     res.status(201).json({
       success: true,

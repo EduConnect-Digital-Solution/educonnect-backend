@@ -15,10 +15,15 @@ const { validationResult } = require('express-validator');
  * Requirements: Debug functionality
  */
 const debugInvitationStatus = catchAsync(async (req, res) => {
-  const { schoolId } = req.query;
+  // Use authenticated user's schoolId from JWT token
+  const targetSchoolId = req.user.schoolId;
   
-  // Get or determine school ID
-  const targetSchoolId = await DashboardService.getSchoolId(schoolId);
+  if (!targetSchoolId) {
+    return res.status(400).json({
+      success: false,
+      message: 'School ID not found in authentication token'
+    });
+  }
   
   // Get raw invitation data
   const invitations = await InvitationService.listInvitations(
@@ -57,10 +62,15 @@ const debugInvitationStatus = catchAsync(async (req, res) => {
  * Requirements: Debug/Admin functionality
  */
 const forceRefreshDashboard = catchAsync(async (req, res) => {
-  const { schoolId } = req.query;
+  // Use authenticated user's schoolId from JWT token
+  const targetSchoolId = req.user.schoolId;
   
-  // Get or determine school ID
-  const targetSchoolId = await DashboardService.getSchoolId(schoolId);
+  if (!targetSchoolId) {
+    return res.status(400).json({
+      success: false,
+      message: 'School ID not found in authentication token'
+    });
+  }
   
   // Force refresh dashboard data
   const data = await DashboardService.refreshDashboardCache(targetSchoolId);
@@ -79,10 +89,15 @@ const forceRefreshDashboard = catchAsync(async (req, res) => {
  * Requirements: 7.1, 7.2, 7.3
  */
 const getDashboardAnalytics = catchAsync(async (req, res) => {
-  const { schoolId } = req.query;
+  // Use authenticated user's schoolId from JWT token
+  const targetSchoolId = req.user.schoolId;
   
-  // Get or determine school ID
-  const targetSchoolId = await DashboardService.getSchoolId(schoolId);
+  if (!targetSchoolId) {
+    return res.status(400).json({
+      success: false,
+      message: 'School ID not found in authentication token'
+    });
+  }
   
   // Get dashboard analytics from service
   const data = await DashboardService.getDashboardAnalytics(targetSchoolId);
@@ -100,10 +115,17 @@ const getDashboardAnalytics = catchAsync(async (req, res) => {
  * Requirements: 7.2, 7.3
  */
 const getUserManagement = catchAsync(async (req, res) => {
-  const { schoolId, role, status, page = 1, limit = 20, search } = req.query;
+  const { role, status, page = 1, limit = 20, search } = req.query;
   
-  // Get or determine school ID
-  const targetSchoolId = await DashboardService.getSchoolId(schoolId);
+  // Use authenticated user's schoolId from JWT token
+  const targetSchoolId = req.user.schoolId;
+  
+  if (!targetSchoolId) {
+    return res.status(400).json({
+      success: false,
+      message: 'School ID not found in authentication token'
+    });
+  }
   
   // Get user management data from service
   const data = await DashboardService.getUserManagement({
@@ -137,10 +159,17 @@ const toggleUserStatus = catchAsync(async (req, res) => {
     });
   }
 
-  const { userId, action, reason, schoolId } = req.body;
+  const { userId, action, reason } = req.body;
   
-  // Get or determine school ID
-  const targetSchoolId = await DashboardService.getSchoolId(schoolId);
+  // Use authenticated user's schoolId from JWT token
+  const targetSchoolId = req.user.schoolId;
+  
+  if (!targetSchoolId) {
+    return res.status(400).json({
+      success: false,
+      message: 'School ID not found in authentication token'
+    });
+  }
   
   // Toggle user status using service
   const data = await DashboardService.toggleUserStatus(userId, action, targetSchoolId, reason);
@@ -167,10 +196,17 @@ const removeUser = catchAsync(async (req, res) => {
     });
   }
 
-  const { userId, reason, schoolId } = req.body;
+  const { userId, reason } = req.body;
   
-  // Get or determine school ID
-  const targetSchoolId = await DashboardService.getSchoolId(schoolId);
+  // Use authenticated user's schoolId from JWT token
+  const targetSchoolId = req.user.schoolId;
+  
+  if (!targetSchoolId) {
+    return res.status(400).json({
+      success: false,
+      message: 'School ID not found in authentication token'
+    });
+  }
   
   // Remove user using service
   const data = await DashboardService.removeUser(userId, targetSchoolId, reason);
@@ -188,10 +224,17 @@ const removeUser = catchAsync(async (req, res) => {
  * Requirements: 8.1
  */
 const listInvitations = catchAsync(async (req, res) => {
-  const { schoolId, status, role, page = 1, limit = 10 } = req.query;
+  const { status, role, page = 1, limit = 10 } = req.query;
   
-  // Get or determine school ID
-  const targetSchoolId = await DashboardService.getSchoolId(schoolId);
+  // Use authenticated user's schoolId from JWT token
+  const targetSchoolId = req.user.schoolId;
+  
+  if (!targetSchoolId) {
+    return res.status(400).json({
+      success: false,
+      message: 'School ID not found in authentication token'
+    });
+  }
   
   // Get invitations from service
   const data = await InvitationService.listInvitations(
@@ -223,10 +266,17 @@ const cancelInvitation = catchAsync(async (req, res) => {
 
   try {
     const { invitationId } = req.params;
-    const { reason, schoolId } = req.body;
+    const { reason } = req.body;
     
-    // Get or determine school ID
-    const targetSchoolId = await DashboardService.getSchoolId(schoolId);
+    // Use authenticated user's schoolId from JWT token
+    const targetSchoolId = req.user.schoolId;
+    
+    if (!targetSchoolId) {
+      return res.status(400).json({
+        success: false,
+        message: 'School ID not found in authentication token'
+      });
+    }
     
     // Get admin user ID from token (should be available from auth middleware)
     const adminUserId = req.user.userId;
@@ -285,10 +335,16 @@ const resendInvitation = catchAsync(async (req, res) => {
 
   try {
     const { invitationId } = req.params;
-    const { schoolId } = req.body;
     
-    // Get or determine school ID
-    const targetSchoolId = await DashboardService.getSchoolId(schoolId);
+    // Use authenticated user's schoolId from JWT token
+    const targetSchoolId = req.user.schoolId;
+    
+    if (!targetSchoolId) {
+      return res.status(400).json({
+        success: false,
+        message: 'School ID not found in authentication token'
+      });
+    }
     
     // Resend invitation using service
     const result = await InvitationService.resendInvitation(invitationId, targetSchoolId);
