@@ -577,6 +577,10 @@ const completeRegistration = async (userData) => {
       // Invalidate invitation-related caches
       const { invalidateInvitationCaches } = require('./invitationService');
       await invalidateInvitationCaches(schoolId);
+
+      // Also directly invalidate dashboard cache to ensure immediate update
+      const DashboardService = require('./dashboardService');
+      await DashboardService.invalidateDashboardCache(schoolId);
     } else {
       console.log(`⚠️ No invitation found for ${email} in school ${schoolId} with role ${user.role}`);
       

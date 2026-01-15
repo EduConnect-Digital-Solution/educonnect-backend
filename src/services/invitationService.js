@@ -105,6 +105,10 @@ const createTeacherInvitation = async (invitationData, schoolId, adminUserId) =>
   // Invalidate invitation-related caches
   await invalidateInvitationCaches(schoolId);
 
+  // Also directly invalidate dashboard cache to ensure immediate update
+  const DashboardService = require('./dashboardService');
+  await DashboardService.invalidateDashboardCache(schoolId);
+
   // Send invitation email with login credentials
   const emailResult = await EmailService.sendTemplatedEmail(
     'teacher-invitation',
@@ -261,6 +265,10 @@ const createParentInvitation = async (invitationData, schoolId, adminUserId) => 
   // Invalidate invitation-related caches
   await invalidateInvitationCaches(schoolId);
 
+  // Also directly invalidate dashboard cache to ensure immediate update
+  const DashboardService = require('./dashboardService');
+  await DashboardService.invalidateDashboardCache(schoolId);
+
   // Send invitation email with login credentials
   const emailResult = await EmailService.sendTemplatedEmail(
     'parent-invitation',
@@ -374,6 +382,13 @@ const resendInvitation = async (invitationId, schoolId) => {
       isResend: true
     }
   );
+
+  // Invalidate invitation-related caches
+  await invalidateInvitationCaches(schoolId);
+
+  // Also directly invalidate dashboard cache to ensure immediate update
+  const DashboardService = require('./dashboardService');
+  await DashboardService.invalidateDashboardCache(schoolId);
 
   return {
     invitation: {
@@ -535,6 +550,10 @@ const cancelInvitation = async (invitationId, schoolId, adminUserId, reason) => 
 
   // Invalidate invitation-related caches
   await invalidateInvitationCaches(schoolId);
+
+  // Also directly invalidate dashboard cache to ensure immediate update
+  const DashboardService = require('./dashboardService');
+  await DashboardService.invalidateDashboardCache(schoolId);
 
   return {
     invitation: {
