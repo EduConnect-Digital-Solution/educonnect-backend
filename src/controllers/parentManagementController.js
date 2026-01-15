@@ -28,22 +28,14 @@ const inviteParent = catchAsync(async (req, res) => {
   try {
     const { schoolId } = req.body;
     
-    // Get school info
-    let targetSchoolId = schoolId;
+    // Use authenticated user's schoolId from JWT token
+    let targetSchoolId = req.user.schoolId;
+    
     if (!targetSchoolId) {
-      const School = require('../models/School');
-      const recentSchool = await School.findOne({ 
-        isActive: true, 
-        isVerified: true 
-      }).sort({ createdAt: -1 });
-      
-      if (!recentSchool) {
-        return res.status(404).json({
-          success: false,
-          message: 'No active school found'
-        });
-      }
-      targetSchoolId = recentSchool.schoolId;
+      return res.status(400).json({
+        success: false,
+        message: 'School ID not found in authentication token'
+      });
     }
 
     // Get admin user for invitation tracking
@@ -121,22 +113,14 @@ const getParents = catchAsync(async (req, res) => {
   try {
     const { schoolId, status, page = 1, limit = 20, search, hasChildren } = req.query;
     
-    // Get school info
-    let targetSchoolId = schoolId;
+    // Use authenticated user's schoolId from JWT token
+    let targetSchoolId = req.user.schoolId;
+    
     if (!targetSchoolId) {
-      const School = require('../models/School');
-      const recentSchool = await School.findOne({ 
-        isActive: true, 
-        isVerified: true 
-      }).sort({ createdAt: -1 });
-      
-      if (!recentSchool) {
-        return res.status(404).json({
-          success: false,
-          message: 'No active school found'
-        });
-      }
-      targetSchoolId = recentSchool.schoolId;
+      return res.status(400).json({
+        success: false,
+        message: 'School ID not found in authentication token'
+      });
     }
 
     // Map status to isActive for service
@@ -198,21 +182,14 @@ const getParentDetails = async (req, res) => {
       });
     }
     
-    // Get school info
-    let targetSchoolId = schoolId;
+    // Use authenticated user's schoolId from JWT token
+    let targetSchoolId = req.user.schoolId;
+    
     if (!targetSchoolId) {
-      const recentSchool = await School.findOne({ 
-        isActive: true, 
-        isVerified: true 
-      }).sort({ createdAt: -1 });
-      
-      if (!recentSchool) {
-        return res.status(404).json({
-          success: false,
-          message: 'No active school found'
-        });
-      }
-      targetSchoolId = recentSchool.schoolId;
+      return res.status(400).json({
+        success: false,
+        message: 'School ID not found in authentication token'
+      });
     }
 
     // Find the parent with all relationships
@@ -323,21 +300,14 @@ const linkParentToStudents = async (req, res) => {
     const Student = require('../models/Student');
     const School = require('../models/School');
     
-    // Get school info
-    let targetSchoolId = schoolId;
+    // Use authenticated user's schoolId from JWT token
+    let targetSchoolId = req.user.schoolId;
+    
     if (!targetSchoolId) {
-      const recentSchool = await School.findOne({ 
-        isActive: true, 
-        isVerified: true 
-      }).sort({ createdAt: -1 });
-      
-      if (!recentSchool) {
-        return res.status(404).json({
-          success: false,
-          message: 'No active school found'
-        });
-      }
-      targetSchoolId = recentSchool.schoolId;
+      return res.status(400).json({
+        success: false,
+        message: 'School ID not found in authentication token'
+      });
     }
 
     // Find the parent
@@ -460,21 +430,14 @@ const unlinkParentFromStudents = async (req, res) => {
     const Student = require('../models/Student');
     const School = require('../models/School');
     
-    // Get school info
-    let targetSchoolId = schoolId;
+    // Use authenticated user's schoolId from JWT token
+    let targetSchoolId = req.user.schoolId;
+    
     if (!targetSchoolId) {
-      const recentSchool = await School.findOne({ 
-        isActive: true, 
-        isVerified: true 
-      }).sort({ createdAt: -1 });
-      
-      if (!recentSchool) {
-        return res.status(404).json({
-          success: false,
-          message: 'No active school found'
-        });
-      }
-      targetSchoolId = recentSchool.schoolId;
+      return res.status(400).json({
+        success: false,
+        message: 'School ID not found in authentication token'
+      });
     }
 
     // Find the parent
@@ -577,21 +540,14 @@ const removeParent = async (req, res) => {
     const Student = require('../models/Student');
     const School = require('../models/School');
     
-    // Get school info
-    let targetSchoolId = schoolId;
+    // Use authenticated user's schoolId from JWT token
+    let targetSchoolId = req.user.schoolId;
+    
     if (!targetSchoolId) {
-      const recentSchool = await School.findOne({ 
-        isActive: true, 
-        isVerified: true 
-      }).sort({ createdAt: -1 });
-      
-      if (!recentSchool) {
-        return res.status(404).json({
-          success: false,
-          message: 'No active school found'
-        });
-      }
-      targetSchoolId = recentSchool.schoolId;
+      return res.status(400).json({
+        success: false,
+        message: 'School ID not found in authentication token'
+      });
     }
 
     // Find the parent

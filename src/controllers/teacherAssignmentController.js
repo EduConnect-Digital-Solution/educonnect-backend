@@ -23,7 +23,14 @@ const assignTeacher = catchAsync(async (req, res) => {
   }
 
   const { teacherId, studentIds, schoolId } = req.body;
-  const targetSchoolId = schoolId || req.user.schoolId;
+  const targetSchoolId = req.user.schoolId;
+  
+  if (!targetSchoolId) {
+    return res.status(400).json({
+      success: false,
+      message: 'School ID not found in authentication token'
+    });
+  }
 
   const result = await teacherAssignmentService.assignTeacherToStudents(
     teacherId,
@@ -57,7 +64,14 @@ const assignTeachersBulk = catchAsync(async (req, res) => {
   }
 
   const { assignments, schoolId } = req.body;
-  const targetSchoolId = schoolId || req.user.schoolId;
+  const targetSchoolId = req.user.schoolId;
+  
+  if (!targetSchoolId) {
+    return res.status(400).json({
+      success: false,
+      message: 'School ID not found in authentication token'
+    });
+  }
 
   const result = await teacherAssignmentService.assignTeachersBulk(
     assignments,
@@ -92,7 +106,14 @@ const unassignTeacher = catchAsync(async (req, res) => {
   }
 
   const { teacherId, studentIds, schoolId } = req.body;
-  const targetSchoolId = schoolId || req.user.schoolId;
+  const targetSchoolId = req.user.schoolId;
+  
+  if (!targetSchoolId) {
+    return res.status(400).json({
+      success: false,
+      message: 'School ID not found in authentication token'
+    });
+  }
 
   const result = await teacherAssignmentService.unassignTeacherFromStudents(
     teacherId,
@@ -118,7 +139,14 @@ const unassignTeacher = catchAsync(async (req, res) => {
 const assignTeacherToStudent = catchAsync(async (req, res) => {
   const { studentId, teacherId } = req.params;
   const { schoolId } = req.query;
-  const targetSchoolId = schoolId || req.user.schoolId;
+  const targetSchoolId = req.user.schoolId;
+  
+  if (!targetSchoolId) {
+    return res.status(400).json({
+      success: false,
+      message: 'School ID not found in authentication token'
+    });
+  }
 
   const result = await teacherAssignmentService.assignTeacherToStudents(
     teacherId,
@@ -144,7 +172,14 @@ const assignTeacherToStudent = catchAsync(async (req, res) => {
 const unassignTeacherFromStudent = catchAsync(async (req, res) => {
   const { studentId, teacherId } = req.params;
   const { schoolId } = req.query;
-  const targetSchoolId = schoolId || req.user.schoolId;
+  const targetSchoolId = req.user.schoolId;
+  
+  if (!targetSchoolId) {
+    return res.status(400).json({
+      success: false,
+      message: 'School ID not found in authentication token'
+    });
+  }
 
   const result = await teacherAssignmentService.unassignTeacherFromStudents(
     teacherId,
@@ -170,7 +205,14 @@ const unassignTeacherFromStudent = catchAsync(async (req, res) => {
 const getTeacherStudents = catchAsync(async (req, res) => {
   const { teacherId } = req.params;
   const { schoolId, page = 1, limit = 20 } = req.query;
-  const targetSchoolId = schoolId || req.user.schoolId;
+  const targetSchoolId = req.user.schoolId;
+  
+  if (!targetSchoolId) {
+    return res.status(400).json({
+      success: false,
+      message: 'School ID not found in authentication token'
+    });
+  }
 
   // Check if user is the teacher themselves or an admin
   if (req.user.role === 'teacher' && req.user.id !== teacherId) {
@@ -200,7 +242,14 @@ const getTeacherStudents = catchAsync(async (req, res) => {
 const getStudentTeachers = catchAsync(async (req, res) => {
   const { studentId } = req.params;
   const { schoolId } = req.query;
-  const targetSchoolId = schoolId || req.user.schoolId;
+  const targetSchoolId = req.user.schoolId;
+  
+  if (!targetSchoolId) {
+    return res.status(400).json({
+      success: false,
+      message: 'School ID not found in authentication token'
+    });
+  }
 
   const result = await teacherAssignmentService.getStudentTeachers(
     studentId,

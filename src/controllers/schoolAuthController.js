@@ -602,22 +602,14 @@ const resendInvitation = catchAsync(async (req, res) => {
   try {
     const { invitationId, schoolId } = req.body;
     
-    // Get school info
-    let targetSchoolId = schoolId;
+    // Use authenticated user's schoolId from JWT token
+    let targetSchoolId = req.user.schoolId;
+    
     if (!targetSchoolId) {
-      const School = require('../models/School');
-      const recentSchool = await School.findOne({ 
-        isActive: true, 
-        isVerified: true 
-      }).sort({ createdAt: -1 });
-      
-      if (!recentSchool) {
-        return res.status(404).json({
-          success: false,
-          message: 'No active school found'
-        });
-      }
-      targetSchoolId = recentSchool.schoolId;
+      return res.status(400).json({
+        success: false,
+        message: 'School ID not found in authentication token'
+      });
     }
 
     const result = await invitationService.resendInvitation(invitationId, targetSchoolId);
@@ -667,22 +659,14 @@ const listInvitations = catchAsync(async (req, res) => {
   try {
     const { schoolId, status, role, page = 1, limit = 10 } = req.query;
     
-    // Get school info
-    let targetSchoolId = schoolId;
+    // Use authenticated user's schoolId from JWT token
+    let targetSchoolId = req.user.schoolId;
+    
     if (!targetSchoolId) {
-      const School = require('../models/School');
-      const recentSchool = await School.findOne({ 
-        isActive: true, 
-        isVerified: true 
-      }).sort({ createdAt: -1 });
-      
-      if (!recentSchool) {
-        return res.status(404).json({
-          success: false,
-          message: 'No active school found'
-        });
-      }
-      targetSchoolId = recentSchool.schoolId;
+      return res.status(400).json({
+        success: false,
+        message: 'School ID not found in authentication token'
+      });
     }
 
     const filters = { schoolId: targetSchoolId, status, role };
@@ -720,22 +704,14 @@ const cancelInvitation = catchAsync(async (req, res) => {
   try {
     const { invitationId, reason, schoolId } = req.body;
     
-    // Get school info
-    let targetSchoolId = schoolId;
+    // Use authenticated user's schoolId from JWT token
+    let targetSchoolId = req.user.schoolId;
+    
     if (!targetSchoolId) {
-      const School = require('../models/School');
-      const recentSchool = await School.findOne({ 
-        isActive: true, 
-        isVerified: true 
-      }).sort({ createdAt: -1 });
-      
-      if (!recentSchool) {
-        return res.status(404).json({
-          success: false,
-          message: 'No active school found'
-        });
-      }
-      targetSchoolId = recentSchool.schoolId;
+      return res.status(400).json({
+        success: false,
+        message: 'School ID not found in authentication token'
+      });
     }
 
     // For testing, find admin user. In production, this would be req.user.userId from auth middleware

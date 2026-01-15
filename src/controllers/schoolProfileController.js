@@ -15,24 +15,14 @@ const { validationResult } = require('express-validator');
  */
 const getSchoolProfile = catchAsync(async (req, res) => {
   try {
-    const { schoolId } = req.query;
+    // Use authenticated user's schoolId from JWT token
+    const targetSchoolId = req.user.schoolId;
     
-    // Get school info - for testing, allow schoolId in query, in production this would come from auth middleware
-    let targetSchoolId = schoolId;
     if (!targetSchoolId) {
-      const School = require('../models/School');
-      const recentSchool = await School.findOne({ 
-        isActive: true, 
-        isVerified: true 
-      }).sort({ createdAt: -1 });
-      
-      if (!recentSchool) {
-        return res.status(404).json({
-          success: false,
-          message: 'No active school found'
-        });
-      }
-      targetSchoolId = recentSchool.schoolId;
+      return res.status(400).json({
+        success: false,
+        message: 'School ID not found in authentication token'
+      });
     }
 
     const result = await schoolService.getSchoolProfile(targetSchoolId);
@@ -84,24 +74,14 @@ const updateSchoolProfile = catchAsync(async (req, res) => {
   }
 
   try {
-    const { schoolId } = req.body;
+    // Use authenticated user's schoolId from JWT token
+    const targetSchoolId = req.user.schoolId;
     
-    // Get school info
-    let targetSchoolId = schoolId;
     if (!targetSchoolId) {
-      const School = require('../models/School');
-      const recentSchool = await School.findOne({ 
-        isActive: true, 
-        isVerified: true 
-      }).sort({ createdAt: -1 });
-      
-      if (!recentSchool) {
-        return res.status(404).json({
-          success: false,
-          message: 'No active school found'
-        });
-      }
-      targetSchoolId = recentSchool.schoolId;
+      return res.status(400).json({
+        success: false,
+        message: 'School ID not found in authentication token'
+      });
     }
 
     const result = await schoolService.updateSchoolProfile(targetSchoolId, req.body);
@@ -148,24 +128,14 @@ const updateAdminProfile = catchAsync(async (req, res) => {
   }
 
   try {
-    const { schoolId } = req.body;
+    // Use authenticated user's schoolId from JWT token
+    const targetSchoolId = req.user.schoolId;
     
-    // Get school info
-    let targetSchoolId = schoolId;
     if (!targetSchoolId) {
-      const School = require('../models/School');
-      const recentSchool = await School.findOne({ 
-        isActive: true, 
-        isVerified: true 
-      }).sort({ createdAt: -1 });
-      
-      if (!recentSchool) {
-        return res.status(404).json({
-          success: false,
-          message: 'No active school found'
-        });
-      }
-      targetSchoolId = recentSchool.schoolId;
+      return res.status(400).json({
+        success: false,
+        message: 'School ID not found in authentication token'
+      });
     }
 
     const result = await schoolService.updateAdminProfile(targetSchoolId, req.body);

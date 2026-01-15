@@ -25,25 +25,14 @@ const createStudent = catchAsync(async (req, res) => {
   }
 
   try {
-    // For testing, allow schoolId in body, in production this would come from auth middleware
-    const { schoolId } = req.body;
-    let targetSchoolId = schoolId;
+    // Use authenticated user's schoolId from JWT token
+    const targetSchoolId = req.user.schoolId;
     
     if (!targetSchoolId) {
-      // If no schoolId provided, find the most recent active school for testing
-      const School = require('../models/School');
-      const recentSchool = await School.findOne({ 
-        isActive: true, 
-        isVerified: true 
-      }).sort({ createdAt: -1 });
-      
-      if (!recentSchool) {
-        return res.status(404).json({
-          success: false,
-          message: 'No active school found'
-        });
-      }
-      targetSchoolId = recentSchool.schoolId;
+      return res.status(400).json({
+        success: false,
+        message: 'School ID not found in authentication token'
+      });
     }
 
     const result = await studentService.createStudent(req.body, targetSchoolId);
@@ -90,24 +79,16 @@ const createStudent = catchAsync(async (req, res) => {
  */
 const getStudents = catchAsync(async (req, res) => {
   try {
-    const { schoolId, class: studentClass, section, status, page = 1, limit = 20, search } = req.query;
+    const { class: studentClass, section, status, page = 1, limit = 20, search } = req.query;
     
-    // Get school info
-    let targetSchoolId = schoolId;
+    // Use authenticated user's schoolId from JWT token
+    const targetSchoolId = req.user.schoolId;
+    
     if (!targetSchoolId) {
-      const School = require('../models/School');
-      const recentSchool = await School.findOne({ 
-        isActive: true, 
-        isVerified: true 
-      }).sort({ createdAt: -1 });
-      
-      if (!recentSchool) {
-        return res.status(404).json({
-          success: false,
-          message: 'No active school found'
-        });
-      }
-      targetSchoolId = recentSchool.schoolId;
+      return res.status(400).json({
+        success: false,
+        message: 'School ID not found in authentication token'
+      });
     }
 
     // Map status to isActive for service
@@ -166,24 +147,15 @@ const updateStudent = catchAsync(async (req, res) => {
 
   try {
     const { studentId } = req.params;
-    const { schoolId } = req.body;
     
-    // Get school info
-    let targetSchoolId = schoolId;
+    // Use authenticated user's schoolId from JWT token
+    const targetSchoolId = req.user.schoolId;
+    
     if (!targetSchoolId) {
-      const School = require('../models/School');
-      const recentSchool = await School.findOne({ 
-        isActive: true, 
-        isVerified: true 
-      }).sort({ createdAt: -1 });
-      
-      if (!recentSchool) {
-        return res.status(404).json({
-          success: false,
-          message: 'No active school found'
-        });
-      }
-      targetSchoolId = recentSchool.schoolId;
+      return res.status(400).json({
+        success: false,
+        message: 'School ID not found in authentication token'
+      });
     }
 
     const result = await studentService.updateStudent(studentId, req.body, targetSchoolId);
@@ -240,39 +212,20 @@ const toggleStudentStatus = catchAsync(async (req, res) => {
   }
 
   try {
-    const { studentId, action, reason, schoolId } = req.body;
+    const { studentId, action, reason } = req.body;
     
-    // Get school info
-    let targetSchoolId = schoolId;
+    // Use authenticated user's schoolId from JWT token
+    const targetSchoolId = req.user.schoolId;
+    
     if (!targetSchoolId) {
-      const School = require('../models/School');
-      const recentSchool = await School.findOne({ 
-        isActive: true, 
-        isVerified: true 
-      }).sort({ createdAt: -1 });
-      
-      if (!recentSchool) {
-        return res.status(404).json({
-          success: false,
-          message: 'No active school found'
-        });
-      }
-      targetSchoolId = recentSchool.schoolId;
-    }
-
-    // Get admin user for tracking
-    const User = require('../models/User');
-    const adminUser = await User.findOne({ 
-      schoolId: targetSchoolId, 
-      role: 'admin' 
-    });
-
-    if (!adminUser) {
       return res.status(400).json({
         success: false,
-        message: 'No admin user found for this school'
+        message: 'School ID not found in authentication token'
       });
     }
+
+    // Get admin user ID from JWT token
+    const adminUserId = req.user.userId;
 
     let result;
     switch (action) {
@@ -280,7 +233,7 @@ const toggleStudentStatus = catchAsync(async (req, res) => {
         result = await studentService.activateStudent(studentId, targetSchoolId);
         break;
       case 'deactivate':
-        result = await studentService.deactivateStudent(studentId, targetSchoolId, adminUser._id, reason);
+        result = await studentService.deactivateStudent(studentId, targetSchoolId, adminUserId, reason);
         break;
       default:
         return res.status(400).json({
@@ -326,41 +279,22 @@ const removeStudent = catchAsync(async (req, res) => {
   }
 
   try {
-    const { studentId, reason, schoolId } = req.body;
+    const { studentId, reason } = req.body;
     
-    // Get school info
-    let targetSchoolId = schoolId;
+    // Use authenticated user's schoolId from JWT token
+    const targetSchoolId = req.user.schoolId;
+    
     if (!targetSchoolId) {
-      const School = require('../models/School');
-      const recentSchool = await School.findOne({ 
-        isActive: true, 
-        isVerified: true 
-      }).sort({ createdAt: -1 });
-      
-      if (!recentSchool) {
-        return res.status(404).json({
-          success: false,
-          message: 'No active school found'
-        });
-      }
-      targetSchoolId = recentSchool.schoolId;
-    }
-
-    // Get admin user for tracking
-    const User = require('../models/User');
-    const adminUser = await User.findOne({ 
-      schoolId: targetSchoolId, 
-      role: 'admin' 
-    });
-
-    if (!adminUser) {
       return res.status(400).json({
         success: false,
-        message: 'No admin user found for this school'
+        message: 'School ID not found in authentication token'
       });
     }
 
-    const result = await studentService.deleteStudent(studentId, targetSchoolId, adminUser._id);
+    // Get admin user ID from JWT token
+    const adminUserId = req.user.userId;
+
+    const result = await studentService.deleteStudent(studentId, targetSchoolId, adminUserId);
 
     res.status(200).json({
       success: true,
@@ -369,9 +303,9 @@ const removeStudent = catchAsync(async (req, res) => {
         removedStudent: result.student,
         removedAt: new Date(),
         removedBy: {
-          id: adminUser._id,
-          name: `${adminUser.firstName} ${adminUser.lastName}`,
-          email: adminUser.email
+          id: adminUserId,
+          name: `${req.user.firstName || 'Admin'} ${req.user.lastName || 'User'}`,
+          email: req.user.email
         },
         reason: reason || 'No reason provided'
       }
@@ -398,24 +332,15 @@ const removeStudent = catchAsync(async (req, res) => {
 const getStudentDetails = catchAsync(async (req, res) => {
   try {
     const { studentId } = req.params;
-    const { schoolId } = req.query;
     
-    // Get school info
-    let targetSchoolId = schoolId;
+    // Use authenticated user's schoolId from JWT token
+    const targetSchoolId = req.user.schoolId;
+    
     if (!targetSchoolId) {
-      const School = require('../models/School');
-      const recentSchool = await School.findOne({ 
-        isActive: true, 
-        isVerified: true 
-      }).sort({ createdAt: -1 });
-      
-      if (!recentSchool) {
-        return res.status(404).json({
-          success: false,
-          message: 'No active school found'
-        });
-      }
-      targetSchoolId = recentSchool.schoolId;
+      return res.status(400).json({
+        success: false,
+        message: 'School ID not found in authentication token'
+      });
     }
 
     const result = await studentService.getStudentById(studentId, targetSchoolId);
