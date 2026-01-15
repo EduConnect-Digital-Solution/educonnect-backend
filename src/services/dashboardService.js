@@ -18,16 +18,8 @@ class DashboardService {
    * @returns {Object} Dashboard analytics data
    */
   static async getDashboardAnalytics(schoolId) {
-    // Try to get cached dashboard data first
-    const cacheKey = `analytics:${schoolId}`;
-    const cachedData = await CacheService.get('dashboard', cacheKey);
-    
-    if (cachedData) {
-      console.log(`📊 Dashboard cache HIT for school ${schoolId}`);
-      return cachedData;
-    }
-
-    console.log(`📊 Dashboard cache MISS for school ${schoolId} - fetching from database`);
+    // TEMPORARILY DISABLE CACHING - Always fetch fresh data
+    console.log(`📊 Dashboard cache DISABLED for school ${schoolId} - fetching fresh data from database`);
 
     // Get school information
     const school = await School.findOne({ schoolId });
@@ -62,6 +54,8 @@ class DashboardService {
         }
       }
     ]);
+
+    console.log(`📊 DEBUG: Raw invitation stats for ${schoolId}:`, invitationStats);
 
     // Get recent activity (last 30 days)
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
@@ -112,6 +106,8 @@ class DashboardService {
         formattedInvitationStats[stat._id] = stat.count;
       }
     });
+
+    console.log(`📊 DEBUG: Formatted invitation stats for ${schoolId}:`, formattedInvitationStats);
 
     // Calculate totals
     const totalUsers = Object.values(formattedUserStats).reduce((sum, role) => sum + role.total, 0);
@@ -185,9 +181,8 @@ class DashboardService {
       generatedAt: new Date().toISOString()
     };
 
-    // Cache the dashboard data for 15 minutes
-    await CacheService.set('dashboard', cacheKey, dashboardData);
-    console.log(`📊 Dashboard data cached for school ${schoolId}`);
+    // TEMPORARILY DISABLE CACHING - Don't cache the data
+    console.log(`📊 Dashboard caching DISABLED for school ${schoolId} - returning fresh data`);
 
     return dashboardData;
   }

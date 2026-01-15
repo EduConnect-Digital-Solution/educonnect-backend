@@ -37,6 +37,30 @@ router.get('/analytics',
 );
 
 /**
+ * @route   POST /api/admin/dashboard/analytics/refresh
+ * @desc    Force refresh dashboard analytics bypassing cache (Admin only)
+ * @access  Private (Admin)
+ * @query   {schoolId?}
+ */
+router.post('/analytics/refresh',
+  rateLimiter.generalLimiter,
+  validateDashboardQuery,
+  adminDashboardController.forceRefreshDashboard
+);
+
+/**
+ * @route   GET /api/admin/dashboard/debug/invitations
+ * @desc    Debug invitation status (Admin only)
+ * @access  Private (Admin)
+ * @query   {schoolId?}
+ */
+router.get('/debug/invitations',
+  rateLimiter.generalLimiter,
+  validateDashboardQuery,
+  adminDashboardController.debugInvitationStatus
+);
+
+/**
  * @route   GET /api/admin/dashboard/users
  * @desc    Get user management data with filtering and pagination (Admin only)
  * @access  Private (Admin)

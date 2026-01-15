@@ -10,6 +10,70 @@ const catchAsync = require('../utils/catchAsync');
 const { validationResult } = require('express-validator');
 
 /**
+ * Debug Invitation Status
+ * Get raw invitation data for debugging
+ * Requirements: Debug functionality
+ */
+const debugInvitationStatus = catchAsync(async (req, res) => {
+  const { schoolId } = req.query;
+  
+  // Get or determine school ID
+  const targetSchoolId = await DashboardService.getSchoolId(schoolId);
+  
+  // Get raw invitation data
+  const invitations = await InvitationService.listInvitations(
+    { schoolId: targetSchoolId },
+    { page: 1, limit: 100 }
+  );
+
+  // Get raw database stats
+  const Invitation = require('../models/Invitation');
+  const rawStats = await Invitation.aggregate([
+    { $match: { schoolId: targetSchoolId } },
+    {
+      $group: {
+        _id: '$status',
+        count: { $sum: 1 }
+      }
+    }
+  ]);
+
+  res.status(200).json({
+    success: true,
+    message: 'Debug invitation status retrieved',
+    data: {
+      schoolId: targetSchoolId,
+      rawStats,
+      invitations: invitations.invitations,
+      summary: invitations.summary,
+      timestamp: new Date().toISOString()
+    }
+  });
+});
+
+/**
+ * Force Refresh Dashboard Analytics
+ * Forces a fresh fetch of dashboard data bypassing all caches
+ * Requirements: Debug/Admin functionality
+ */
+const forceRefreshDashboard = catchAsync(async (req, res) => {
+  const { schoolId } = req.query;
+  
+  // Get or determine school ID
+  const targetSchoolId = await DashboardService.getSchoolId(schoolId);
+  
+  // Force refresh dashboard data
+  const data = await DashboardService.refreshDashboardCache(targetSchoolId);
+
+  res.status(200).json({
+    success: true,
+    message: 'Dashboard analytics force refreshed successfully',
+    data,
+    refreshedAt: new Date().toISOString()
+  });
+});
+
+/**
  * Get Dashboard Analytics
  * Provides school-wide statistics and analytics for admin dashboard
  * Requirements: 7.1, 7.2, 7.3
@@ -260,6 +324,8 @@ const resendInvitation = catchAsync(async (req, res) => {
 
 module.exports = {
   getDashboardAnalytics,
+  forceRefreshDashboard,
+  debugInvitationStatus,
   getUserManagement,
   toggleUserStatus,
   removeUser,
