@@ -464,7 +464,7 @@ const updateSchoolConfig = catchAsync(async (req, res) => {
       message: error.message,
       stack: error.stack,
       schoolId,
-      configData
+      configUpdates
     });
     await handleCrossSchoolError(error, req, res, 'school_config_update');
   }

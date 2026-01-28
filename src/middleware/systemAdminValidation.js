@@ -121,28 +121,44 @@ const validateSystemAdminAction = (actionType) => {
       validators.push(
         param('schoolId')
           .notEmpty()
-          .withMessage('School ID is required'),
+          .withMessage('School ID is required')
+          .matches(/^[A-Z]{3}\d{4}$/)
+          .withMessage('School ID must follow format: ABC1234 (3 letters + 4 digits)'),
         
         body('subscriptionTier')
-          .optional(),
+          .optional()
+          .isIn(['basic', 'standard', 'premium', 'enterprise'])
+          .withMessage('Invalid subscription tier'),
         
         body('subscriptionStatus')
-          .optional(),
+          .optional()
+          .isIn(['trial', 'active', 'suspended', 'cancelled'])
+          .withMessage('Invalid subscription status'),
         
         body('features')
-          .optional(),
+          .optional()
+          .isArray()
+          .withMessage('Features must be an array'),
         
         body('limits')
-          .optional(),
+          .optional()
+          .isObject()
+          .withMessage('Limits must be an object'),
         
         body('systemNote')
-          .optional(),
+          .optional()
+          .isString()
+          .withMessage('System note must be a string'),
         
         body('isActive')
-          .optional(),
+          .optional()
+          .isBoolean()
+          .withMessage('isActive must be boolean'),
         
         body('customSettings')
           .optional()
+          .isObject()
+          .withMessage('Custom settings must be an object')
       );
       break;
 
