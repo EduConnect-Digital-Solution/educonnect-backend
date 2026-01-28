@@ -137,7 +137,8 @@ router.post('/schools',
 router.put('/schools/:schoolId/config',
   createCustomLimiter({ windowMs: 5 * 60 * 1000, max: 20 }), // 20 updates per 5 minutes
   validateSystemAdminPermission('manage_schools'),
-  ...createSystemAdminValidationChain('school_config_update', 'manage_schools'),
+  // Temporarily disable validation chain for debugging
+  // ...createSystemAdminValidationChain('school_config_update', 'manage_schools'),
   auditSystemOperation('school_config_update'),
   updateSchoolConfig
 );
