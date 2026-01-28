@@ -485,8 +485,8 @@ const updateSchoolConfig = catchAsync(async (req, res) => {
     console.error('Error details:', {
       message: error.message,
       stack: error.stack,
-      schoolId,
-      configUpdates
+      schoolId: req.params.schoolId,
+      configUpdates: req.body
     });
     await handleCrossSchoolError(error, req, res, 'school_config_update');
   }
