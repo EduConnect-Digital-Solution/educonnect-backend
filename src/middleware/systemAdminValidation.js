@@ -117,6 +117,85 @@ const validateSystemAdminAction = (actionType) => {
   const validators = [];
 
   switch (actionType) {
+    case 'school_config_update':
+      validators.push(
+        param('schoolId')
+          .notEmpty()
+          .withMessage('School ID is required')
+          .matches(/^[A-Z]{3}\d{3}$/)
+          .withMessage('School ID must follow format: ABC123'),
+        
+        body('subscriptionTier')
+          .optional()
+          .isIn(['basic', 'standard', 'premium', 'enterprise'])
+          .withMessage('Invalid subscription tier'),
+        
+        body('subscriptionStatus')
+          .optional()
+          .isIn(['active', 'inactive', 'suspended', 'trial'])
+          .withMessage('Invalid subscription status'),
+        
+        body('features')
+          .optional()
+          .isArray()
+          .withMessage('Features must be an array')
+          .custom((features) => {
+            if (features && features.length > 0) {
+              for (const feature of features) {
+                if (!feature.featureName || typeof feature.featureName !== 'string') {
+                  throw new Error('Each feature must have a featureName string');
+                }
+                if (typeof feature.isEnabled !== 'boolean') {
+                  throw new Error('Each feature must have an isEnabled boolean');
+                }
+              }
+            }
+            return true;
+          }),
+        
+        body('limits')
+          .optional()
+          .isObject()
+          .withMessage('Limits must be an object'),
+        
+        body('limits.maxUsers')
+          .optional()
+          .isInt({ min: 1, max: 10000 })
+          .withMessage('maxUsers must be between 1 and 10000'),
+        
+        body('limits.maxStudents')
+          .optional()
+          .isInt({ min: 1, max: 50000 })
+          .withMessage('maxStudents must be between 1 and 50000'),
+        
+        body('limits.maxTeachers')
+          .optional()
+          .isInt({ min: 1, max: 1000 })
+          .withMessage('maxTeachers must be between 1 and 1000'),
+        
+        body('limits.maxParents')
+          .optional()
+          .isInt({ min: 1, max: 20000 })
+          .withMessage('maxParents must be between 1 and 20000'),
+        
+        body('systemNote')
+          .optional()
+          .isLength({ min: 1, max: 500 })
+          .withMessage('System note must be between 1 and 500 characters')
+          .trim(),
+        
+        body('isActive')
+          .optional()
+          .isBoolean()
+          .withMessage('isActive must be boolean'),
+        
+        body('customSettings')
+          .optional()
+          .isObject()
+          .withMessage('Custom settings must be an object')
+      );
+      break;
+
     case 'school_management':
       validators.push(
         body('schoolName')
