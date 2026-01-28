@@ -392,11 +392,18 @@ class SystemAdminService {
    * @returns {Object} Updated school data
    */
   static async updateSchoolConfig(schoolId, configData, systemAdminId) {
+    console.log('updateSchoolConfig called with:', { schoolId, configData, systemAdminId });
+    
     try {
       const school = await School.findOne({ schoolId });
+      console.log('Found school:', school ? 'Yes' : 'No');
+      
       if (!school) {
         throw new Error('School not found');
       }
+
+      console.log('School systemConfig:', school.systemConfig);
+      console.log('School systemMetadata:', school.systemMetadata);
 
       const {
         subscriptionTier,
