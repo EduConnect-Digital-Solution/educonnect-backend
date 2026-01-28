@@ -56,14 +56,14 @@ const validateCrossSchoolOperation = [
           throw new Error('School IDs array cannot be empty');
         }
         value.forEach(id => {
-          if (typeof id !== 'string' || !/^[A-Z]{3}\d{3}$/.test(id)) {
-            throw new Error('Each school ID must follow format: ABC123');
+          if (typeof id !== 'string' || !/^[A-Z]{3}\d{4}$/.test(id)) {
+            throw new Error('Each school ID must follow format: ABC1234 (3 letters + 4 digits)');
           }
         });
       } else if (typeof value === 'string') {
         // Single school ID
-        if (!/^[A-Z]{3}\d{3}$/.test(value)) {
-          throw new Error('School ID must follow format: ABC123');
+        if (!/^[A-Z]{3}\d{4}$/.test(value)) {
+          throw new Error('School ID must follow format: ABC1234 (3 letters + 4 digits)');
         }
       } else {
         throw new Error('School IDs must be string or array of strings');
@@ -122,8 +122,8 @@ const validateSystemAdminAction = (actionType) => {
         param('schoolId')
           .notEmpty()
           .withMessage('School ID is required')
-          .matches(/^[A-Z]{3}\d{3}$/)
-          .withMessage('School ID must follow format: ABC123'),
+          .matches(/^[A-Z]{3}\d{4}$/)
+          .withMessage('School ID must follow format: ABC1234 (3 letters + 4 digits)'),
         
         body('subscriptionTier')
           .optional()
@@ -253,8 +253,8 @@ const validateSystemAdminAction = (actionType) => {
           .if(body('action').equals('transfer_school'))
           .notEmpty()
           .withMessage('Target school ID is required for transfer action')
-          .matches(/^[A-Z]{3}\d{3}$/)
-          .withMessage('School ID must follow format: ABC123'),
+          .matches(/^[A-Z]{3}\d{4}$/)
+          .withMessage('School ID must follow format: ABC1234 (3 letters + 4 digits)'),
         
         body('userId')
           .optional()
