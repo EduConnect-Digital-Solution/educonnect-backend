@@ -451,7 +451,7 @@ class SystemAdminService {
 
       // Add system note if provided
       if (systemNote) {
-        await school.addSystemNote(systemNote, systemAdminId, 'configuration');
+        await school.addSystemNote(systemNote, systemAdminId, 'technical');
       }
 
       // Log the update

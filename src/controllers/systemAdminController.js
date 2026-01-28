@@ -429,27 +429,14 @@ const createSchool = catchAsync(async (req, res) => {
  * Updates school configuration settings
  */
 const updateSchoolConfig = catchAsync(async (req, res) => {
-  // Debug logging
-  console.log('=== UPDATE SCHOOL CONFIG DEBUG ===');
-  console.log('req.url:', req.url);
-  console.log('req.method:', req.method);
-  console.log('req.params:', req.params);
-  console.log('req.route.path:', req.route?.path);
-  console.log('================================');
-  
   try {
     const { schoolId } = req.params;
     
     if (!schoolId) {
-      console.error('schoolId is missing from params:', req.params);
       return res.status(400).json({
         success: false,
         message: 'School ID parameter is missing',
-        debug: {
-          url: req.url,
-          params: req.params,
-          route: req.route?.path
-        }
+        code: 'MISSING_SCHOOL_ID'
       });
     }
     

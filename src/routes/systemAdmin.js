@@ -37,10 +37,9 @@ const {
 const { createCustomLimiter } = require('../middleware/rateLimiter');
 
 // Apply system admin authentication to all routes
-// Temporarily disable global middleware for debugging
-// router.use(requireSystemAdmin);
-// router.use(validateCrossSchoolAccess);
-// router.use(completeAuditLog);
+router.use(requireSystemAdmin);
+router.use(validateCrossSchoolAccess);
+router.use(completeAuditLog);
 
 // ============================================================================
 // PLATFORM OVERVIEW ENDPOINTS
@@ -136,20 +135,9 @@ router.post('/schools',
  * @permission manage_schools
  */
 router.put('/schools/:schoolId/config',
-  (req, res, next) => {
-    console.log('=== ROUTE MIDDLEWARE DEBUG ===');
-    console.log('Route hit! URL:', req.url);
-    console.log('Method:', req.method);
-    console.log('Params at route level:', req.params);
-    console.log('Route path:', req.route?.path);
-    console.log('==============================');
-    next();
-  },
-  requireSystemAdmin, // Add auth directly to route for debugging
   createCustomLimiter({ windowMs: 5 * 60 * 1000, max: 20 }), // 20 updates per 5 minutes
   validateSystemAdminPermission('manage_schools'),
-  // Temporarily disable validation chain for debugging
-  // ...createSystemAdminValidationChain('school_config_update', 'manage_schools'),
+  ...createSystemAdminValidationChain('school_config_update', 'manage_schools'),
   auditSystemOperation('school_config_update'),
   updateSchoolConfig
 );
