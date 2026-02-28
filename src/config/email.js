@@ -13,10 +13,10 @@ class EmailService {
     if (!process.env.RESEND_API_KEY) {
       throw new Error('RESEND_API_KEY environment variable is required');
     }
-    
+
     // Initialize Resend client
     this.resend = new Resend(process.env.RESEND_API_KEY);
-    
+
     // Configuration
     this.config = {
       fromEmail: process.env.FROM_EMAIL || 'noreply@educonnect.com',
@@ -31,17 +31,17 @@ class EmailService {
       // Timeouts
       defaultTimeout: parseInt(process.env.EMAIL_TIMEOUT) || 30000
     };
-    
+
     // Template cache
     this.templateCache = new Map();
-    
+
     // Email statistics
     this.stats = {
       sent: 0,
       failed: 0,
       retries: 0
     };
-    
+
     if (process.env.NODE_ENV !== 'test') {
       console.log('EmailService initialized with Resend API');
     }
@@ -62,13 +62,13 @@ class EmailService {
    */
   async sendEmail(emailData, retryCount = 0) {
     const { to, subject, html, text, from, attachments, headers } = emailData;
-    
+
     try {
       // Validate required fields
       if (!to || !subject || !html) {
         throw new Error('Missing required email fields: to, subject, and html are required');
       }
-      
+
       // Prepare email payload
       const emailPayload = {
         from: from || `${this.config.fromName} <${this.config.fromEmail}>`,
@@ -76,12 +76,12 @@ class EmailService {
         subject: subject,
         html: html
       };
-      
+
       // Add optional fields
       if (text) emailPayload.text = text;
       if (attachments && attachments.length > 0) emailPayload.attachments = attachments;
       if (headers) emailPayload.headers = headers;
-      
+
       // Log email payload for debugging
       if (process.env.NODE_ENV === 'development') {
         console.log('📧 Sending email with payload:', {
@@ -91,30 +91,30 @@ class EmailService {
           hasHtml: !!emailPayload.html
         });
       }
-      
+
       // Send email with timeout
       const result = await Promise.race([
         this.resend.emails.send(emailPayload),
-        new Promise((_, reject) => 
+        new Promise((_, reject) =>
           setTimeout(() => reject(new Error('Email sending timeout')), this.config.defaultTimeout)
         )
       ]);
-      
+
       // Update statistics
       this.stats.sent++;
-      
+
       if (process.env.NODE_ENV !== 'test') {
         console.log(`✅ Email sent successfully to ${to}:`, result.id);
         console.log(`📊 Resend response:`, result);
       }
-      return { 
-        success: true, 
+      return {
+        success: true,
         messageId: result.id,
         to: emailPayload.to,
         subject: subject,
         sentAt: new Date().toISOString()
       };
-      
+
     } catch (error) {
       if (process.env.NODE_ENV !== 'test') {
         console.error(`❌ Email sending failed (attempt ${retryCount + 1}):`, error.message);
@@ -126,23 +126,23 @@ class EmailService {
           response: error.response?.data || error.response
         });
       }
-      
+
       // Retry logic for transient errors
       if (retryCount < this.config.maxRetries && this.isRetryableError(error)) {
         this.stats.retries++;
         if (process.env.NODE_ENV !== 'test') {
           console.log(`Retrying email send in ${this.config.retryDelay}ms...`);
         }
-        
+
         await new Promise(resolve => setTimeout(resolve, this.config.retryDelay));
         return this.sendEmail(emailData, retryCount + 1);
       }
-      
+
       // Update statistics
       this.stats.failed++;
-      
-      return { 
-        success: false, 
+
+      return {
+        success: false,
         error: error.message,
         to: to,
         subject: subject,
@@ -151,7 +151,7 @@ class EmailService {
       };
     }
   }
-  
+
   /**
    * Check if an error is retryable
    * @param {Error} error - The error to check
@@ -166,11 +166,11 @@ class EmailService {
       'service unavailable',
       'internal server error'
     ];
-    
+
     const errorMessage = error.message.toLowerCase();
     return retryableErrors.some(retryableError => errorMessage.includes(retryableError));
   }
-  
+
   /**
    * Send bulk emails with rate limiting
    * @param {Object[]} emails - Array of email objects
@@ -185,14 +185,14 @@ class EmailService {
       failed: 0,
       errors: []
     };
-    
+
     if (process.env.NODE_ENV !== 'test') {
       console.log(`Starting bulk email send: ${emails.length} emails in batches of ${batchSize}`);
     }
-    
+
     for (let i = 0; i < emails.length; i += batchSize) {
       const batch = emails.slice(i, i + batchSize);
-      
+
       const batchPromises = batch.map(async (email) => {
         const result = await this.sendEmail(email);
         if (result.success) {
@@ -206,15 +206,15 @@ class EmailService {
         }
         return result;
       });
-      
+
       await Promise.all(batchPromises);
-      
+
       // Add delay between batches to respect rate limits
       if (i + batchSize < emails.length) {
         await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
-    
+
     if (process.env.NODE_ENV !== 'test') {
       console.log(`Bulk email send completed: ${results.sent} sent, ${results.failed} failed`);
     }
@@ -234,10 +234,10 @@ class EmailService {
         const template = this.templateCache.get(templateName);
         return this.replaceVariables(template, variables);
       }
-      
+
       // Try to load template from file system
       const templatePath = path.join(__dirname, '..', 'templates', 'emails', `${templateName}.html`);
-      
+
       try {
         const templateContent = await fs.readFile(templatePath, 'utf8');
         this.templateCache.set(templateName, templateContent);
@@ -255,7 +255,7 @@ class EmailService {
       throw error;
     }
   }
-  
+
   /**
    * Replace variables in template
    * @param {string} template - Template content
@@ -272,18 +272,18 @@ class EmailService {
       logoUrl: this.config.logoUrl,
       currentYear: new Date().getFullYear()
     };
-    
+
     let result = template;
-    
+
     // Replace {{variable}} patterns
     result = result.replace(/{{\s*([^}]+)\s*}}/g, (match, variableName) => {
       const trimmedName = variableName.trim();
       return allVariables[trimmedName] !== undefined ? allVariables[trimmedName] : '';
     });
-    
+
     return result;
   }
-  
+
   /**
    * Get built-in email templates
    * @param {string} templateName - Template name
@@ -301,10 +301,10 @@ class EmailService {
       'teacher-invitation': this.getTeacherInvitationTemplate(),
       'parent-invitation': this.getParentInvitationTemplate()
     };
-    
+
     return templates[templateName] || null;
   }
-  
+
   /**
    * Base email template
    * @returns {string} Base HTML template
@@ -347,7 +347,7 @@ class EmailService {
       </html>
     `;
   }
-  
+
   /**
    * OTP verification template
    * @returns {string} OTP HTML template
@@ -367,7 +367,7 @@ class EmailService {
       </div>
     `;
   }
-  
+
   /**
    * School welcome template
    * @returns {string} School welcome HTML template
@@ -396,7 +396,7 @@ class EmailService {
       </div>
     `;
   }
-  
+
   /**
    * Invitation template
    * @returns {string} Invitation HTML template
@@ -420,7 +420,7 @@ class EmailService {
       </div>
     `;
   }
-  
+
   /**
    * Password reset template
    * @returns {string} Password reset HTML template
@@ -604,7 +604,7 @@ class EmailService {
     try {
       const subject = options.subject || 'Verify Your Email - EduConnect';
       const expirationMinutes = options.expirationMinutes || process.env.OTP_EXPIRES_IN_MINUTES || 10;
-      
+
       const html = await this.renderTemplate('otp-verification', {
         title: options.title || 'Welcome to EduConnect!',
         message: options.message || `Thank you for registering <strong>${schoolName}</strong> with EduConnect. Please use the following OTP to verify your email address:`,
@@ -612,10 +612,10 @@ class EmailService {
         schoolName: schoolName,
         expirationMinutes: expirationMinutes
       });
-      
-      return this.sendEmail({ 
-        to: email, 
-        subject, 
+
+      return this.sendEmail({
+        to: email,
+        subject,
         html,
         headers: {
           'X-Email-Type': 'otp-verification',
@@ -640,7 +640,7 @@ class EmailService {
     try {
       const subject = options.subject || 'Your School ID - EduConnect';
       const loginUrl = `${this.config.frontendUrl}/login?schoolId=${schoolId}`;
-      
+
       const html = await this.renderTemplate('school-welcome', {
         title: options.title || 'School Registration Complete!',
         schoolName: schoolName,
@@ -648,10 +648,10 @@ class EmailService {
         email: email,
         loginUrl: loginUrl
       });
-      
-      return this.sendEmail({ 
-        to: email, 
-        subject, 
+
+      return this.sendEmail({
+        to: email,
+        subject,
         html,
         headers: {
           'X-Email-Type': 'school-welcome',
@@ -679,7 +679,7 @@ class EmailService {
       const subject = additionalInfo.subject || `Invitation to Join ${schoolName} - EduConnect`;
       const registrationUrl = `${this.config.frontendUrl}/register/${role}?token=${invitationToken}`;
       const expirationHours = additionalInfo.expirationHours || process.env.INVITATION_EXPIRES_IN_HOURS || 72;
-      
+
       // Generate role-specific content
       let roleSpecificContent = '';
       if (role === 'teacher' && additionalInfo.subjects) {
@@ -690,7 +690,7 @@ class EmailService {
       } else if (role === 'parent' && additionalInfo.studentNames) {
         roleSpecificContent = `<p><strong>Your children:</strong> ${additionalInfo.studentNames.join(', ')}</p>`;
       }
-      
+
       const html = await this.renderTemplate('invitation', {
         inviterName: additionalInfo.inviterName || 'The school administration',
         schoolName: schoolName,
@@ -700,16 +700,15 @@ class EmailService {
         registrationUrl: registrationUrl,
         expirationHours: expirationHours
       });
-      
-      return this.sendEmail({ 
-        to: email, 
-        subject, 
+
+      return this.sendEmail({
+        to: email,
+        subject,
         html,
         headers: {
           'X-Email-Type': 'invitation',
           'X-Role': role,
-          'X-School-Name': schoolName,
-          'X-Invitation-Token': invitationToken
+          'X-School-Name': schoolName
         }
       });
     } catch (error) {
@@ -731,20 +730,19 @@ class EmailService {
       const subject = options.subject || 'Reset Your Password - EduConnect';
       const resetUrl = `${this.config.frontendUrl}/reset-password?token=${resetToken}&type=${userType}`;
       const expirationHours = options.expirationHours || 1;
-      
+
       const html = await this.renderTemplate('password-reset', {
         resetUrl: resetUrl,
         expirationHours: expirationHours
       });
-      
-      return this.sendEmail({ 
-        to: email, 
-        subject, 
+
+      return this.sendEmail({
+        to: email,
+        subject,
         html,
         headers: {
           'X-Email-Type': 'password-reset',
-          'X-User-Type': userType,
-          'X-Reset-Token': resetToken
+          'X-User-Type': userType
         }
       });
     } catch (error) {
@@ -752,7 +750,7 @@ class EmailService {
       return { success: false, error: error.message };
     }
   }
-  
+
   /**
    * Send custom email using template
    * @param {string} templateName - Template name
@@ -765,7 +763,7 @@ class EmailService {
   async sendTemplatedEmail(templateName, to, subject, variables, options = {}) {
     try {
       const html = await this.renderTemplate(templateName, variables);
-      
+
       return this.sendEmail({
         to: to,
         subject: subject,
@@ -784,7 +782,7 @@ class EmailService {
       return { success: false, error: error.message };
     }
   }
-  
+
   /**
    * Get email service statistics
    * @returns {Object} Service statistics
@@ -801,7 +799,7 @@ class EmailService {
       }
     };
   }
-  
+
   /**
    * Clear template cache
    */
@@ -809,7 +807,7 @@ class EmailService {
     this.templateCache.clear();
     console.log('Email template cache cleared');
   }
-  
+
   /**
    * Health check for email service
    * @returns {Promise<Object>} Health status
@@ -823,7 +821,7 @@ class EmailService {
         statistics: this.getStatistics(),
         resendConnected: !!this.resend
       };
-      
+
       return testResult;
     } catch (error) {
       return {

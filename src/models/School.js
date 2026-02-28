@@ -15,7 +15,7 @@ const schoolSchema = new mongoose.Schema({
     unique: true,
     index: true
   },
-  
+
   // Basic school information
   schoolName: {
     type: String,
@@ -24,7 +24,7 @@ const schoolSchema = new mongoose.Schema({
     minlength: [2, 'School name must be at least 2 characters'],
     maxlength: [100, 'School name cannot exceed 100 characters']
   },
-  
+
   // Contact information
   email: {
     type: String,
@@ -34,7 +34,7 @@ const schoolSchema = new mongoose.Schema({
     trim: true,
     match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Please enter a valid email']
   },
-  
+
   // Hashed password for school admin
   password: {
     type: String,
@@ -42,61 +42,73 @@ const schoolSchema = new mongoose.Schema({
     minlength: [8, 'Password must be at least 8 characters'],
     select: false // Don't include password in queries by default
   },
-  
+
   // Additional school details
   address: {
     type: String,
     trim: true,
     maxlength: [500, 'Address cannot exceed 500 characters']
   },
-  
+
   phone: {
     type: String,
     trim: true,
     match: [/^\+?[\d\s\-\(\)]{10,15}$/, 'Please enter a valid phone number']
   },
-  
+
+  website: {
+    type: String,
+    trim: true,
+    maxlength: [255, 'Website URL cannot exceed 255 characters']
+  },
+
+  description: {
+    type: String,
+    trim: true,
+    maxlength: [1000, 'Description cannot exceed 1000 characters']
+  },
+
   principalName: {
     type: String,
     trim: true,
     maxlength: [100, 'Principal name cannot exceed 100 characters']
   },
-  
+
   schoolType: {
     type: String,
     enum: ['public', 'private', 'charter'],
     default: 'public'
   },
-  
+
   // Reference to the admin user created during registration
   adminUserId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   },
-  
+
   // Verification status (requirement 1.5)
   isVerified: {
     type: Boolean,
     default: false
   },
-  
+
   // Email verification OTP
   verificationOTP: {
     type: String,
     select: false
   },
-  
+
   otpExpires: {
     type: Date,
     select: false
   },
-  
+
   // Account status
   isActive: {
     type: Boolean,
     default: true
   },
-  
+
   // System Administration Configuration
   systemConfig: {
     subscriptionTier: {
@@ -213,7 +225,7 @@ const schoolSchema = new mongoose.Schema({
       }
     }
   },
-  
+
   // System Administration Metadata
   systemMetadata: {
     createdBy: {
@@ -271,24 +283,24 @@ const schoolSchema = new mongoose.Schema({
       resolvedBy: String
     }]
   },
-  
+
   // Password reset functionality
   passwordResetToken: {
     type: String,
     select: false
   },
-  
+
   passwordResetExpires: {
     type: Date,
     select: false
   },
-  
+
   // Audit fields
   createdAt: {
     type: Date,
     default: Date.now
   },
-  
+
   updatedAt: {
     type: Date,
     default: Date.now
@@ -307,10 +319,10 @@ schoolSchema.index({ isVerified: 1, isActive: 1 });
 /**
  * Pre-save middleware to hash password and generate schoolId
  */
-schoolSchema.pre('save', async function(next) {
+schoolSchema.pre('save', async function (next) {
   // Only hash password if it's modified
   if (!this.isModified('password')) return next();
-  
+
   try {
     // Hash password with cost of 12
     this.password = await bcrypt.hash(this.password, 12);
@@ -323,16 +335,16 @@ schoolSchema.pre('save', async function(next) {
 /**
  * Pre-save middleware to generate unique schoolId
  */
-schoolSchema.pre('save', async function(next) {
+schoolSchema.pre('save', async function (next) {
   // Only generate schoolId for new documents that don't have one
   if (!this.isNew || this.schoolId) return next();
-  
+
   try {
     let schoolId;
     let isUnique = false;
     let attempts = 0;
     const maxAttempts = 10;
-    
+
     while (!isUnique && attempts < maxAttempts) {
       // Generate schoolId: 3 letters from school name + 4 random digits
       const namePrefix = this.schoolName
@@ -340,10 +352,10 @@ schoolSchema.pre('save', async function(next) {
         .substring(0, 3)
         .toUpperCase()
         .padEnd(3, 'X');
-      
+
       const randomSuffix = Math.floor(1000 + Math.random() * 9000);
       schoolId = `${namePrefix}${randomSuffix}`;
-      
+
       // Check if schoolId is unique
       const existingSchool = await this.constructor.findOne({ schoolId });
       if (!existingSchool) {
@@ -351,11 +363,11 @@ schoolSchema.pre('save', async function(next) {
       }
       attempts++;
     }
-    
+
     if (!isUnique) {
       return next(new Error('Unable to generate unique schoolId after multiple attempts'));
     }
-    
+
     this.schoolId = schoolId;
     next();
   } catch (error) {
@@ -366,7 +378,7 @@ schoolSchema.pre('save', async function(next) {
 /**
  * Pre-validate middleware to generate schoolId if not present
  */
-schoolSchema.pre('validate', async function(next) {
+schoolSchema.pre('validate', async function (next) {
   // Generate schoolId if it's a new document and doesn't have one
   if (this.isNew && !this.schoolId && this.schoolName) {
     const namePrefix = this.schoolName
@@ -374,7 +386,7 @@ schoolSchema.pre('validate', async function(next) {
       .substring(0, 3)
       .toUpperCase()
       .padEnd(3, 'X');
-    
+
     const randomSuffix = Math.floor(1000 + Math.random() * 9000);
     this.schoolId = `${namePrefix}${randomSuffix}`;
   }
@@ -384,7 +396,7 @@ schoolSchema.pre('validate', async function(next) {
 /**
  * Pre-save middleware to update timestamps
  */
-schoolSchema.pre('save', function(next) {
+schoolSchema.pre('save', function (next) {
   this.updatedAt = new Date();
   next();
 });
@@ -392,7 +404,7 @@ schoolSchema.pre('save', function(next) {
 /**
  * Instance method to compare password
  */
-schoolSchema.methods.comparePassword = async function(candidatePassword) {
+schoolSchema.methods.comparePassword = async function (candidatePassword) {
   if (!this.password) {
     throw new Error('Password not available for comparison');
   }
@@ -402,32 +414,32 @@ schoolSchema.methods.comparePassword = async function(candidatePassword) {
 /**
  * Instance method to generate email verification OTP
  */
-schoolSchema.methods.generateVerificationOTP = function() {
+schoolSchema.methods.generateVerificationOTP = function () {
   // Generate 6-digit OTP
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
-  
+
   // Hash the OTP before storing
   this.verificationOTP = crypto.createHash('sha256').update(otp).digest('hex');
-  
+
   // Set expiration time (10 minutes)
   this.otpExpires = Date.now() + 10 * 60 * 1000;
-  
+
   return otp; // Return plain OTP for sending via email
 };
 
 /**
  * Instance method to verify OTP
  */
-schoolSchema.methods.verifyOTP = function(candidateOTP) {
+schoolSchema.methods.verifyOTP = function (candidateOTP) {
   if (!this.verificationOTP || !this.otpExpires) {
     return false;
   }
-  
+
   // Check if OTP has expired
   if (Date.now() > this.otpExpires) {
     return false;
   }
-  
+
   // Hash the candidate OTP and compare
   const hashedOTP = crypto.createHash('sha256').update(candidateOTP).digest('hex');
   return hashedOTP === this.verificationOTP;
@@ -436,7 +448,7 @@ schoolSchema.methods.verifyOTP = function(candidateOTP) {
 /**
  * Instance method to complete email verification
  */
-schoolSchema.methods.completeVerification = function() {
+schoolSchema.methods.completeVerification = function () {
   this.isVerified = true;
   this.verificationOTP = undefined;
   this.otpExpires = undefined;
@@ -446,32 +458,32 @@ schoolSchema.methods.completeVerification = function() {
 /**
  * Instance method to generate password reset token
  */
-schoolSchema.methods.generatePasswordResetToken = function() {
+schoolSchema.methods.generatePasswordResetToken = function () {
   // Generate random token
   const resetToken = crypto.randomBytes(32).toString('hex');
-  
+
   // Hash and store the token
   this.passwordResetToken = crypto.createHash('sha256').update(resetToken).digest('hex');
-  
+
   // Set expiration time (1 hour)
   this.passwordResetExpires = Date.now() + 60 * 60 * 1000;
-  
+
   return resetToken; // Return plain token for sending via email
 };
 
 /**
  * Instance method to verify password reset token
  */
-schoolSchema.methods.verifyPasswordResetToken = function(candidateToken) {
+schoolSchema.methods.verifyPasswordResetToken = function (candidateToken) {
   if (!this.passwordResetToken || !this.passwordResetExpires) {
     return false;
   }
-  
+
   // Check if token has expired
   if (Date.now() > this.passwordResetExpires) {
     return false;
   }
-  
+
   // Hash the candidate token and compare
   const hashedToken = crypto.createHash('sha256').update(candidateToken).digest('hex');
   return hashedToken === this.passwordResetToken;
@@ -480,7 +492,7 @@ schoolSchema.methods.verifyPasswordResetToken = function(candidateToken) {
 /**
  * Instance method to reset password
  */
-schoolSchema.methods.resetPassword = async function(newPassword) {
+schoolSchema.methods.resetPassword = async function (newPassword) {
   this.password = newPassword; // Will be hashed by pre-save middleware
   this.passwordResetToken = undefined;
   this.passwordResetExpires = undefined;
@@ -490,7 +502,7 @@ schoolSchema.methods.resetPassword = async function(newPassword) {
 /**
  * Instance method to activate/deactivate school
  */
-schoolSchema.methods.setActiveStatus = function(isActive) {
+schoolSchema.methods.setActiveStatus = function (isActive) {
   this.isActive = isActive;
   return this.save();
 };
@@ -498,35 +510,35 @@ schoolSchema.methods.setActiveStatus = function(isActive) {
 /**
  * Static method to find school by schoolId
  */
-schoolSchema.statics.findBySchoolId = function(schoolId) {
+schoolSchema.statics.findBySchoolId = function (schoolId) {
   return this.findOne({ schoolId, isActive: true });
 };
 
 /**
  * Static method to find verified schools
  */
-schoolSchema.statics.findVerified = function() {
+schoolSchema.statics.findVerified = function () {
   return this.find({ isVerified: true, isActive: true });
 };
 
 /**
  * Static method to find schools pending verification
  */
-schoolSchema.statics.findPendingVerification = function() {
+schoolSchema.statics.findPendingVerification = function () {
   return this.find({ isVerified: false, isActive: true });
 };
 
 /**
  * Static method to authenticate school with schoolId, email, and password (Requirement 2.1)
  */
-schoolSchema.statics.authenticate = async function(schoolId, email, password) {
+schoolSchema.statics.authenticate = async function (schoolId, email, password) {
   try {
     // Find school by both schoolId and email, include password field
-    const school = await this.findOne({ 
-      schoolId, 
-      email: email.toLowerCase() 
+    const school = await this.findOne({
+      schoolId,
+      email: email.toLowerCase()
     }).select('+password');
-    
+
     if (!school) {
       throw new Error('Invalid schoolId or email');
     }
@@ -557,14 +569,14 @@ schoolSchema.statics.authenticate = async function(schoolId, email, password) {
 /**
  * Virtual for full school display name
  */
-schoolSchema.virtual('displayName').get(function() {
+schoolSchema.virtual('displayName').get(function () {
   return `${this.schoolName} (${this.schoolId})`;
 });
 
 /**
  * Virtual for verification status text
  */
-schoolSchema.virtual('verificationStatus').get(function() {
+schoolSchema.virtual('verificationStatus').get(function () {
   if (this.isVerified) return 'verified';
   if (this.verificationOTP && this.otpExpires && Date.now() < this.otpExpires) return 'pending';
   return 'unverified';
@@ -573,7 +585,7 @@ schoolSchema.virtual('verificationStatus').get(function() {
 /**
  * Transform function to remove sensitive data from JSON output
  */
-schoolSchema.methods.toJSON = function() {
+schoolSchema.methods.toJSON = function () {
   const school = this.toObject();
   delete school.password;
   delete school.verificationOTP;
@@ -592,7 +604,7 @@ schoolSchema.methods.toJSON = function() {
  * @param {string} adminId - System admin ID
  * @returns {Promise<School>} Updated school
  */
-schoolSchema.methods.updateSubscriptionTier = async function(tier, adminId) {
+schoolSchema.methods.updateSubscriptionTier = async function (tier, adminId) {
   this.systemConfig.subscriptionTier = tier;
   this.systemMetadata.lastModifiedBy = adminId;
   this.updatedAt = new Date();
@@ -605,7 +617,7 @@ schoolSchema.methods.updateSubscriptionTier = async function(tier, adminId) {
  * @param {string} adminId - System admin ID
  * @returns {Promise<School>} Updated school
  */
-schoolSchema.methods.updateSubscriptionStatus = async function(status, adminId) {
+schoolSchema.methods.updateSubscriptionStatus = async function (status, adminId) {
   this.systemConfig.subscriptionStatus = status;
   this.systemMetadata.lastModifiedBy = adminId;
   this.updatedAt = new Date();
@@ -620,11 +632,11 @@ schoolSchema.methods.updateSubscriptionStatus = async function(status, adminId) 
  * @param {Date} expiresAt - Optional expiration date
  * @returns {Promise<School>} Updated school
  */
-schoolSchema.methods.toggleFeature = async function(featureName, isEnabled, adminId, expiresAt = null) {
+schoolSchema.methods.toggleFeature = async function (featureName, isEnabled, adminId, expiresAt = null) {
   const existingFeatureIndex = this.systemConfig.features.findIndex(
     f => f.featureName === featureName
   );
-  
+
   if (existingFeatureIndex >= 0) {
     // Update existing feature
     this.systemConfig.features[existingFeatureIndex].isEnabled = isEnabled;
@@ -643,7 +655,7 @@ schoolSchema.methods.toggleFeature = async function(featureName, isEnabled, admi
       expiresAt
     });
   }
-  
+
   this.systemMetadata.lastModifiedBy = adminId;
   this.updatedAt = new Date();
   return await this.save();
@@ -656,14 +668,14 @@ schoolSchema.methods.toggleFeature = async function(featureName, isEnabled, admi
  * @param {string} category - Note category
  * @returns {Promise<School>} Updated school
  */
-schoolSchema.methods.addSystemNote = async function(note, adminId, category = 'general') {
+schoolSchema.methods.addSystemNote = async function (note, adminId, category = 'general') {
   this.systemMetadata.systemNotes.push({
     note,
     createdBy: adminId,
     category,
     createdAt: new Date()
   });
-  
+
   this.systemMetadata.lastModifiedBy = adminId;
   this.updatedAt = new Date();
   return await this.save();
@@ -676,7 +688,7 @@ schoolSchema.methods.addSystemNote = async function(note, adminId, category = 'g
  * @param {string} adminId - System admin ID
  * @returns {Promise<School>} Updated school
  */
-schoolSchema.methods.addSystemFlag = async function(flagType, reason, adminId) {
+schoolSchema.methods.addSystemFlag = async function (flagType, reason, adminId) {
   this.systemMetadata.flags.push({
     flagType,
     reason,
@@ -684,7 +696,7 @@ schoolSchema.methods.addSystemFlag = async function(flagType, reason, adminId) {
     createdBy: adminId,
     createdAt: new Date()
   });
-  
+
   this.systemMetadata.lastModifiedBy = adminId;
   this.updatedAt = new Date();
   return await this.save();
@@ -696,13 +708,13 @@ schoolSchema.methods.addSystemFlag = async function(flagType, reason, adminId) {
  * @param {string} adminId - System admin ID
  * @returns {Promise<School>} Updated school
  */
-schoolSchema.methods.resolveSystemFlag = async function(flagId, adminId) {
+schoolSchema.methods.resolveSystemFlag = async function (flagId, adminId) {
   const flag = this.systemMetadata.flags.id(flagId);
   if (flag) {
     flag.isActive = false;
     flag.resolvedAt = new Date();
     flag.resolvedBy = adminId;
-    
+
     this.systemMetadata.lastModifiedBy = adminId;
     this.updatedAt = new Date();
     return await this.save();
@@ -716,7 +728,7 @@ schoolSchema.methods.resolveSystemFlag = async function(flagId, adminId) {
  * @param {string} adminId - System admin ID
  * @returns {Promise<School>} Updated school
  */
-schoolSchema.methods.updateLimits = async function(limits, adminId) {
+schoolSchema.methods.updateLimits = async function (limits, adminId) {
   Object.assign(this.systemConfig.limits, limits);
   this.systemMetadata.lastModifiedBy = adminId;
   this.updatedAt = new Date();
@@ -727,10 +739,10 @@ schoolSchema.methods.updateLimits = async function(limits, adminId) {
  * Get active features for the school
  * @returns {Array} Array of active features
  */
-schoolSchema.methods.getActiveFeatures = function() {
+schoolSchema.methods.getActiveFeatures = function () {
   const now = new Date();
-  return this.systemConfig.features.filter(feature => 
-    feature.isEnabled && 
+  return this.systemConfig.features.filter(feature =>
+    feature.isEnabled &&
     (!feature.expiresAt || feature.expiresAt > now)
   );
 };
@@ -740,14 +752,14 @@ schoolSchema.methods.getActiveFeatures = function() {
  * @param {string} featureName - Feature name to check
  * @returns {boolean} True if feature is enabled and not expired
  */
-schoolSchema.methods.hasFeature = function(featureName) {
+schoolSchema.methods.hasFeature = function (featureName) {
   const feature = this.systemConfig.features.find(f => f.featureName === featureName);
   if (!feature || !feature.isEnabled) return false;
-  
+
   if (feature.expiresAt && feature.expiresAt <= new Date()) {
     return false;
   }
-  
+
   return true;
 };
 
@@ -755,7 +767,7 @@ schoolSchema.methods.hasFeature = function(featureName) {
  * Get system administration summary
  * @returns {Object} System admin summary
  */
-schoolSchema.methods.getSystemSummary = function() {
+schoolSchema.methods.getSystemSummary = function () {
   return {
     schoolId: this.schoolId,
     schoolName: this.schoolName,
@@ -779,7 +791,7 @@ schoolSchema.methods.getSystemSummary = function() {
  * @param {string} tier - Subscription tier
  * @returns {Promise<Array>} Array of schools
  */
-schoolSchema.statics.getSchoolsByTier = async function(tier) {
+schoolSchema.statics.getSchoolsByTier = async function (tier) {
   return await this.find({ 'systemConfig.subscriptionTier': tier })
     .select('schoolId schoolName email systemConfig.subscriptionStatus isActive createdAt')
     .sort({ createdAt: -1 });
@@ -790,7 +802,7 @@ schoolSchema.statics.getSchoolsByTier = async function(tier) {
  * @param {string} status - Subscription status
  * @returns {Promise<Array>} Array of schools
  */
-schoolSchema.statics.getSchoolsByStatus = async function(status) {
+schoolSchema.statics.getSchoolsByStatus = async function (status) {
   return await this.find({ 'systemConfig.subscriptionStatus': status })
     .select('schoolId schoolName email systemConfig.subscriptionTier isActive createdAt')
     .sort({ createdAt: -1 });
@@ -800,7 +812,7 @@ schoolSchema.statics.getSchoolsByStatus = async function(status) {
  * Get schools with active flags
  * @returns {Promise<Array>} Array of schools with active flags
  */
-schoolSchema.statics.getSchoolsWithFlags = async function() {
+schoolSchema.statics.getSchoolsWithFlags = async function () {
   return await this.find({ 'systemMetadata.flags.isActive': true })
     .select('schoolId schoolName email systemMetadata.flags systemConfig.subscriptionTier')
     .sort({ createdAt: -1 });
@@ -810,7 +822,7 @@ schoolSchema.statics.getSchoolsWithFlags = async function() {
  * Get system statistics
  * @returns {Promise<Object>} System statistics
  */
-schoolSchema.statics.getSystemStatistics = async function() {
+schoolSchema.statics.getSystemStatistics = async function () {
   const stats = await this.aggregate([
     {
       $group: {
@@ -828,7 +840,7 @@ schoolSchema.statics.getSystemStatistics = async function() {
       }
     }
   ]);
-  
+
   if (stats.length === 0) {
     return {
       totalSchools: 0,
@@ -838,39 +850,39 @@ schoolSchema.statics.getSystemStatistics = async function() {
       statusDistribution: {}
     };
   }
-  
+
   const result = stats[0];
   result.inactiveSchools = result.totalSchools - result.activeSchools;
-  
+
   // Count by tier and status
   result.tierDistribution = result.schoolsByTier.reduce((acc, tier) => {
     acc[tier] = (acc[tier] || 0) + 1;
     return acc;
   }, {});
-  
+
   result.statusDistribution = result.schoolsByStatus.reduce((acc, status) => {
     acc[status] = (acc[status] || 0) + 1;
     return acc;
   }, {});
-  
+
   delete result.schoolsByTier;
   delete result.schoolsByStatus;
-  
+
   return result;
 };
 
 /**
  * Validation for unique email across all schools
  */
-schoolSchema.pre('validate', async function(next) {
+schoolSchema.pre('validate', async function (next) {
   if (!this.isModified('email')) return next();
-  
+
   try {
-    const existingSchool = await this.constructor.findOne({ 
+    const existingSchool = await this.constructor.findOne({
       email: this.email,
       _id: { $ne: this._id }
     });
-    
+
     if (existingSchool) {
       const error = new Error('Email already exists');
       error.name = 'ValidationError';
@@ -884,7 +896,7 @@ schoolSchema.pre('validate', async function(next) {
       };
       return next(error);
     }
-    
+
     next();
   } catch (error) {
     next(error);
@@ -892,7 +904,7 @@ schoolSchema.pre('validate', async function(next) {
 });
 
 // Pre-save middleware to update system metadata
-schoolSchema.pre('save', function(next) {
+schoolSchema.pre('save', function (next) {
   if (this.isModified() && !this.isNew) {
     this.updatedAt = new Date();
   }

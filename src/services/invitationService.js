@@ -338,25 +338,26 @@ const resendInvitation = async (invitationId, schoolId) => {
     throw new Error('Cannot resend invitation - user has already completed registration');
   }
 
+  // Check expired FIRST before status (expired invitations may still have status: 'pending')
+  if (invitation.isExpired && invitation.isExpired()) {
+    throw new Error('Invitation has expired. Please create a new invitation.');
+  }
+
   if (invitation.status === 'cancelled') {
-    throw new Error('Cannot resend cancelled invitation');
+    throw new Error('Cannot resend cancelled invitation. Please create a new invitation.');
   }
 
   if (invitation.status !== 'pending') {
     throw new Error('Can only resend pending invitations');
   }
 
-  // Check if invitation is expired
-  if (invitation.isExpired()) {
-    throw new Error('Cannot resend expired invitation. Please create a new invitation.');
-  }
-
-  // Get school and user details
+  // Get school and user details (null-safe metadata access)
   const school = await School.findOne({ schoolId });
-  const user = await User.findById(invitation.metadata.userId);
+  const userId = invitation.metadata?.userId;
+  const user = userId ? await User.findById(userId) : null;
 
-  if (!user || !school) {
-    throw new Error('Associated user or school not found');
+  if (!school) {
+    throw new Error('Associated school not found');
   }
 
   // Resend invitation using the model method
@@ -369,15 +370,15 @@ const resendInvitation = async (invitationId, schoolId) => {
     invitation.email,
     `Reminder: Complete Your Registration at ${school.schoolName}`,
     {
-      [`${invitation.role}Name`]: `${invitation.metadata.firstName} ${invitation.metadata.lastName}`,
+      [`${invitation.role}Name`]: `${invitation.metadata?.firstName || ''} ${invitation.metadata?.lastName || ''}`.trim(),
       schoolName: school.schoolName,
       schoolId: school.schoolId,
       email: invitation.email,
-      tempPassword: invitation.metadata.tempPassword,
+      tempPassword: invitation.metadata?.tempPassword,
       loginUrl: `${process.env.FRONTEND_URL || 'https://educonnect.com.ng'}/login`,
       completeRegistrationUrl: `${process.env.FRONTEND_URL || 'https://educonnect.com.ng'}/complete-registration?role=${invitation.role}`,
       subjects: invitation.role === 'teacher' ? (invitation.subjects ? invitation.subjects.join(', ') : 'Not specified') : undefined,
-      message: invitation.metadata.message || null,
+      message: invitation.metadata?.message || null,
       expirationHours: 72,
       isResend: true
     }
@@ -414,7 +415,7 @@ const listInvitations = async (filters, pagination) => {
 
   // Create cache key based on query parameters
   const cacheKey = `invitations:${schoolId}:${status || 'all'}:${role || 'all'}:${page}:${limit}`;
-  
+
   // Try cache first
   const cachedData = await CacheService.get('invitation', cacheKey);
   if (cachedData) {
@@ -483,7 +484,7 @@ const listInvitations = async (filters, pagination) => {
       pending: await Invitation.countDocuments({ ...query, status: 'pending' }),
       accepted: await Invitation.countDocuments({ ...query, status: 'accepted' }),
       cancelled: await Invitation.countDocuments({ ...query, status: 'cancelled' }),
-      expired: await Invitation.countDocuments({ 
+      expired: await Invitation.countDocuments({
         ...query,
         status: 'pending',
         expiresAt: { $lt: new Date() }
@@ -516,10 +517,10 @@ const cancelInvitation = async (invitationId, schoolId, adminUserId, reason) => 
   }
 
   // Get admin user for cancellation tracking
-  const adminUser = await User.findOne({ 
+  const adminUser = await User.findOne({
     _id: adminUserId,
-    schoolId, 
-    role: 'admin' 
+    schoolId,
+    role: 'admin'
   });
 
   if (!adminUser) {
@@ -535,17 +536,25 @@ const cancelInvitation = async (invitationId, schoolId, adminUserId, reason) => 
     throw new Error('Invitation is already cancelled');
   }
 
+  // Check if invitation is expired (expired invitations still have status: 'pending')
+  if (invitation.isExpired && invitation.isExpired()) {
+    throw new Error('Invitation has already expired. No action needed.');
+  }
+
   // Cancel invitation using the model method
   await invitation.cancel(adminUser._id, reason || 'Cancelled by administrator');
 
   // Also deactivate the associated user if they haven't completed registration
-  const user = await User.findById(invitation.metadata.userId);
-  if (user && user.isTemporaryPassword) {
-    user.isActive = false;
-    user.deactivatedAt = new Date();
-    user.deactivatedBy = adminUser._id;
-    user.deactivationReason = `Invitation cancelled: ${reason || 'Cancelled by administrator'}`;
-    await user.save();
+  const userId = invitation.metadata?.userId;
+  if (userId) {
+    const user = await User.findById(userId);
+    if (user && user.isTemporaryPassword) {
+      user.isActive = false;
+      user.deactivatedAt = new Date();
+      user.deactivatedBy = adminUser._id;
+      user.deactivationReason = `Invitation cancelled: ${reason || 'Cancelled by administrator'}`;
+      await user.save();
+    }
   }
 
   // Invalidate invitation-related caches
@@ -574,15 +583,15 @@ const cancelInvitation = async (invitationId, schoolId, adminUserId, reason) => 
  */
 const invalidateInvitationCaches = async (schoolId) => {
   console.log(`🗑️ Invalidating invitation caches for school ${schoolId}`);
-  
+
   // Invalidate invitation list caches (all variations)
   const invitationListPattern = `educonnect:invitation:invitations:${schoolId}*`;
   const deletedCount = await CacheService.delPattern(invitationListPattern);
-  
+
   // Invalidate dashboard caches that depend on invitation data
   const dashboardPattern = `educonnect:dashboard:analytics:${schoolId}*`;
   const dashboardDeleted = await CacheService.delPattern(dashboardPattern);
-  
+
   console.log(`🗑️ Invalidated ${deletedCount} invitation list entries and ${dashboardDeleted} dashboard entries for school ${schoolId}`);
 };
 
@@ -594,14 +603,14 @@ const invalidateInvitationCaches = async (schoolId) => {
  */
 const cacheInvitationRateLimit = async (email, schoolId, rateLimitData) => {
   const cacheKey = `rate_limit:${email}:${schoolId}`;
-  
+
   try {
     // Cache rate limit data for 24 hours
     await CacheService.set('invitation', cacheKey, {
       ...rateLimitData,
       cachedAt: new Date().toISOString()
     }, 86400); // 24 hours
-    
+
     console.log(`📧 Invitation rate limit cached for ${email}:${schoolId}`);
   } catch (error) {
     console.error(`❌ Failed to cache invitation rate limit for ${email}:`, error.message);
@@ -616,14 +625,14 @@ const cacheInvitationRateLimit = async (email, schoolId, rateLimitData) => {
  */
 const getCachedInvitationRateLimit = async (email, schoolId) => {
   const cacheKey = `rate_limit:${email}:${schoolId}`;
-  
+
   try {
     const cachedData = await CacheService.get('invitation', cacheKey);
     if (cachedData) {
       console.log(`📧 Invitation rate limit cache HIT for ${email}:${schoolId}`);
       return cachedData;
     }
-    
+
     console.log(`📧 Invitation rate limit cache MISS for ${email}:${schoolId}`);
     return null;
   } catch (error) {
@@ -638,12 +647,12 @@ const getCachedInvitationRateLimit = async (email, schoolId) => {
  */
 const warmUpInvitationCaches = async (schoolId) => {
   console.log(`🔥 Warming up invitation caches for school ${schoolId}`);
-  
+
   try {
     // Pre-load common invitation views
     await listInvitations({ schoolId, status: 'pending' }, { page: 1, limit: 20 });
     await listInvitations({ schoolId }, { page: 1, limit: 20 });
-    
+
     console.log(`🔥 Invitation caches warmed up successfully for school ${schoolId}`);
   } catch (error) {
     console.error(`❌ Failed to warm up invitation caches for school ${schoolId}:`, error.message);

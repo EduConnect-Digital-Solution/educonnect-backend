@@ -127,8 +127,12 @@ app.get('/cors-test', (req, res) => {
   });
 });
 
-// Debug endpoint for production troubleshooting
+// Debug endpoint — disabled in production
 app.get('/debug', (req, res) => {
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(404).json({ message: 'Not found' });
+  }
+
   const debugInfo = {
     success: true,
     timestamp: new Date().toISOString(),

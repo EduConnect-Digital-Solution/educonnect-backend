@@ -53,4 +53,4 @@ class JWTService {
   }
 }
 
-module.exports = new JWTServic
+module.exports = new JWTService();

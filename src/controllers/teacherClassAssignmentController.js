@@ -5,6 +5,7 @@
 
 const User = require('../models/User');
 const TeacherService = require('../services/teacherService');
+const CacheService = require('../services/cacheService');
 const catchAsync = require('../utils/catchAsync');
 const { validationResult } = require('express-validator');
 
@@ -26,7 +27,7 @@ const assignClassesToTeacher = catchAsync(async (req, res) => {
 
   // Use authenticated user's schoolId from JWT token
   const targetSchoolId = req.user.schoolId;
-  
+
   if (!targetSchoolId) {
     return res.status(400).json({
       success: false,
@@ -51,13 +52,15 @@ const assignClassesToTeacher = catchAsync(async (req, res) => {
   // Add new classes (avoid duplicates)
   const existingClasses = teacher.classes || [];
   const newClasses = classes.filter(cls => !existingClasses.includes(cls));
-  
+
   if (newClasses.length > 0) {
     teacher.classes = [...existingClasses, ...newClasses];
     await teacher.save();
 
     // Invalidate teacher caches after class assignment
     await TeacherService.invalidateTeacherCaches(targetSchoolId, teacherId);
+    // Also invalidate grades namespace cache (teacher classes are cached there)
+    await CacheService.del('grades', `classes:${teacherId}`);
   }
 
   res.status(200).json({
@@ -96,7 +99,7 @@ const assignSubjectsToTeacher = catchAsync(async (req, res) => {
 
   // Use authenticated user's schoolId from JWT token
   const targetSchoolId = req.user.schoolId;
-  
+
   if (!targetSchoolId) {
     return res.status(400).json({
       success: false,
@@ -121,7 +124,7 @@ const assignSubjectsToTeacher = catchAsync(async (req, res) => {
   // Add new subjects (avoid duplicates)
   const existingSubjects = teacher.subjects || [];
   const newSubjects = subjects.filter(subj => !existingSubjects.includes(subj));
-  
+
   if (newSubjects.length > 0) {
     teacher.subjects = [...existingSubjects, ...newSubjects];
     await teacher.save();
@@ -162,7 +165,7 @@ const removeClassesFromTeacher = catchAsync(async (req, res) => {
 
   // Use authenticated user's schoolId from JWT token
   const targetSchoolId = req.user.schoolId;
-  
+
   if (!targetSchoolId) {
     return res.status(400).json({
       success: false,
@@ -191,6 +194,8 @@ const removeClassesFromTeacher = catchAsync(async (req, res) => {
 
   // Invalidate teacher caches after class removal
   await TeacherService.invalidateTeacherCaches(targetSchoolId, teacherId);
+  // Also invalidate grades namespace cache (teacher classes are cached there)
+  await CacheService.del('grades', `classes:${teacherId}`);
 
   const removedClasses = originalClasses.filter(cls => classes.includes(cls));
 
@@ -220,7 +225,7 @@ const getTeacherAssignments = catchAsync(async (req, res) => {
 
   // Use authenticated user's schoolId from JWT token
   const targetSchoolId = req.user.schoolId;
-  
+
   if (!targetSchoolId) {
     return res.status(400).json({
       success: false,

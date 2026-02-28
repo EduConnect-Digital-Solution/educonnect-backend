@@ -45,12 +45,12 @@ router.post('/assign-teachers-bulk',
 );
 
 /**
- * @route   DELETE /api/admin/unassign-teacher
+ * @route   POST /api/admin/unassign-teacher
  * @desc    Remove a teacher from one or more students
  * @access  Private (Admin only)
  * @body    {teacherId, studentIds[], schoolId?}
  */
-router.delete('/unassign-teacher',
+router.post('/unassign-teacher',
   requireRole(['admin']),
   rateLimiter.adminLimiter,
   validateTeacherUnassignment,

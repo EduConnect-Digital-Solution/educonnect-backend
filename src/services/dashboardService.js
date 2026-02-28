@@ -59,7 +59,7 @@ class DashboardService {
 
     // Get recent activity (last 30 days)
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    
+
     const recentUsers = await User.find({
       schoolId,
       createdAt: { $gte: thirtyDaysAgo }
@@ -195,11 +195,11 @@ class DashboardService {
   static async getUserManagement({ schoolId, role, status, page = 1, limit = 20, search }) {
     // Build query
     const query = { schoolId };
-    
+
     if (role && role !== 'all') {
       query.role = role;
     }
-    
+
     if (status === 'active') {
       query.isActive = true;
     } else if (status === 'inactive') {
@@ -246,13 +246,14 @@ class DashboardService {
       } : null,
       // Role-specific data
       subjects: user.role === 'teacher' ? user.subjects : undefined,
+      classes: user.role === 'teacher' ? user.classes : undefined,
       qualifications: user.role === 'teacher' ? user.qualifications : undefined,
       experience: user.role === 'teacher' ? user.experience : undefined,
       address: user.role === 'parent' ? user.address : undefined,
       occupation: user.role === 'parent' ? user.occupation : undefined,
       // Status indicators
-      statusDisplay: user.isActive ? 
-        (user.isTemporaryPassword ? 'Pending Registration' : 'Active') : 
+      statusDisplay: user.isActive ?
+        (user.isTemporaryPassword ? 'Pending Registration' : 'Active') :
         'Inactive',
       canActivate: !user.isActive,
       canDeactivate: user.isActive && !user.isTemporaryPassword,
@@ -295,9 +296,9 @@ class DashboardService {
     }
 
     // Get admin user for tracking
-    const adminUser = await User.findOne({ 
-      schoolId, 
-      role: 'admin' 
+    const adminUser = await User.findOne({
+      schoolId,
+      role: 'admin'
     });
 
     if (!adminUser) {
@@ -309,26 +310,26 @@ class DashboardService {
       if (user.isActive) {
         throw new Error('User is already active');
       }
-      
+
       user.isActive = true;
       user.deactivatedAt = undefined;
       user.deactivatedBy = undefined;
       user.deactivationReason = undefined;
-      
+
     } else if (action === 'deactivate') {
       if (!user.isActive) {
         throw new Error('User is already inactive');
       }
-      
+
       if (user.isTemporaryPassword) {
         throw new Error('Cannot deactivate user with pending registration. Cancel their invitation instead.');
       }
-      
+
       user.isActive = false;
       user.deactivatedAt = new Date();
       user.deactivatedBy = adminUser._id;
       user.deactivationReason = reason || 'Deactivated by administrator';
-      
+
     } else {
       throw new Error('Invalid action. Must be "activate" or "deactivate"');
     }
@@ -373,9 +374,9 @@ class DashboardService {
     }
 
     // Get admin user for tracking
-    const adminUser = await User.findOne({ 
-      schoolId, 
-      role: 'admin' 
+    const adminUser = await User.findOne({
+      schoolId,
+      role: 'admin'
     });
 
     if (!adminUser) {
@@ -394,12 +395,12 @@ class DashboardService {
 
     // Cancel any pending invitations for this user
     await Invitation.updateMany(
-      { 
+      {
         email: user.email,
         schoolId,
         status: 'pending'
       },
-      { 
+      {
         status: 'cancelled',
         cancelledAt: new Date(),
         cancelledBy: adminUser._id,
@@ -433,11 +434,11 @@ class DashboardService {
     }
 
     // For testing, get the most recent active school
-    const recentSchool = await School.findOne({ 
-      isActive: true, 
-      isVerified: true 
+    const recentSchool = await School.findOne({
+      isActive: true,
+      isVerified: true
     }).sort({ createdAt: -1 });
-    
+
     if (!recentSchool) {
       throw new Error('No active school found');
     }
@@ -453,11 +454,11 @@ class DashboardService {
   static async invalidateDashboardCache(schoolId) {
     const cacheKey = `analytics:${schoolId}`;
     const success = await CacheService.del('dashboard', cacheKey);
-    
+
     if (success) {
       console.log(`🗑️ Dashboard cache invalidated for school ${schoolId}`);
     }
-    
+
     return success;
   }
 
@@ -469,7 +470,7 @@ class DashboardService {
   static async refreshDashboardCache(schoolId) {
     // Invalidate existing cache
     await this.invalidateDashboardCache(schoolId);
-    
+
     // Generate fresh data (which will be automatically cached)
     return await this.getDashboardAnalytics(schoolId);
   }
