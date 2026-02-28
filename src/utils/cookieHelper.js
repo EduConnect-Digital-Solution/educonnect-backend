@@ -11,26 +11,26 @@ const getCookieConfig = (req) => {
   const isProduction = process.env.NODE_ENV === 'production';
   const origin = req?.headers?.origin;
   const isLocalhost = origin && (
-    origin.includes('localhost') || 
+    origin.includes('localhost') ||
     origin.includes('127.0.0.1') ||
     origin.includes(':5173') ||  // Vite dev server
     origin.includes(':3000')     // React dev server
   );
-  
+
   // Check if this is a Vercel production request (cross-origin)
   const isVercelProduction = origin && origin.includes('vercel.app');
-  
+
   let config;
-  
+
   if (isVercelProduction || (isProduction && !isLocalhost)) {
     // Production cross-origin (Vercel -> Render): use cross-origin settings
     config = {
       httpOnly: true,
       secure: true,              // Required for sameSite: 'none'
       sameSite: 'none',          // Required for cross-origin
+      partitioned: true,         // Required for Chrome CHIPS (114+)
       maxAge: 7 * 24 * 60 * 60 * 1000,
       path: '/'
-      // Removed partitioned for now - it might be causing issues
     };
   } else if (isProduction && isLocalhost) {
     // Production but localhost (same-origin): use secure settings
@@ -51,15 +51,17 @@ const getCookieConfig = (req) => {
       path: '/'
     };
   }
-  
-  console.log('🍪 Cookie config:', { 
-    ...config, 
-    origin,
-    isProduction,
-    isLocalhost,
-    isVercelProduction
-  });
-  
+
+  if (!isProduction) {
+    console.log('🍪 Cookie config:', {
+      ...config,
+      origin,
+      isProduction,
+      isLocalhost,
+      isVercelProduction
+    });
+  }
+
   return config;
 };
 
@@ -72,9 +74,9 @@ const getCookieConfig = (req) => {
  */
 const setRefreshTokenCookie = (res, refreshToken, req = null) => {
   const cookieConfig = getCookieConfig(req);
-  
+
   res.cookie('refreshToken', refreshToken, cookieConfig);
-  
+
   console.log('🍪 Refresh token cookie set with secure configuration');
 };
 
@@ -86,13 +88,13 @@ const setRefreshTokenCookie = (res, refreshToken, req = null) => {
  */
 const clearRefreshTokenCookie = (res, req = null) => {
   const cookieConfig = getCookieConfig(req);
-  
+
   // Clear the cookie by setting it with past expiration
   res.cookie('refreshToken', '', {
     ...cookieConfig,
     maxAge: 0
   });
-  
+
   console.log('🍪 Refresh token cookie cleared');
 };
 
@@ -104,12 +106,12 @@ const clearRefreshTokenCookie = (res, req = null) => {
  */
 const getRefreshTokenFromCookie = (req) => {
   const refreshToken = req.cookies?.refreshToken;
-  
+
   if (refreshToken) {
     console.log('🍪 Refresh token found in cookie');
     return refreshToken;
   }
-  
+
   console.log('🍪 No refresh token found in cookies');
   return null;
 };
@@ -123,18 +125,18 @@ const getRefreshTokenFromCookie = (req) => {
 const validateCookieSecurity = (req) => {
   const isSecure = req.secure || req.headers['x-forwarded-proto'] === 'https';
   const isProduction = process.env.NODE_ENV === 'production';
-  
+
   const validation = {
     isSecure,
     isProduction,
     shouldUseSecureCookies: isProduction,
     warnings: []
   };
-  
+
   if (isProduction && !isSecure) {
     validation.warnings.push('Production environment should use HTTPS for secure cookies');
   }
-  
+
   return validation;
 };
 
@@ -148,7 +150,7 @@ const getCookieDebugInfo = (req) => {
   if (process.env.NODE_ENV === 'production') {
     return { message: 'Debug info not available in production' };
   }
-  
+
   return {
     cookies: req.cookies,
     cookieConfig: getCookieConfig(req),
@@ -166,10 +168,49 @@ const getCookieDebugInfo = (req) => {
   };
 };
 
+/**
+ * Set Session ID Cookie
+ * Stores only the opaque session ID in an HttpOnly cookie (JWT stays server-side in Redis)
+ * @param {Object} res - Express response object
+ * @param {string} sessionId - Session ID (UUID)
+ * @param {Object} req - Express request object (for origin detection)
+ */
+const setSessionIdCookie = (res, sessionId, req = null) => {
+  const cookieConfig = getCookieConfig(req);
+  res.cookie('sessionId', sessionId, cookieConfig);
+};
+
+/**
+ * Clear Session ID Cookie
+ * Removes the session ID cookie (for logout)
+ * @param {Object} res - Express response object
+ * @param {Object} req - Express request object (for origin detection)
+ */
+const clearSessionIdCookie = (res, req = null) => {
+  const cookieConfig = getCookieConfig(req);
+  res.cookie('sessionId', '', {
+    ...cookieConfig,
+    maxAge: 0
+  });
+};
+
+/**
+ * Get Session ID from Cookie
+ * Extracts session ID from request cookies
+ * @param {Object} req - Express request object
+ * @returns {string|null} Session ID or null if not found
+ */
+const getSessionIdFromCookie = (req) => {
+  return req.cookies?.sessionId || null;
+};
+
 module.exports = {
   setRefreshTokenCookie,
   clearRefreshTokenCookie,
   getRefreshTokenFromCookie,
+  setSessionIdCookie,
+  clearSessionIdCookie,
+  getSessionIdFromCookie,
   validateCookieSecurity,
   getCookieConfig,
   getCookieDebugInfo

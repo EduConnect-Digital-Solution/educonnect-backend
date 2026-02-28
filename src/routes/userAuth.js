@@ -13,6 +13,8 @@ const {
   sanitizeUserData
 } = require('../middleware/userAuthValidation');
 const rateLimiter = require('../middleware/rateLimiter');
+const { authenticateToken } = require('../middleware/auth');
+const { authenticateRefreshToken } = require('../middleware/authenticateRefreshToken');
 
 /**
  * @route   POST /api/user/auth/complete-registration
@@ -20,7 +22,7 @@ const rateLimiter = require('../middleware/rateLimiter');
  * @access  Public
  * @body    {email, schoolId, currentPassword, newPassword, firstName?, lastName?, phone?, ...roleSpecificFields}
  */
-router.post('/complete-registration', 
+router.post('/complete-registration',
   rateLimiter.authLimiter,
   sanitizeUserData,
   validateCompleteRegistration,
@@ -75,12 +77,13 @@ router.post('/logout',
 
 /**
  * @route   GET /api/user/auth/me
- * @desc    Get current user profile from HttpOnly cookie (ALL USER TYPES)
- * @access  Public (requires refresh token in cookie)
+ * @desc    Get current user profile using refresh token cookie (ALL USER TYPES)
+ * @access  Private (requires refresh token in HttpOnly cookie)
  * @supports Teachers, Parents, School Admins, System Admins
  */
 router.get('/me',
   rateLimiter.generalLimiter,
+  authenticateRefreshToken,
   userAuthController.getMe
 );
 
@@ -93,10 +96,10 @@ router.get('/debug-cookies', (req, res) => {
   if (process.env.NODE_ENV === 'production') {
     return res.status(404).json({ message: 'Not found' });
   }
-  
+
   const { getCookieDebugInfo } = require('../utils/cookieHelper');
   const debugInfo = getCookieDebugInfo(req);
-  
+
   res.json({
     success: true,
     debug: debugInfo,

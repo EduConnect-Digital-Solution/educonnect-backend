@@ -7,10 +7,13 @@
 const authService = require('../services/authService');
 const catchAsync = require('../utils/catchAsync');
 const { validationResult } = require('express-validator');
-const { 
-  setRefreshTokenCookie, 
-  clearRefreshTokenCookie, 
-  getRefreshTokenFromCookie 
+const {
+  setRefreshTokenCookie,
+  clearRefreshTokenCookie,
+  getRefreshTokenFromCookie,
+  setSessionIdCookie,
+  clearSessionIdCookie,
+  getSessionIdFromCookie
 } = require('../utils/cookieHelper');
 
 // Import services
@@ -133,8 +136,10 @@ const loginSchoolAdmin = catchAsync(async (req, res) => {
     const { schoolId, email, password } = req.body;
     const result = await authService.loginSchool(schoolId, email, password);
 
-    // Set refresh token as HttpOnly cookie
-    setRefreshTokenCookie(res, result.tokens.refreshToken, req);
+    // Set session ID as HttpOnly cookie (JWT stays server-side in Redis)
+    if (result.sessionId) {
+      setSessionIdCookie(res, result.sessionId, req);
+    }
 
     res.status(200).json({
       success: true,
@@ -152,7 +157,7 @@ const loginSchoolAdmin = catchAsync(async (req, res) => {
         tokens: {
           accessToken: result.tokens.accessToken,
           expiresIn: result.tokens.expiresIn
-          // refreshToken is now in HttpOnly cookie
+          // refreshToken and sessionId are server-side only
         }
       }
     });
@@ -194,7 +199,7 @@ const refreshToken = catchAsync(async (req, res) => {
     // Try to get refresh token from cookie first, then fallback to body for backward compatibility
     let refreshTokenValue = getRefreshTokenFromCookie(req);
     let source = 'cookie';
-    
+
     if (!refreshTokenValue && req.body.refreshToken) {
       refreshTokenValue = req.body.refreshToken;
       source = 'body';
@@ -228,9 +233,9 @@ const refreshToken = catchAsync(async (req, res) => {
   } catch (error) {
     // Clear invalid refresh token cookie
     clearRefreshTokenCookie(res, req);
-    
-    if (error.message.includes('Invalid') || error.message.includes('expired') || 
-        error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
+
+    if (error.message.includes('Invalid') || error.message.includes('expired') ||
+      error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
       return res.status(401).json({
         success: false,
         message: 'Invalid or expired refresh token. Please login again.'
@@ -249,8 +254,9 @@ const refreshToken = catchAsync(async (req, res) => {
  */
 const logout = catchAsync(async (req, res) => {
   try {
-    // Clear refresh token cookie
+    // Clear both cookies (refresh token + session ID)
     clearRefreshTokenCookie(res, req);
+    clearSessionIdCookie(res, req);
 
     // If user ID is available from auth middleware, invalidate cached session
     if (req.user && req.user.userId) {
@@ -262,9 +268,10 @@ const logout = catchAsync(async (req, res) => {
       message: 'Logged out successfully'
     });
   } catch (error) {
-    // Even if session invalidation fails, clear the cookie
+    // Even if session invalidation fails, clear the cookies
     clearRefreshTokenCookie(res, req);
-    
+    clearSessionIdCookie(res, req);
+
     res.status(200).json({
       success: true,
       message: 'Logged out successfully'
@@ -431,7 +438,7 @@ const createTeacherInvitation = catchAsync(async (req, res) => {
     // Use authenticated user's schoolId from JWT token
     const targetSchoolId = req.user.schoolId;
     const adminUserId = req.user.userId;
-    
+
     if (!targetSchoolId) {
       return res.status(400).json({
         success: false,
@@ -512,7 +519,7 @@ const createParentInvitation = catchAsync(async (req, res) => {
     // Use authenticated user's schoolId from JWT token
     const targetSchoolId = req.user.schoolId;
     const adminUserId = req.user.userId;
-    
+
     if (!targetSchoolId) {
       return res.status(400).json({
         success: false,
@@ -563,8 +570,8 @@ const createParentInvitation = catchAsync(async (req, res) => {
       });
     }
 
-    if (error.message === 'At least one student ID is required for parent invitation' || 
-        error.message === 'One or more student IDs are invalid or do not belong to this school') {
+    if (error.message === 'At least one student ID is required for parent invitation' ||
+      error.message === 'One or more student IDs are invalid or do not belong to this school') {
       return res.status(400).json({
         success: false,
         message: error.message
@@ -601,10 +608,10 @@ const resendInvitation = catchAsync(async (req, res) => {
 
   try {
     const { invitationId, schoolId } = req.body;
-    
+
     // Use authenticated user's schoolId from JWT token
     let targetSchoolId = req.user.schoolId;
-    
+
     if (!targetSchoolId) {
       return res.status(400).json({
         success: false,
@@ -629,9 +636,9 @@ const resendInvitation = catchAsync(async (req, res) => {
     }
 
     if (error.message === 'Cannot resend invitation - user has already completed registration' ||
-        error.message === 'Cannot resend cancelled invitation' ||
-        error.message === 'Can only resend pending invitations' ||
-        error.message === 'Cannot resend expired invitation. Please create a new invitation.') {
+      error.message === 'Cannot resend cancelled invitation' ||
+      error.message === 'Can only resend pending invitations' ||
+      error.message === 'Cannot resend expired invitation. Please create a new invitation.') {
       return res.status(400).json({
         success: false,
         message: error.message
@@ -658,10 +665,10 @@ const resendInvitation = catchAsync(async (req, res) => {
 const listInvitations = catchAsync(async (req, res) => {
   try {
     const { schoolId, status, role, page = 1, limit = 10 } = req.query;
-    
+
     // Use authenticated user's schoolId from JWT token
     let targetSchoolId = req.user.schoolId;
-    
+
     if (!targetSchoolId) {
       return res.status(400).json({
         success: false,
@@ -671,7 +678,7 @@ const listInvitations = catchAsync(async (req, res) => {
 
     const filters = { schoolId: targetSchoolId, status, role };
     const pagination = { page, limit };
-    
+
     const result = await invitationService.listInvitations(filters, pagination);
 
     res.status(200).json({
@@ -703,10 +710,10 @@ const cancelInvitation = catchAsync(async (req, res) => {
 
   try {
     const { invitationId, reason, schoolId } = req.body;
-    
+
     // Use authenticated user's schoolId from JWT token
     let targetSchoolId = req.user.schoolId;
-    
+
     if (!targetSchoolId) {
       return res.status(400).json({
         success: false,
@@ -716,9 +723,9 @@ const cancelInvitation = catchAsync(async (req, res) => {
 
     // For testing, find admin user. In production, this would be req.user.userId from auth middleware
     const User = require('../models/User');
-    const adminUser = await User.findOne({ 
-      schoolId: targetSchoolId, 
-      role: 'admin' 
+    const adminUser = await User.findOne({
+      schoolId: targetSchoolId,
+      role: 'admin'
     });
 
     if (!adminUser) {
@@ -754,7 +761,7 @@ const cancelInvitation = catchAsync(async (req, res) => {
     }
 
     if (error.message === 'Cannot cancel invitation - user has already completed registration' ||
-        error.message === 'Invitation is already cancelled') {
+      error.message === 'Invitation is already cancelled') {
       return res.status(400).json({
         success: false,
         message: error.message
@@ -775,7 +782,7 @@ const getMe = catchAsync(async (req, res) => {
   try {
     // Get refresh token from HttpOnly cookie
     const refreshToken = getRefreshTokenFromCookie(req);
-    
+
     if (!refreshToken) {
       // Clear any existing cookies and return unauthorized
       clearRefreshTokenCookie(res, req);
@@ -788,7 +795,7 @@ const getMe = catchAsync(async (req, res) => {
     // Verify refresh token using auth middleware function
     const { verifyRefreshToken } = require('../middleware/auth');
     let decoded;
-    
+
     try {
       decoded = verifyRefreshToken(refreshToken);
     } catch (error) {
@@ -853,10 +860,10 @@ const getMe = catchAsync(async (req, res) => {
 
   } catch (error) {
     console.error('Error in getMe (school):', error);
-    
+
     // Clear cookies on any error
     clearRefreshTokenCookie(res, req);
-    
+
     res.status(500).json({
       success: false,
       message: 'Internal server error'

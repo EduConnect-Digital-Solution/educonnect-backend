@@ -9,7 +9,10 @@ const express = require('express');
 // Mock all dependencies BEFORE importing anything
 jest.mock('../../controllers/userAuthController', () => ({
   completeRegistration: jest.fn(),
-  loginUser: jest.fn()
+  loginUser: jest.fn(),
+  refreshToken: jest.fn(),
+  logout: jest.fn(),
+  getMe: jest.fn()
 }));
 
 jest.mock('../../middleware/userAuthValidation', () => ({
@@ -20,7 +23,16 @@ jest.mock('../../middleware/userAuthValidation', () => ({
 }));
 
 jest.mock('../../middleware/rateLimiter', () => ({
-  authLimiter: jest.fn((req, res, next) => next())
+  authLimiter: jest.fn((req, res, next) => next()),
+  generalLimiter: jest.fn((req, res, next) => next())
+}));
+
+jest.mock('../../middleware/auth', () => ({
+  authenticateToken: jest.fn((req, res, next) => next())
+}));
+
+jest.mock('../../middleware/authenticateRefreshToken', () => ({
+  authenticateRefreshToken: jest.fn((req, res, next) => next())
 }));
 
 // Mock express-validator to avoid validation issues
@@ -41,7 +53,7 @@ describe('User Auth Routes', () => {
     app = express();
     app.use(express.json());
     app.use('/api/user/auth', userAuthRoutes);
-    
+
     // Clear all mocks
     jest.clearAllMocks();
   });

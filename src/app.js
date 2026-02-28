@@ -20,7 +20,7 @@ app.use(helmet());
 const allowedOrigins = [
   process.env.FRONTEND_URL || 'http://localhost:5173/',
   'http://192.168.3.170:5173',
-  'http://192.168.56.1:5173', 
+  'http://192.168.56.1:5173',
   'https://educonnect.com.ng',
   'http://localhost:5173', // Vite dev server
   'http://127.0.0.1:5173',  // Alternative localhost
@@ -36,8 +36,13 @@ app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.indexOf(origin) !== -1) {
+
+    // Use .some() to handle both string and RegExp entries
+    const isAllowed = allowedOrigins.some(allowed =>
+      allowed instanceof RegExp ? allowed.test(origin) : allowed === origin
+    );
+
+    if (isAllowed) {
       callback(null, true);
     } else {
       console.log(`🚫 CORS blocked origin: ${origin}`);
@@ -114,7 +119,7 @@ app.get('/cors-test', (req, res) => {
     allowedOrigins: [
       process.env.FRONTEND_URL || 'http://localhost:5173/',
       'http://192.168.3.170:5173',
-      'http://192.168.56.1:5173', 
+      'http://192.168.56.1:5173',
       'https://educonnect.com.ng',
       'http://localhost:5173',
       'http://127.0.0.1:5173'

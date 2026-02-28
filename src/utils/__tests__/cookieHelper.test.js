@@ -29,16 +29,31 @@ describe('Cookie Helper', () => {
   });
 
   describe('getCookieConfig', () => {
-    test('should return secure config for production', () => {
+    test('should return cross-origin secure config for production (no localhost origin)', () => {
       const originalEnv = process.env.NODE_ENV;
       process.env.NODE_ENV = 'production';
 
+      // No origin = treated as cross-origin production
       const config = getCookieConfig();
 
       expect(config.httpOnly).toBe(true);
       expect(config.secure).toBe(true);
-      expect(config.sameSite).toBe('strict');
+      expect(config.sameSite).toBe('none');
+      expect(config.partitioned).toBe(true);
       expect(config.maxAge).toBe(7 * 24 * 60 * 60 * 1000);
+
+      process.env.NODE_ENV = originalEnv;
+    });
+
+    test('should return lax config for production localhost', () => {
+      const originalEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'production';
+
+      const config = getCookieConfig({ headers: { origin: 'http://localhost:5173' } });
+
+      expect(config.httpOnly).toBe(true);
+      expect(config.secure).toBe(true);
+      expect(config.sameSite).toBe('lax');
 
       process.env.NODE_ENV = originalEnv;
     });

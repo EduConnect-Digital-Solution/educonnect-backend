@@ -11,12 +11,13 @@ const OTP = require('../models/OTP');
 const Invitation = require('../models/Invitation');
 const EmailService = require('../config/email');
 const CacheService = require('./cacheService');
-const { 
+const {
   validateSystemAdminCredentials,
   generateSystemAdminToken,
-  verifySystemAdminToken 
+  verifySystemAdminToken
 } = require('./systemAdminAuthService');
 const jwt = require('jsonwebtoken');
+const SessionService = require('./sessionService');
 
 /**
  * School Registration Service
@@ -116,9 +117,9 @@ const registerSchool = async (schoolData, requestIP) => {
  */
 const verifyEmail = async (email, otp, requestIP) => {
   // Find the school by email
-  const school = await School.findOne({ 
+  const school = await School.findOne({
     email: email.toLowerCase(),
-    isVerified: false 
+    isVerified: false
   });
 
   if (!school) {
@@ -251,6 +252,15 @@ const loginSchool = async (schoolId, email, password) => {
     loginAt: new Date().toISOString()
   });
 
+  // Create tracked session in Redis (stores tokens server-side)
+  const sessionId = await SessionService.createSession({
+    userId: String(adminUser._id),
+    role: adminUser.role,
+    schoolId: school.schoolId,
+    email: adminUser.email,
+    tokens
+  });
+
   return {
     user: {
       id: adminUser._id,
@@ -269,7 +279,8 @@ const loginSchool = async (schoolId, email, password) => {
       isVerified: school.isVerified,
       isActive: school.isActive
     },
-    tokens
+    tokens,
+    sessionId
   };
 };
 
@@ -348,6 +359,15 @@ const loginUser = async (email, password, schoolId) => {
     loginAt: new Date().toISOString()
   });
 
+  // Create tracked session in Redis (stores tokens server-side)
+  const sessionId = await SessionService.createSession({
+    userId: String(user._id),
+    role: user.role,
+    schoolId: user.schoolId,
+    email: user.email,
+    tokens
+  });
+
   return {
     user: {
       id: user._id,
@@ -363,7 +383,8 @@ const loginUser = async (email, password, schoolId) => {
       schoolId: school.schoolId,
       schoolName: school.schoolName
     } : null,
-    tokens
+    tokens,
+    sessionId
   };
 };
 
@@ -373,7 +394,7 @@ const loginUser = async (email, password, schoolId) => {
  */
 const forgotPassword = async (email, requestIP) => {
   // Find the school by email
-  const school = await School.findOne({ 
+  const school = await School.findOne({
     email: email.toLowerCase(),
     isVerified: true,
     isActive: true
@@ -430,7 +451,7 @@ const forgotPassword = async (email, requestIP) => {
  */
 const resetPassword = async (email, otp, newPassword, requestIP) => {
   // Find the school by email
-  const school = await School.findOne({ 
+  const school = await School.findOne({
     email: email.toLowerCase(),
     isVerified: true,
     isActive: true
@@ -484,7 +505,7 @@ const resetPassword = async (email, otp, newPassword, requestIP) => {
  * Allows users with temporary passwords to complete their registration
  */
 const completeRegistration = async (userData) => {
-  const { 
+  const {
     email,
     schoolId,
     currentPassword,
@@ -573,7 +594,7 @@ const completeRegistration = async (userData) => {
         await invitation.save();
         console.log(`✅ Invitation status updated to 'accepted' for ${email} (was: ${invitation.status})`);
       }
-      
+
       // Invalidate invitation-related caches
       const { invalidateInvitationCaches } = require('./invitationService');
       await invalidateInvitationCaches(schoolId);
@@ -583,15 +604,15 @@ const completeRegistration = async (userData) => {
       await DashboardService.invalidateDashboardCache(schoolId);
     } else {
       console.log(`⚠️ No invitation found for ${email} in school ${schoolId} with role ${user.role}`);
-      
+
       // Log all invitations for this email to help debug
       const allInvitations = await Invitation.find({ email: email.toLowerCase() });
-      console.log(`📊 Found ${allInvitations.length} total invitations for ${email}:`, 
-        allInvitations.map(inv => ({ 
-          schoolId: inv.schoolId, 
-          role: inv.role, 
-          status: inv.status, 
-          createdAt: inv.createdAt 
+      console.log(`📊 Found ${allInvitations.length} total invitations for ${email}:`,
+        allInvitations.map(inv => ({
+          schoolId: inv.schoolId,
+          role: inv.role,
+          status: inv.status,
+          createdAt: inv.createdAt
         }))
       );
     }
@@ -650,9 +671,9 @@ const completeRegistration = async (userData) => {
  */
 const generateTokens = (userId, schoolId, role) => {
   const accessToken = jwt.sign(
-    { 
-      userId, 
-      schoolId, 
+    {
+      userId,
+      schoolId,
       role,
       type: 'access'
     },
@@ -661,9 +682,9 @@ const generateTokens = (userId, schoolId, role) => {
   );
 
   const refreshToken = jwt.sign(
-    { 
-      userId, 
-      schoolId, 
+    {
+      userId,
+      schoolId,
       role,
       type: 'refresh'
     },
@@ -690,7 +711,7 @@ const refreshToken = async (refreshTokenValue, source = 'body') => {
 
   // Verify refresh token
   const decoded = jwt.verify(
-    refreshTokenValue, 
+    refreshTokenValue,
     process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET
   );
 
@@ -744,7 +765,7 @@ const refreshToken = async (refreshTokenValue, source = 'body') => {
  */
 const resendOTP = async (email, requestIP) => {
   // Find the school by email only
-  const school = await School.findOne({ 
+  const school = await School.findOne({
     email: email.toLowerCase(),
     isVerified: false // Only find unverified schools
   });
@@ -797,14 +818,14 @@ const resendOTP = async (email, requestIP) => {
  */
 const cacheUserSession = async (userId, sessionData) => {
   const cacheKey = `session:${userId}`;
-  
+
   try {
     // Cache session for 24 hours (same as JWT expiry)
     await CacheService.set('auth', cacheKey, {
       ...sessionData,
       cachedAt: new Date().toISOString()
     }, 86400); // 24 hours
-    
+
     console.log(`🔐 User session cached for ${userId}`);
   } catch (error) {
     console.error(`❌ Failed to cache session for ${userId}:`, error.message);
@@ -819,14 +840,14 @@ const cacheUserSession = async (userId, sessionData) => {
  */
 const getCachedUserSession = async (userId) => {
   const cacheKey = `session:${userId}`;
-  
+
   try {
     const cachedSession = await CacheService.get('auth', cacheKey);
     if (cachedSession) {
       console.log(`🔐 User session cache HIT for ${userId}`);
       return cachedSession;
     }
-    
+
     console.log(`🔐 User session cache MISS for ${userId}`);
     return null;
   } catch (error) {
@@ -842,10 +863,12 @@ const getCachedUserSession = async (userId) => {
  */
 const invalidateUserSession = async (userId) => {
   const cacheKey = `session:${userId}`;
-  
+
   try {
     await CacheService.del('auth', cacheKey);
-    console.log(`🔐 User session invalidated for ${userId}`);
+    // Also revoke all tracked sessions for this user
+    const revokedCount = await SessionService.revokeAllSessions(String(userId));
+    console.log(`🔐 User session invalidated for ${userId} (${revokedCount} tracked sessions revoked)`);
   } catch (error) {
     console.error(`❌ Failed to invalidate session for ${userId}:`, error.message);
   }
@@ -860,7 +883,7 @@ const invalidateUserSession = async (userId) => {
  */
 const cacheOTPData = async (email, purpose, otpData) => {
   const cacheKey = `otp:${email}:${purpose}`;
-  
+
   try {
     // Cache OTP data for the OTP expiration time
     const expirationMinutes = parseInt(process.env.OTP_EXPIRES_IN_MINUTES) || 10;
@@ -868,7 +891,7 @@ const cacheOTPData = async (email, purpose, otpData) => {
       ...otpData,
       cachedAt: new Date().toISOString()
     }, expirationMinutes * 60);
-    
+
     console.log(`📧 OTP data cached for ${email}:${purpose}`);
   } catch (error) {
     console.error(`❌ Failed to cache OTP data for ${email}:`, error.message);
@@ -884,14 +907,14 @@ const cacheOTPData = async (email, purpose, otpData) => {
  */
 const getCachedOTPData = async (email, purpose) => {
   const cacheKey = `otp:${email}:${purpose}`;
-  
+
   try {
     const cachedOTP = await CacheService.get('auth', cacheKey);
     if (cachedOTP) {
       console.log(`📧 OTP cache HIT for ${email}:${purpose}`);
       return cachedOTP;
     }
-    
+
     console.log(`📧 OTP cache MISS for ${email}:${purpose}`);
     return null;
   } catch (error) {
@@ -908,11 +931,11 @@ const getCachedOTPData = async (email, purpose) => {
  */
 const invalidateAuthCaches = async (userId, email = null) => {
   console.log(`🗑️ Invalidating auth caches for user ${userId}`);
-  
+
   try {
     // Invalidate user session
     await invalidateUserSession(userId);
-    
+
     // Invalidate OTP caches if email provided
     if (email) {
       const otpPurposes = ['school-signup', 'password-reset', 'email-verification'];
@@ -920,7 +943,7 @@ const invalidateAuthCaches = async (userId, email = null) => {
         await CacheService.del('auth', `otp:${email}:${purpose}`);
       }
     }
-    
+
     console.log(`🗑️ Auth caches invalidated for user ${userId}`);
   } catch (error) {
     console.error(`❌ Failed to invalidate auth caches for ${userId}:`, error.message);
@@ -939,7 +962,7 @@ const validateSystemAdminCredentialsEnhanced = async (email, password, requestCo
   try {
     // Basic credential validation
     const isValid = await validateSystemAdminCredentials(email, password);
-    
+
     if (!isValid) {
       // Log failed attempt for security monitoring
       console.warn(`🚫 System admin login attempt failed: ${email} from ${requestContext.ip || 'unknown IP'}`);
@@ -948,7 +971,7 @@ const validateSystemAdminCredentialsEnhanced = async (email, password, requestCo
 
     // Additional security checks
     const securityChecks = await performSystemAdminSecurityChecks(email, requestContext);
-    
+
     if (!securityChecks.passed) {
       console.warn(`🚫 System admin security check failed: ${email} - ${securityChecks.reason}`);
       return { valid: false, reason: securityChecks.reason };
@@ -956,9 +979,9 @@ const validateSystemAdminCredentialsEnhanced = async (email, password, requestCo
 
     // Log successful validation
     console.log(`✅ System admin credentials validated: ${email}`);
-    
-    return { 
-      valid: true, 
+
+    return {
+      valid: true,
       email,
       securityLevel: 'high',
       validatedAt: new Date()
@@ -987,7 +1010,7 @@ const performSystemAdminSecurityChecks = async (email, requestContext) => {
     // Check for rate limiting
     const rateLimitKey = `system_admin_attempts:${email}`;
     const attempts = await CacheService.get('auth', rateLimitKey) || 0;
-    
+
     if (attempts >= 3) { // Max 3 attempts per hour
       return { passed: false, reason: 'rate_limited' };
     }
@@ -995,7 +1018,7 @@ const performSystemAdminSecurityChecks = async (email, requestContext) => {
     // Check time-based restrictions (optional - can be configured)
     const currentHour = new Date().getHours();
     const allowedHours = process.env.SYSTEM_ADMIN_ALLOWED_HOURS;
-    
+
     if (allowedHours) {
       const allowedHoursList = allowedHours.split(',').map(h => parseInt(h.trim()));
       if (!allowedHoursList.includes(currentHour)) {
@@ -1024,14 +1047,14 @@ const impersonateUser = async (systemAdminEmail, targetUserId, reason = 'support
 
     // Find target user
     const targetUser = await User.findById(targetUserId).populate('schoolId');
-    
+
     if (!targetUser) {
       throw new Error('Target user not found');
     }
 
     // Find target user's school
     const school = await School.findOne({ schoolId: targetUser.schoolId });
-    
+
     if (!school) {
       throw new Error('Target user school not found');
     }
@@ -1103,7 +1126,7 @@ const endImpersonation = async (impersonationToken) => {
   try {
     // Verify and decode impersonation token
     const decoded = jwt.verify(impersonationToken, process.env.JWT_SECRET);
-    
+
     if (decoded.type !== 'impersonation') {
       throw new Error('Invalid impersonation token');
     }
@@ -1132,7 +1155,7 @@ const endImpersonation = async (impersonationToken) => {
  */
 const manageSystemAdminSession = async (systemAdminEmail, action, sessionData = {}) => {
   const sessionKey = `system_admin_session:${systemAdminEmail}`;
-  
+
   try {
     switch (action) {
       case 'create':
@@ -1146,11 +1169,11 @@ const manageSystemAdminSession = async (systemAdminEmail, action, sessionData = 
           permissions: ['cross_school_access', 'user_impersonation', 'system_management'],
           securityLevel: 'maximum'
         };
-        
+
         // Cache session for 8 hours (default system admin session timeout)
         const timeout = parseInt(process.env.SYSTEM_ADMIN_SESSION_TIMEOUT) || 28800; // 8 hours
         await CacheService.set('auth', sessionKey, newSession, timeout);
-        
+
         console.log(`🔐 System admin session created: ${systemAdminEmail}`);
         return newSession;
 
@@ -1159,16 +1182,16 @@ const manageSystemAdminSession = async (systemAdminEmail, action, sessionData = 
         if (!existingSession) {
           throw new Error('Session not found');
         }
-        
+
         const updatedSession = {
           ...existingSession,
           lastActivity: new Date(),
           ...sessionData
         };
-        
+
         const remainingTTL = await CacheService.getTTL('auth', sessionKey);
         await CacheService.set('auth', sessionKey, updatedSession, remainingTTL || 28800);
-        
+
         return updatedSession;
 
       case 'get':
@@ -1214,11 +1237,11 @@ const getCachedSuspiciousIPs = async () => {
 const addSuspiciousIP = async (ipAddress, reason = 'security_violation') => {
   try {
     const suspiciousIPs = await getCachedSuspiciousIPs();
-    
+
     if (!suspiciousIPs.includes(ipAddress)) {
       suspiciousIPs.push(ipAddress);
       await CacheService.set('security', 'suspicious_ips', suspiciousIPs, 86400); // 24 hours
-      
+
       console.log(`🚨 IP added to suspicious list: ${ipAddress} (${reason})`);
     }
   } catch (error) {
@@ -1244,14 +1267,14 @@ const logSystemAdminActivity = async (systemAdminEmail, activity, details = {}) 
     // Store in cache for recent activity tracking
     const activityKey = `system_admin_activity:${systemAdminEmail}`;
     const recentActivities = await CacheService.get('audit', activityKey) || [];
-    
+
     recentActivities.unshift(logEntry);
-    
+
     // Keep only last 100 activities in cache
     if (recentActivities.length > 100) {
       recentActivities.splice(100);
     }
-    
+
     await CacheService.set('audit', activityKey, recentActivities, 86400); // 24 hours
 
     console.log(`📋 System admin activity logged: ${systemAdminEmail} - ${activity}`);
