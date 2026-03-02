@@ -14,6 +14,7 @@ const PlatformAuditLog = require('../models/PlatformAuditLog');
 const SystemConfiguration = require('../models/SystemConfiguration');
 const CrossSchoolAggregator = require('./crossSchoolAggregator');
 const CacheService = require('./cacheService');
+const logger = require('../utils/logger');
 
 class SystemAdminService {
   /**
@@ -26,11 +27,11 @@ class SystemAdminService {
     const cachedData = await CacheService.getPlatformCache(cacheKey);
     
     if (cachedData) {
-      console.log('📊 Platform overview cache HIT');
+      logger.info('📊 Platform overview cache HIT');
       return { ...cachedData, cached: true };
     }
 
-    console.log('📊 Platform overview cache MISS - generating fresh data');
+    logger.info('📊 Platform overview cache MISS - generating fresh data');
 
     try {
       // Get platform KPIs
@@ -60,12 +61,12 @@ class SystemAdminService {
 
       // Cache for 5 minutes (platform overview needs to be fresh)
       await CacheService.setPlatformCache(cacheKey, overview, 300);
-      console.log('📊 Platform overview cached');
+      logger.info('📊 Platform overview cached');
 
       return overview;
 
     } catch (error) {
-      console.error('Error generating platform overview:', error);
+      logger.error('Error generating platform overview:', error);
       throw new Error(`Failed to generate platform overview: ${error.message}`);
     }
   }
@@ -82,7 +83,7 @@ class SystemAdminService {
     try {
       return await CrossSchoolAggregator.aggregateMetrics(schoolIds, metric, timeRange);
     } catch (error) {
-      console.error('Error getting platform metrics:', error);
+      logger.error('Error getting platform metrics:', error);
       throw new Error(`Failed to get platform metrics: ${error.message}`);
     }
   }
@@ -98,7 +99,7 @@ class SystemAdminService {
     try {
       return await CrossSchoolAggregator.compareSchoolPerformance(schoolIds, criteria, timeRange);
     } catch (error) {
-      console.error('Error getting school comparisons:', error);
+      logger.error('Error getting school comparisons:', error);
       throw new Error(`Failed to get school comparisons: ${error.message}`);
     }
   }
@@ -112,23 +113,23 @@ class SystemAdminService {
     const cachedData = await CacheService.getPlatformCache(cacheKey);
     
     if (cachedData) {
-      console.log('🏥 System health cache HIT');
+      logger.info('🏥 System health cache HIT');
       return { ...cachedData, cached: true };
     }
 
-    console.log('🏥 System health cache MISS - checking system health');
+    logger.info('🏥 System health cache MISS - checking system health');
 
     try {
       const systemHealth = await this._getSystemHealth();
       
       // Cache for 2 minutes (system health should be very fresh)
       await CacheService.setPlatformCache(cacheKey, systemHealth, 120);
-      console.log('🏥 System health cached');
+      logger.info('🏥 System health cached');
 
       return { ...systemHealth, cached: false };
 
     } catch (error) {
-      console.error('Error getting system health:', error);
+      logger.error('Error getting system health:', error);
       throw new Error(`Failed to get system health: ${error.message}`);
     }
   }
@@ -249,7 +250,7 @@ class SystemAdminService {
       };
 
     } catch (error) {
-      console.error('Error getting all schools:', error);
+      logger.error('Error getting all schools:', error);
       throw new Error(`Failed to get schools: ${error.message}`);
     }
   }
@@ -379,7 +380,7 @@ class SystemAdminService {
       };
 
     } catch (error) {
-      console.error('Error creating school:', error);
+      logger.error('Error creating school:', error);
       throw new Error(`Failed to create school: ${error.message}`);
     }
   }
@@ -483,7 +484,7 @@ class SystemAdminService {
       };
 
     } catch (error) {
-      console.error('Error updating school config:', error);
+      logger.error('Error updating school config:', error);
       throw new Error(`Failed to update school configuration: ${error.message}`);
     }
   }
@@ -561,7 +562,7 @@ class SystemAdminService {
       };
 
     } catch (error) {
-      console.error('Error deactivating school:', error);
+      logger.error('Error deactivating school:', error);
       throw new Error(`Failed to deactivate school: ${error.message}`);
     }
   }
@@ -641,7 +642,7 @@ class SystemAdminService {
       };
 
     } catch (error) {
-      console.error('Error reactivating school:', error);
+      logger.error('Error reactivating school:', error);
       throw new Error(`Failed to reactivate school: ${error.message}`);
     }
   }
@@ -735,7 +736,7 @@ class SystemAdminService {
       };
 
     } catch (error) {
-      console.error('Error getting cross-school users:', error);
+      logger.error('Error getting cross-school users:', error);
       throw new Error(`Failed to get cross-school users: ${error.message}`);
     }
   }
@@ -749,7 +750,7 @@ class SystemAdminService {
    */
   static async manageUserAccess(userId, permissions, systemAdminId) {
     // Debug logging
-    console.log('manageUserAccess called with:', {
+    logger.info('manageUserAccess called with:', {
       userId,
       permissions,
       systemAdminId,
@@ -760,7 +761,7 @@ class SystemAdminService {
     const { action, reason, newRole, schoolTransfer } = permissions;
 
     // Debug the extracted values
-    console.log('Extracted values:', { action, reason, newRole, schoolTransfer });
+    logger.info('Extracted values:', { action, reason, newRole, schoolTransfer });
 
     try {
       const user = await User.findById(userId);
@@ -886,7 +887,7 @@ class SystemAdminService {
           category: 'user_management'
         });
       } catch (auditError) {
-        console.error('Audit log creation failed (non-blocking):', auditError.message);
+        logger.error('Audit log creation failed (non-blocking):', auditError.message);
         // Don't throw - audit logging failure shouldn't break the main operation
       }
 
@@ -910,7 +911,7 @@ class SystemAdminService {
       };
 
     } catch (error) {
-      console.error('Error managing user access:', error);
+      logger.error('Error managing user access:', error);
       throw new Error(`Failed to manage user access: ${error.message}`);
     }
   }
@@ -967,7 +968,7 @@ class SystemAdminService {
       };
 
     } catch (error) {
-      console.error('Error getting security alerts:', error);
+      logger.error('Error getting security alerts:', error);
       throw new Error(`Failed to get security alerts: ${error.message}`);
     }
   }

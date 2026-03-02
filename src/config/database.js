@@ -3,15 +3,15 @@ const logger = require('../utils/logger');
 
 const connectDB = async () => {
   try {
-    console.log('🔄 Attempting to connect to MongoDB...');
-    console.log('📍 MongoDB URI:', process.env.MONGODB_URI ? 'Set' : 'Not set');
+    logger.info('🔄 Attempting to connect to MongoDB...');
+    logger.info('📍 MongoDB URI:', process.env.MONGODB_URI ? 'Set' : 'Not set');
     
     const conn = await mongoose.connect(process.env.MONGODB_URI, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
     });
 
-    console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
+    logger.info(`✅ MongoDB Connected: ${conn.connection.host}`);
     logger.info('Database Connected', {
       host: conn.connection.host,
       name: conn.connection.name,
@@ -34,7 +34,7 @@ const connectDB = async () => {
         }
       };
 
-      console.error('💥 MONGODB CONNECTION ERROR:', JSON.stringify(dbError, null, 2));
+      logger.error('💥 MONGODB CONNECTION ERROR:', JSON.stringify(dbError, null, 2));
       logger.error('MongoDB Connection Error', dbError);
     });
 
@@ -45,7 +45,7 @@ const connectDB = async () => {
         readyState: mongoose.connection.readyState
       };
 
-      console.warn('⚠️ MONGODB DISCONNECTED:', JSON.stringify(disconnectInfo, null, 2));
+      logger.warn('⚠️ MONGODB DISCONNECTED:', JSON.stringify(disconnectInfo, null, 2));
       logger.warn('MongoDB Disconnected', disconnectInfo);
     });
 
@@ -57,15 +57,15 @@ const connectDB = async () => {
         readyState: mongoose.connection.readyState
       };
 
-      console.log('🔄 MONGODB RECONNECTED:', JSON.stringify(reconnectInfo, null, 2));
+      logger.info('🔄 MONGODB RECONNECTED:', JSON.stringify(reconnectInfo, null, 2));
       logger.info('MongoDB Reconnected', reconnectInfo);
     });
 
     // Graceful shutdown
     process.on('SIGINT', async () => {
-      console.log('🔄 Closing MongoDB connection...');
+      logger.info('🔄 Closing MongoDB connection...');
       await mongoose.connection.close();
-      console.log('✅ MongoDB connection closed through app termination');
+      logger.info('✅ MongoDB connection closed through app termination');
       process.exit(0);
     });
 
@@ -82,11 +82,11 @@ const connectDB = async () => {
       nodeEnv: process.env.NODE_ENV
     };
 
-    console.error('💥 DATABASE CONNECTION FAILED:', JSON.stringify(connectionError, null, 2));
+    logger.error('💥 DATABASE CONNECTION FAILED:', JSON.stringify(connectionError, null, 2));
     logger.error('Database Connection Failed', connectionError);
     
     // Don't exit the process - let the server run without DB for now
-    console.log('⚠️ Server will continue running without database connection');
+    logger.info('⚠️ Server will continue running without database connection');
   }
 };
 

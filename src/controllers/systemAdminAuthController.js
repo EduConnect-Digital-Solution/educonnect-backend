@@ -16,6 +16,7 @@ const {
   clearRefreshTokenCookie, 
   getRefreshTokenFromCookie 
 } = require('../utils/cookieHelper');
+const logger = require('../utils/logger');
 
 /**
  * System Admin Login
@@ -53,7 +54,7 @@ const login = catchAsync(async (req, res) => {
     }
 
     // Log successful login
-    console.log(`🔐 System admin login successful: ${email} at ${new Date().toISOString()}`);
+    logger.info(`🔐 System admin login successful: ${email} at ${new Date().toISOString()}`);
 
     res.status(200).json({
       success: true,
@@ -67,7 +68,7 @@ const login = catchAsync(async (req, res) => {
 
   } catch (error) {
     // Log failed login attempt
-    console.warn(`🚫 System admin login failed: ${email} - ${error.message}`);
+    logger.warn(`🚫 System admin login failed: ${email} - ${error.message}`);
 
     res.status(401).json({
       success: false,
@@ -112,7 +113,7 @@ const refresh = catchAsync(async (req, res) => {
     if (authHeader && authHeader.startsWith('Bearer ')) {
       currentToken = authHeader.substring(7);
       source = 'header';
-      console.log('⚠️ Using token from Authorization header for system admin refresh (deprecated)');
+      logger.info('⚠️ Using token from Authorization header for system admin refresh (deprecated)');
     }
   }
 
@@ -167,7 +168,7 @@ const logout = catchAsync(async (req, res) => {
 
     // Log the logout for audit purposes
     if (req.user && req.user.role === 'system_admin') {
-      console.log(`🔓 System admin logout: ${req.user.email} at ${new Date().toISOString()}`);
+      logger.info(`🔓 System admin logout: ${req.user.email} at ${new Date().toISOString()}`);
     }
 
     res.status(200).json({
@@ -269,7 +270,7 @@ const getMe = catchAsync(async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error in getMe (system admin):', error);
+    logger.error('Error in getMe (system admin):', error);
     
     // Clear cookies on any error
     clearRefreshTokenCookie(res, req);

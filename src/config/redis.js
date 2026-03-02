@@ -4,6 +4,7 @@
  */
 
 const Redis = require('ioredis');
+const logger = require('../utils/logger');
 
 // Redis configuration
 const redisConfig = {
@@ -34,7 +35,7 @@ let isRedisEnabled = process.env.REDIS_ENABLED === 'true';
  */
 const initializeRedis = async () => {
   if (!isRedisEnabled) {
-    console.log('Redis is disabled. Caching will be bypassed.');
+    logger.info('Redis is disabled. Caching will be bypassed.');
     return null;
   }
 
@@ -43,34 +44,34 @@ const initializeRedis = async () => {
 
     // Handle connection events
     redisClient.on('connect', () => {
-      console.log('Redis client connected successfully');
+      logger.info('Redis client connected successfully');
     });
 
     redisClient.on('ready', () => {
-      console.log('Redis client ready to receive commands');
+      logger.info('Redis client ready to receive commands');
     });
 
     redisClient.on('error', (error) => {
-      console.error('Redis connection error:', error.message);
+      logger.error('Redis connection error:', error.message);
       // Don't throw error - allow graceful degradation
     });
 
     redisClient.on('close', () => {
-      console.log('Redis connection closed');
+      logger.info('Redis connection closed');
     });
 
     redisClient.on('reconnecting', () => {
-      console.log('Redis client reconnecting...');
+      logger.info('Redis client reconnecting...');
     });
 
     // Test the connection
     await redisClient.ping();
-    console.log('Redis connection established successfully');
+    logger.info('Redis connection established successfully');
 
     return redisClient;
   } catch (error) {
-    console.error('Failed to initialize Redis:', error.message);
-    console.log('Continuing without Redis caching...');
+    logger.error('Failed to initialize Redis:', error.message);
+    logger.info('Continuing without Redis caching...');
     redisClient = null;
     return null;
   }
@@ -97,9 +98,9 @@ const closeRedis = async () => {
   if (redisClient) {
     try {
       await redisClient.quit();
-      console.log('Redis connection closed gracefully');
+      logger.info('Redis connection closed gracefully');
     } catch (error) {
-      console.error('Error closing Redis connection:', error.message);
+      logger.error('Error closing Redis connection:', error.message);
     }
   }
 };

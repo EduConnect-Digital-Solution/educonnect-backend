@@ -5,6 +5,7 @@
  */
 
 const mongoose = require('mongoose');
+const logger = require('../utils/logger');
 
 const PlatformAuditLogSchema = new mongoose.Schema({
   operation: {
@@ -212,7 +213,7 @@ PlatformAuditLogSchema.statics.createAuditLog = async function(auditData) {
     
     return auditLog;
   } catch (error) {
-    console.error('Failed to create audit log:', error);
+    logger.error('Failed to create audit log:', error);
     // Don't throw error to avoid breaking the main operation
     return null;
   }

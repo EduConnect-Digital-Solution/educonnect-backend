@@ -18,6 +18,7 @@ const {
 } = require('./systemAdminAuthService');
 const jwt = require('jsonwebtoken');
 const SessionService = require('./sessionService');
+const logger = require('../utils/logger');
 
 /**
  * School Registration Service
@@ -585,14 +586,14 @@ const completeRegistration = async (userData) => {
     if (invitation) {
       // Check if invitation is already accepted
       if (invitation.status === 'accepted') {
-        console.log(`ℹ️ Invitation already marked as accepted for ${email}`);
+        logger.info(`ℹ️ Invitation already marked as accepted for ${email}`);
       } else {
         // Update invitation status regardless of current status (pending, expired, etc.)
         invitation.status = 'accepted';
         invitation.acceptedAt = new Date();
         invitation.acceptedBy = user._id;
         await invitation.save();
-        console.log(`✅ Invitation status updated to 'accepted' for ${email} (was: ${invitation.status})`);
+        logger.info(`✅ Invitation status updated to 'accepted' for ${email} (was: ${invitation.status})`);
       }
 
       // Invalidate invitation-related caches
@@ -603,11 +604,11 @@ const completeRegistration = async (userData) => {
       const DashboardService = require('./dashboardService');
       await DashboardService.invalidateDashboardCache(schoolId);
     } else {
-      console.log(`⚠️ No invitation found for ${email} in school ${schoolId} with role ${user.role}`);
+      logger.info(`⚠️ No invitation found for ${email} in school ${schoolId} with role ${user.role}`);
 
       // Log all invitations for this email to help debug
       const allInvitations = await Invitation.find({ email: email.toLowerCase() });
-      console.log(`📊 Found ${allInvitations.length} total invitations for ${email}:`,
+      logger.info(`📊 Found ${allInvitations.length} total invitations for ${email}:`,
         allInvitations.map(inv => ({
           schoolId: inv.schoolId,
           role: inv.role,
@@ -618,7 +619,7 @@ const completeRegistration = async (userData) => {
     }
   } catch (invitationError) {
     // Don't fail the registration if invitation update fails
-    console.error(`❌ Failed to update invitation status for ${email}:`, invitationError.message);
+    logger.error(`❌ Failed to update invitation status for ${email}:`, invitationError.message);
   }
 
   // Generate tokens for immediate login
@@ -744,7 +745,7 @@ const refreshToken = async (refreshTokenValue, source = 'body') => {
     refreshSource: source // Track if refresh came from cookie or body
   });
 
-  console.log(`🔄 Token refreshed for user ${user._id} via ${source}`);
+  logger.info(`🔄 Token refreshed for user ${user._id} via ${source}`);
 
   return {
     user: {
@@ -826,9 +827,9 @@ const cacheUserSession = async (userId, sessionData) => {
       cachedAt: new Date().toISOString()
     }, 86400); // 24 hours
 
-    console.log(`🔐 User session cached for ${userId}`);
+    logger.info(`🔐 User session cached for ${userId}`);
   } catch (error) {
-    console.error(`❌ Failed to cache session for ${userId}:`, error.message);
+    logger.error(`❌ Failed to cache session for ${userId}:`, error.message);
   }
 };
 
@@ -844,14 +845,14 @@ const getCachedUserSession = async (userId) => {
   try {
     const cachedSession = await CacheService.get('auth', cacheKey);
     if (cachedSession) {
-      console.log(`🔐 User session cache HIT for ${userId}`);
+      logger.info(`🔐 User session cache HIT for ${userId}`);
       return cachedSession;
     }
 
-    console.log(`🔐 User session cache MISS for ${userId}`);
+    logger.info(`🔐 User session cache MISS for ${userId}`);
     return null;
   } catch (error) {
-    console.error(`❌ Failed to get cached session for ${userId}:`, error.message);
+    logger.error(`❌ Failed to get cached session for ${userId}:`, error.message);
     return null;
   }
 };
@@ -868,9 +869,9 @@ const invalidateUserSession = async (userId) => {
     await CacheService.del('auth', cacheKey);
     // Also revoke all tracked sessions for this user
     const revokedCount = await SessionService.revokeAllSessions(String(userId));
-    console.log(`🔐 User session invalidated for ${userId} (${revokedCount} tracked sessions revoked)`);
+    logger.info(`🔐 User session invalidated for ${userId} (${revokedCount} tracked sessions revoked)`);
   } catch (error) {
-    console.error(`❌ Failed to invalidate session for ${userId}:`, error.message);
+    logger.error(`❌ Failed to invalidate session for ${userId}:`, error.message);
   }
 };
 
@@ -892,9 +893,9 @@ const cacheOTPData = async (email, purpose, otpData) => {
       cachedAt: new Date().toISOString()
     }, expirationMinutes * 60);
 
-    console.log(`📧 OTP data cached for ${email}:${purpose}`);
+    logger.info(`📧 OTP data cached for ${email}:${purpose}`);
   } catch (error) {
-    console.error(`❌ Failed to cache OTP data for ${email}:`, error.message);
+    logger.error(`❌ Failed to cache OTP data for ${email}:`, error.message);
   }
 };
 
@@ -911,14 +912,14 @@ const getCachedOTPData = async (email, purpose) => {
   try {
     const cachedOTP = await CacheService.get('auth', cacheKey);
     if (cachedOTP) {
-      console.log(`📧 OTP cache HIT for ${email}:${purpose}`);
+      logger.info(`📧 OTP cache HIT for ${email}:${purpose}`);
       return cachedOTP;
     }
 
-    console.log(`📧 OTP cache MISS for ${email}:${purpose}`);
+    logger.info(`📧 OTP cache MISS for ${email}:${purpose}`);
     return null;
   } catch (error) {
-    console.error(`❌ Failed to get cached OTP for ${email}:`, error.message);
+    logger.error(`❌ Failed to get cached OTP for ${email}:`, error.message);
     return null;
   }
 };
@@ -930,7 +931,7 @@ const getCachedOTPData = async (email, purpose) => {
  * @param {string} email - User email (optional)
  */
 const invalidateAuthCaches = async (userId, email = null) => {
-  console.log(`🗑️ Invalidating auth caches for user ${userId}`);
+  logger.info(`🗑️ Invalidating auth caches for user ${userId}`);
 
   try {
     // Invalidate user session
@@ -944,9 +945,9 @@ const invalidateAuthCaches = async (userId, email = null) => {
       }
     }
 
-    console.log(`🗑️ Auth caches invalidated for user ${userId}`);
+    logger.info(`🗑️ Auth caches invalidated for user ${userId}`);
   } catch (error) {
-    console.error(`❌ Failed to invalidate auth caches for ${userId}:`, error.message);
+    logger.error(`❌ Failed to invalidate auth caches for ${userId}:`, error.message);
   }
 };
 
@@ -965,7 +966,7 @@ const validateSystemAdminCredentialsEnhanced = async (email, password, requestCo
 
     if (!isValid) {
       // Log failed attempt for security monitoring
-      console.warn(`🚫 System admin login attempt failed: ${email} from ${requestContext.ip || 'unknown IP'}`);
+      logger.warn(`🚫 System admin login attempt failed: ${email} from ${requestContext.ip || 'unknown IP'}`);
       return { valid: false, reason: 'invalid_credentials' };
     }
 
@@ -973,12 +974,12 @@ const validateSystemAdminCredentialsEnhanced = async (email, password, requestCo
     const securityChecks = await performSystemAdminSecurityChecks(email, requestContext);
 
     if (!securityChecks.passed) {
-      console.warn(`🚫 System admin security check failed: ${email} - ${securityChecks.reason}`);
+      logger.warn(`🚫 System admin security check failed: ${email} - ${securityChecks.reason}`);
       return { valid: false, reason: securityChecks.reason };
     }
 
     // Log successful validation
-    console.log(`✅ System admin credentials validated: ${email}`);
+    logger.info(`✅ System admin credentials validated: ${email}`);
 
     return {
       valid: true,
@@ -988,7 +989,7 @@ const validateSystemAdminCredentialsEnhanced = async (email, password, requestCo
     };
 
   } catch (error) {
-    console.error('System admin credential validation error:', error);
+    logger.error('System admin credential validation error:', error);
     return { valid: false, reason: 'validation_error' };
   }
 };
@@ -1029,7 +1030,7 @@ const performSystemAdminSecurityChecks = async (email, requestContext) => {
     return { passed: true };
 
   } catch (error) {
-    console.error('System admin security check error:', error);
+    logger.error('System admin security check error:', error);
     return { passed: false, reason: 'security_check_error' };
   }
 };
@@ -1090,7 +1091,7 @@ const impersonateUser = async (systemAdminEmail, targetUserId, reason = 'support
     // Cache impersonation session
     await CacheService.set('auth', `impersonation:${targetUser._id}`, impersonationLog, 7200); // 2 hours
 
-    console.log(`🎭 System admin impersonation started: ${systemAdminEmail} -> ${targetUser.email}`);
+    logger.info(`🎭 System admin impersonation started: ${systemAdminEmail} -> ${targetUser.email}`);
 
     return {
       success: true,
@@ -1113,7 +1114,7 @@ const impersonateUser = async (systemAdminEmail, targetUserId, reason = 'support
     };
 
   } catch (error) {
-    console.error('Impersonation error:', error);
+    logger.error('Impersonation error:', error);
     throw new Error(`Impersonation failed: ${error.message}`);
   }
 };
@@ -1134,7 +1135,7 @@ const endImpersonation = async (impersonationToken) => {
     // Remove impersonation session from cache
     await CacheService.del('auth', `impersonation:${decoded.userId}`);
 
-    console.log(`🎭 System admin impersonation ended: ${decoded.systemAdminEmail} -> ${decoded.userId}`);
+    logger.info(`🎭 System admin impersonation ended: ${decoded.systemAdminEmail} -> ${decoded.userId}`);
 
     return {
       success: true,
@@ -1144,7 +1145,7 @@ const endImpersonation = async (impersonationToken) => {
     };
 
   } catch (error) {
-    console.error('End impersonation error:', error);
+    logger.error('End impersonation error:', error);
     throw new Error(`Failed to end impersonation: ${error.message}`);
   }
 };
@@ -1174,7 +1175,7 @@ const manageSystemAdminSession = async (systemAdminEmail, action, sessionData = 
         const timeout = parseInt(process.env.SYSTEM_ADMIN_SESSION_TIMEOUT) || 28800; // 8 hours
         await CacheService.set('auth', sessionKey, newSession, timeout);
 
-        console.log(`🔐 System admin session created: ${systemAdminEmail}`);
+        logger.info(`🔐 System admin session created: ${systemAdminEmail}`);
         return newSession;
 
       case 'update':
@@ -1197,13 +1198,13 @@ const manageSystemAdminSession = async (systemAdminEmail, action, sessionData = 
       case 'get':
         const retrievedSession = await CacheService.get('auth', sessionKey);
         if (retrievedSession) {
-          console.log(`🔐 System admin session retrieved: ${systemAdminEmail}`);
+          logger.info(`🔐 System admin session retrieved: ${systemAdminEmail}`);
         }
         return retrievedSession;
 
       case 'destroy':
         await CacheService.del('auth', sessionKey);
-        console.log(`🔐 System admin session destroyed: ${systemAdminEmail}`);
+        logger.info(`🔐 System admin session destroyed: ${systemAdminEmail}`);
         return { destroyed: true };
 
       default:
@@ -1211,7 +1212,7 @@ const manageSystemAdminSession = async (systemAdminEmail, action, sessionData = 
     }
 
   } catch (error) {
-    console.error(`System admin session management error (${action}):`, error);
+    logger.error(`System admin session management error (${action}):`, error);
     throw error;
   }
 };
@@ -1225,7 +1226,7 @@ const getCachedSuspiciousIPs = async () => {
     const suspiciousIPs = await CacheService.get('security', 'suspicious_ips') || [];
     return suspiciousIPs;
   } catch (error) {
-    console.error('Error getting suspicious IPs:', error);
+    logger.error('Error getting suspicious IPs:', error);
     return [];
   }
 };
@@ -1242,10 +1243,10 @@ const addSuspiciousIP = async (ipAddress, reason = 'security_violation') => {
       suspiciousIPs.push(ipAddress);
       await CacheService.set('security', 'suspicious_ips', suspiciousIPs, 86400); // 24 hours
 
-      console.log(`🚨 IP added to suspicious list: ${ipAddress} (${reason})`);
+      logger.info(`🚨 IP added to suspicious list: ${ipAddress} (${reason})`);
     }
   } catch (error) {
-    console.error('Error adding suspicious IP:', error);
+    logger.error('Error adding suspicious IP:', error);
   }
 };
 
@@ -1277,10 +1278,10 @@ const logSystemAdminActivity = async (systemAdminEmail, activity, details = {}) 
 
     await CacheService.set('audit', activityKey, recentActivities, 86400); // 24 hours
 
-    console.log(`📋 System admin activity logged: ${systemAdminEmail} - ${activity}`);
+    logger.info(`📋 System admin activity logged: ${systemAdminEmail} - ${activity}`);
 
   } catch (error) {
-    console.error('System admin activity logging error:', error);
+    logger.error('System admin activity logging error:', error);
   }
 };
 

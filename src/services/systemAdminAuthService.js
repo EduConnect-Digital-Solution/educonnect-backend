@@ -6,6 +6,7 @@
 
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const logger = require('../utils/logger');
 
 /**
  * Validate system admin credentials against environment variables
@@ -17,7 +18,7 @@ const validateSystemAdminCredentials = async (email, password) => {
   try {
     // Check if system admin credentials are configured
     if (!process.env.SYSTEM_ADMIN_EMAIL || !process.env.SYSTEM_ADMIN_PASSWORD_HASH) {
-      console.error('System admin credentials not configured in environment variables');
+      logger.error('System admin credentials not configured in environment variables');
       return false;
     }
 
@@ -31,7 +32,7 @@ const validateSystemAdminCredentials = async (email, password) => {
     return isPasswordValid;
 
   } catch (error) {
-    console.error('Error validating system admin credentials:', error);
+    logger.error('Error validating system admin credentials:', error);
     return false;
   }
 };
@@ -75,7 +76,7 @@ const verifySystemAdminToken = (token) => {
 
     return decoded;
   } catch (error) {
-    console.error('Error verifying system admin token:', error.message);
+    logger.error('Error verifying system admin token:', error.message);
     return null;
   }
 };

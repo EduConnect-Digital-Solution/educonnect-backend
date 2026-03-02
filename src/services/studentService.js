@@ -8,6 +8,7 @@ const Student = require('../models/Student');
 const User = require('../models/User');
 const School = require('../models/School');
 const CacheService = require('./cacheService');
+const logger = require('../utils/logger');
 
 /**
  * Create Student Service
@@ -319,7 +320,7 @@ const getStudents = async (filters, pagination) => {
   // Try cache first
   const cachedData = await CacheService.get('student', cacheKey);
   if (cachedData) {
-    console.log(`👨‍🎓 Student list cache HIT for ${cacheKey}`);
+    logger.info(`👨‍🎓 Student list cache HIT for ${cacheKey}`);
     return {
       ...cachedData,
       cached: true,
@@ -327,7 +328,7 @@ const getStudents = async (filters, pagination) => {
     };
   }
 
-  console.log(`👨‍🎓 Student list cache MISS for ${cacheKey} - querying database`);
+  logger.info(`👨‍🎓 Student list cache MISS for ${cacheKey} - querying database`);
 
   // Build query
   const query = { schoolId };
@@ -412,7 +413,7 @@ const getStudents = async (filters, pagination) => {
 
   // Cache student data for 5 minutes (shorter TTL due to frequent updates)
   await CacheService.set('student', cacheKey, studentsData, 300);
-  console.log(`👨‍🎓 Student list cached for ${cacheKey}`);
+  logger.info(`👨‍🎓 Student list cached for ${cacheKey}`);
 
   return studentsData;
 };
@@ -427,7 +428,7 @@ const getStudentById = async (studentId, schoolId) => {
   const cachedStudent = await CacheService.get('student', cacheKey);
   
   if (cachedStudent) {
-    console.log(`👨‍🎓 Student cache HIT for ${studentId}`);
+    logger.info(`👨‍🎓 Student cache HIT for ${studentId}`);
     return {
       ...cachedStudent,
       cached: true,
@@ -435,7 +436,7 @@ const getStudentById = async (studentId, schoolId) => {
     };
   }
 
-  console.log(`👨‍🎓 Student cache MISS for ${studentId} - fetching from database`);
+  logger.info(`👨‍🎓 Student cache MISS for ${studentId} - fetching from database`);
 
   const student = await Student.findOne({
     _id: studentId,
@@ -488,7 +489,7 @@ const getStudentById = async (studentId, schoolId) => {
 
   // Cache student data for 15 minutes
   await CacheService.set('student', cacheKey, studentData, 900);
-  console.log(`👨‍🎓 Student data cached for ${studentId}`);
+  logger.info(`👨‍🎓 Student data cached for ${studentId}`);
 
   return studentData;
 };
@@ -628,7 +629,7 @@ const deleteStudent = async (studentId, schoolId, adminUserId) => {
  * @param {string} studentId - Student identifier (optional)
  */
 const invalidateStudentCaches = async (schoolId, studentId = null) => {
-  console.log(`🗑️ Invalidating student caches for school ${schoolId}${studentId ? ` and student ${studentId}` : ''}`);
+  logger.info(`🗑️ Invalidating student caches for school ${schoolId}${studentId ? ` and student ${studentId}` : ''}`);
   
   // Invalidate specific student cache if studentId provided
   if (studentId) {
@@ -651,7 +652,7 @@ const invalidateStudentCaches = async (schoolId, studentId = null) => {
   const parentPattern = `educonnect:parent:*`;
   const parentDeleted = await CacheService.delPattern(parentPattern);
   
-  console.log(`🗑️ Invalidated ${deletedCount} student list entries, ${dashboardDeleted} dashboard entries, ${teacherDeleted} teacher entries, and ${parentDeleted} parent entries for school ${schoolId}`);
+  logger.info(`🗑️ Invalidated ${deletedCount} student list entries, ${dashboardDeleted} dashboard entries, ${teacherDeleted} teacher entries, and ${parentDeleted} parent entries for school ${schoolId}`);
 };
 
 /**
@@ -659,16 +660,16 @@ const invalidateStudentCaches = async (schoolId, studentId = null) => {
  * @param {string} schoolId - School identifier
  */
 const warmUpStudentCaches = async (schoolId) => {
-  console.log(`🔥 Warming up student caches for school ${schoolId}`);
+  logger.info(`🔥 Warming up student caches for school ${schoolId}`);
   
   try {
     // Pre-load common student views
     await getStudents({ schoolId, isActive: true }, { page: 1, limit: 20 });
     await getStudents({ schoolId }, { page: 1, limit: 20 });
     
-    console.log(`🔥 Student caches warmed up successfully for school ${schoolId}`);
+    logger.info(`🔥 Student caches warmed up successfully for school ${schoolId}`);
   } catch (error) {
-    console.error(`❌ Failed to warm up student caches for school ${schoolId}:`, error.message);
+    logger.error(`❌ Failed to warm up student caches for school ${schoolId}:`, error.message);
   }
 };
 

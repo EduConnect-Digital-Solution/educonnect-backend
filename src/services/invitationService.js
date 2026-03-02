@@ -11,6 +11,7 @@ const Invitation = require('../models/Invitation');
 const EmailService = require('../config/email');
 const CacheService = require('./cacheService');
 const crypto = require('crypto');
+const logger = require('../utils/logger');
 
 /**
  * Create Teacher Invitation Service
@@ -419,7 +420,7 @@ const listInvitations = async (filters, pagination) => {
   // Try cache first
   const cachedData = await CacheService.get('invitation', cacheKey);
   if (cachedData) {
-    console.log(`📧 Invitation list cache HIT for ${cacheKey}`);
+    logger.info(`📧 Invitation list cache HIT for ${cacheKey}`);
     return {
       ...cachedData,
       cached: true,
@@ -427,7 +428,7 @@ const listInvitations = async (filters, pagination) => {
     };
   }
 
-  console.log(`📧 Invitation list cache MISS for ${cacheKey} - querying database`);
+  logger.info(`📧 Invitation list cache MISS for ${cacheKey} - querying database`);
 
   // Build query
   const query = { schoolId };
@@ -496,7 +497,7 @@ const listInvitations = async (filters, pagination) => {
 
   // Cache invitation data for 5 minutes (shorter TTL due to frequent updates)
   await CacheService.set('invitation', cacheKey, invitationData, 300);
-  console.log(`📧 Invitation list cached for ${cacheKey}`);
+  logger.info(`📧 Invitation list cached for ${cacheKey}`);
 
   return invitationData;
 };
@@ -582,7 +583,7 @@ const cancelInvitation = async (invitationId, schoolId, adminUserId, reason) => 
  * @param {string} schoolId - School identifier
  */
 const invalidateInvitationCaches = async (schoolId) => {
-  console.log(`🗑️ Invalidating invitation caches for school ${schoolId}`);
+  logger.info(`🗑️ Invalidating invitation caches for school ${schoolId}`);
 
   // Invalidate invitation list caches (all variations)
   const invitationListPattern = `educonnect:invitation:invitations:${schoolId}*`;
@@ -592,7 +593,7 @@ const invalidateInvitationCaches = async (schoolId) => {
   const dashboardPattern = `educonnect:dashboard:analytics:${schoolId}*`;
   const dashboardDeleted = await CacheService.delPattern(dashboardPattern);
 
-  console.log(`🗑️ Invalidated ${deletedCount} invitation list entries and ${dashboardDeleted} dashboard entries for school ${schoolId}`);
+  logger.info(`🗑️ Invalidated ${deletedCount} invitation list entries and ${dashboardDeleted} dashboard entries for school ${schoolId}`);
 };
 
 /**
@@ -611,9 +612,9 @@ const cacheInvitationRateLimit = async (email, schoolId, rateLimitData) => {
       cachedAt: new Date().toISOString()
     }, 86400); // 24 hours
 
-    console.log(`📧 Invitation rate limit cached for ${email}:${schoolId}`);
+    logger.info(`📧 Invitation rate limit cached for ${email}:${schoolId}`);
   } catch (error) {
-    console.error(`❌ Failed to cache invitation rate limit for ${email}:`, error.message);
+    logger.error(`❌ Failed to cache invitation rate limit for ${email}:`, error.message);
   }
 };
 
@@ -629,14 +630,14 @@ const getCachedInvitationRateLimit = async (email, schoolId) => {
   try {
     const cachedData = await CacheService.get('invitation', cacheKey);
     if (cachedData) {
-      console.log(`📧 Invitation rate limit cache HIT for ${email}:${schoolId}`);
+      logger.info(`📧 Invitation rate limit cache HIT for ${email}:${schoolId}`);
       return cachedData;
     }
 
-    console.log(`📧 Invitation rate limit cache MISS for ${email}:${schoolId}`);
+    logger.info(`📧 Invitation rate limit cache MISS for ${email}:${schoolId}`);
     return null;
   } catch (error) {
-    console.error(`❌ Failed to get cached invitation rate limit for ${email}:`, error.message);
+    logger.error(`❌ Failed to get cached invitation rate limit for ${email}:`, error.message);
     return null;
   }
 };
@@ -646,16 +647,16 @@ const getCachedInvitationRateLimit = async (email, schoolId) => {
  * @param {string} schoolId - School identifier
  */
 const warmUpInvitationCaches = async (schoolId) => {
-  console.log(`🔥 Warming up invitation caches for school ${schoolId}`);
+  logger.info(`🔥 Warming up invitation caches for school ${schoolId}`);
 
   try {
     // Pre-load common invitation views
     await listInvitations({ schoolId, status: 'pending' }, { page: 1, limit: 20 });
     await listInvitations({ schoolId }, { page: 1, limit: 20 });
 
-    console.log(`🔥 Invitation caches warmed up successfully for school ${schoolId}`);
+    logger.info(`🔥 Invitation caches warmed up successfully for school ${schoolId}`);
   } catch (error) {
-    console.error(`❌ Failed to warm up invitation caches for school ${schoolId}:`, error.message);
+    logger.error(`❌ Failed to warm up invitation caches for school ${schoolId}:`, error.message);
   }
 };
 

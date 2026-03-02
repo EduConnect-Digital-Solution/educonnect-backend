@@ -12,6 +12,7 @@
 
 const crypto = require('crypto');
 const { getRedisClient, isRedisAvailable } = require('../config/redis');
+const logger = require('../utils/logger');
 
 // Session TTL: 7 days (matches refresh token expiry)
 const SESSION_TTL = 7 * 24 * 60 * 60;
@@ -71,7 +72,7 @@ const createSession = async ({ userId, role, schoolId, email, ip, userAgent, tok
 
         return sessionId;
     } catch (error) {
-        console.error('SessionService: Failed to create session:', error.message);
+        logger.error('SessionService: Failed to create session:', error.message);
         return null; // Graceful degradation
     }
 };
@@ -97,7 +98,7 @@ const validateSession = async (sessionId) => {
 
         return JSON.parse(data);
     } catch (error) {
-        console.error('SessionService: Failed to validate session:', error.message);
+        logger.error('SessionService: Failed to validate session:', error.message);
         return null; // Graceful degradation
     }
 };
@@ -120,7 +121,7 @@ const touchSession = async (sessionId) => {
             await redis.setex(sessionKey, SESSION_TTL, JSON.stringify(sessionData));
         }
     } catch (error) {
-        console.error('SessionService: Failed to touch session:', error.message);
+        logger.error('SessionService: Failed to touch session:', error.message);
     }
 };
 
@@ -146,7 +147,7 @@ const revokeSession = async (sessionId, userId) => {
 
         return true;
     } catch (error) {
-        console.error('SessionService: Failed to revoke session:', error.message);
+        logger.error('SessionService: Failed to revoke session:', error.message);
         return false;
     }
 };
@@ -177,7 +178,7 @@ const revokeAllSessions = async (userId) => {
 
         return sessionIds.length;
     } catch (error) {
-        console.error('SessionService: Failed to revoke all sessions:', error.message);
+        logger.error('SessionService: Failed to revoke all sessions:', error.message);
         return 0;
     }
 };
@@ -219,7 +220,7 @@ const listSessions = async (userId) => {
 
         return sessions;
     } catch (error) {
-        console.error('SessionService: Failed to list sessions:', error.message);
+        logger.error('SessionService: Failed to list sessions:', error.message);
         return [];
     }
 };

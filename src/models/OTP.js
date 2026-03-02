@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const crypto = require('crypto');
+const logger = require('../utils/logger');
 
 /**
  * OTP (One-Time Password) Model
@@ -279,7 +280,7 @@ otpSchema.statics.verifyAndConsumeOTP = async function(email, candidateOTP, purp
   try {
     // Debug logging for development
     if (process.env.NODE_ENV === 'development') {
-      console.log(`🔍 Looking for OTP: email=${email}, purpose=${purpose}, schoolId=${schoolId}`);
+      logger.info(`🔍 Looking for OTP: email=${email}, purpose=${purpose}, schoolId=${schoolId}`);
       
       // Check if any OTP exists for this email/purpose
       const anyOTP = await this.findOne({ 
@@ -288,10 +289,10 @@ otpSchema.statics.verifyAndConsumeOTP = async function(email, candidateOTP, purp
       }).select('+otp');
       
       if (anyOTP) {
-        console.log(`📧 Found OTP for email: isUsed=${anyOTP.isUsed}, expired=${anyOTP.expiresAt < new Date()}, schoolId=${anyOTP.schoolId}`);
-        console.log(`🔐 Development OTP: ${anyOTP.otp}`);
+        logger.info(`📧 Found OTP for email: isUsed=${anyOTP.isUsed}, expired=${anyOTP.expiresAt < new Date()}, schoolId=${anyOTP.schoolId}`);
+        logger.info(`🔐 Development OTP: ${anyOTP.otp}`);
       } else {
-        console.log(`❌ No OTP found for email=${email}, purpose=${purpose}`);
+        logger.info(`❌ No OTP found for email=${email}, purpose=${purpose}`);
       }
     }
     

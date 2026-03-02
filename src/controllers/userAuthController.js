@@ -22,6 +22,7 @@ const School = require('../models/School');
 const Student = require('../models/Student');
 const Invitation = require('../models/Invitation');
 const EmailService = require('../config/email');
+const logger = require('../utils/logger');
 
 
 
@@ -164,7 +165,7 @@ const refreshToken = catchAsync(async (req, res) => {
     if (!refreshTokenValue && req.body.refreshToken) {
       refreshTokenValue = req.body.refreshToken;
       source = 'body';
-      console.log('⚠️ Using refresh token from request body (deprecated)');
+      logger.info('⚠️ Using refresh token from request body (deprecated)');
     }
 
     if (!refreshTokenValue) {
@@ -216,6 +217,14 @@ const logout = catchAsync(async (req, res) => {
     // Clear both cookies (refresh token + session ID)
     clearRefreshTokenCookie(res, req);
     clearSessionIdCookie(res, req);
+
+    // Blacklist the access token so it can't be used after logout
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.split(' ')[1];
+      const CacheService = require('../services/cacheService');
+      await CacheService.blacklistToken(token, 3600); // 1 hour (access token TTL)
+    }
 
     // If user ID is available from auth middleware, invalidate cached session
     if (req.user && req.user.userId) {
@@ -395,7 +404,7 @@ const getMe = catchAsync(async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error in getMe:', error.message);
+    logger.error('Error in getMe:', error.message);
 
     res.status(500).json({
       success: false,

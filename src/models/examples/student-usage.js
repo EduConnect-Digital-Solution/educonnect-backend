@@ -5,6 +5,7 @@
 
 const Student = require('../Student');
 const mongoose = require('mongoose');
+const logger = require('../../utils/logger');
 
 /**
  * Example 1: Create a new student with automatic studentId generation (Requirement 5.1)
@@ -29,17 +30,17 @@ async function createStudent(schoolId, studentData, createdBy) {
 
     await student.save();
 
-    console.log('Student created successfully:');
-    console.log(`Name: ${student.fullName}`);
-    console.log(`Student ID: ${student.studentId}`);
-    console.log(`Display Name: ${student.displayName}`);
-    console.log(`Class: ${student.classDisplay}`);
-    console.log(`Age: ${student.age}`);
-    console.log(`Status: ${student.statusDisplay}`);
+    logger.info('Student created successfully:');
+    logger.info(`Name: ${student.fullName}`);
+    logger.info(`Student ID: ${student.studentId}`);
+    logger.info(`Display Name: ${student.displayName}`);
+    logger.info(`Class: ${student.classDisplay}`);
+    logger.info(`Age: ${student.age}`);
+    logger.info(`Status: ${student.statusDisplay}`);
     
     return student;
   } catch (error) {
-    console.error('Error creating student:', error.message);
+    logger.error('Error creating student:', error.message);
     throw error;
   }
 }
@@ -56,13 +57,13 @@ async function linkStudentToParent(studentId, parentId) {
 
     await student.addParent(parentId);
 
-    console.log('Parent linked to student successfully:');
-    console.log(`Student: ${student.fullName}`);
-    console.log(`Total Parents: ${student.parents.length}`);
+    logger.info('Parent linked to student successfully:');
+    logger.info(`Student: ${student.fullName}`);
+    logger.info(`Total Parents: ${student.parents.length}`);
     
     return student;
   } catch (error) {
-    console.error('Error linking parent to student:', error.message);
+    logger.error('Error linking parent to student:', error.message);
     throw error;
   }
 }
@@ -79,13 +80,13 @@ async function linkStudentToTeacher(studentId, teacherId) {
 
     await student.addTeacher(teacherId);
 
-    console.log('Teacher linked to student successfully:');
-    console.log(`Student: ${student.fullName}`);
-    console.log(`Total Teachers: ${student.teachers.length}`);
+    logger.info('Teacher linked to student successfully:');
+    logger.info(`Student: ${student.fullName}`);
+    logger.info(`Total Teachers: ${student.teachers.length}`);
     
     return student;
   } catch (error) {
-    console.error('Error linking teacher to student:', error.message);
+    logger.error('Error linking teacher to student:', error.message);
     throw error;
   }
 }
@@ -102,15 +103,15 @@ async function deactivateStudent(studentId, deactivatedBy, reason) {
 
     await student.deactivate(deactivatedBy, reason);
 
-    console.log('Student deactivated successfully:');
-    console.log(`Student: ${student.fullName}`);
-    console.log(`Status: ${student.statusDisplay}`);
-    console.log(`Deactivated At: ${student.deactivatedAt}`);
-    console.log(`Reason: ${student.deactivationReason}`);
+    logger.info('Student deactivated successfully:');
+    logger.info(`Student: ${student.fullName}`);
+    logger.info(`Status: ${student.statusDisplay}`);
+    logger.info(`Deactivated At: ${student.deactivatedAt}`);
+    logger.info(`Reason: ${student.deactivationReason}`);
     
     return student;
   } catch (error) {
-    console.error('Error deactivating student:', error.message);
+    logger.error('Error deactivating student:', error.message);
     throw error;
   }
 }
@@ -127,14 +128,14 @@ async function reactivateStudent(studentId) {
 
     await student.reactivate();
 
-    console.log('Student reactivated successfully:');
-    console.log(`Student: ${student.fullName}`);
-    console.log(`Status: ${student.statusDisplay}`);
-    console.log(`Active: ${student.isActive}`);
+    logger.info('Student reactivated successfully:');
+    logger.info(`Student: ${student.fullName}`);
+    logger.info(`Status: ${student.statusDisplay}`);
+    logger.info(`Active: ${student.isActive}`);
     
     return student;
   } catch (error) {
-    console.error('Error reactivating student:', error.message);
+    logger.error('Error reactivating student:', error.message);
     throw error;
   }
 }
@@ -151,15 +152,15 @@ async function updateStudentClass(studentId, classInfo) {
 
     await student.updateClassInfo(classInfo);
 
-    console.log('Student class information updated:');
-    console.log(`Student: ${student.fullName}`);
-    console.log(`Class: ${student.classDisplay}`);
-    console.log(`Roll Number: ${student.rollNumber}`);
-    console.log(`Grade: ${student.grade}`);
+    logger.info('Student class information updated:');
+    logger.info(`Student: ${student.fullName}`);
+    logger.info(`Class: ${student.classDisplay}`);
+    logger.info(`Roll Number: ${student.rollNumber}`);
+    logger.info(`Grade: ${student.grade}`);
     
     return student;
   } catch (error) {
-    console.error('Error updating student class:', error.message);
+    logger.error('Error updating student class:', error.message);
     throw error;
   }
 }
@@ -171,29 +172,29 @@ async function queryStudents(schoolId) {
   try {
     // Find all active students in the school
     const allStudents = await Student.findBySchool(schoolId);
-    console.log(`Found ${allStudents.length} active students`);
+    logger.info(`Found ${allStudents.length} active students`);
 
     // Find students by class
     const grade10Students = await Student.findByClass(schoolId, 'Grade 10');
-    console.log(`Found ${grade10Students.length} students in Grade 10`);
+    logger.info(`Found ${grade10Students.length} students in Grade 10`);
 
     // Find students by class and section
     const grade10AStudents = await Student.findByClass(schoolId, 'Grade 10', 'A');
-    console.log(`Found ${grade10AStudents.length} students in Grade 10-A`);
+    logger.info(`Found ${grade10AStudents.length} students in Grade 10-A`);
 
     // Find students by parent
     const parentId = new mongoose.Types.ObjectId();
     const parentStudents = await Student.findByParent(parentId);
-    console.log(`Found ${parentStudents.length} students for parent`);
+    logger.info(`Found ${parentStudents.length} students for parent`);
 
     // Find students by teacher
     const teacherId = new mongoose.Types.ObjectId();
     const teacherStudents = await Student.findByTeacher(teacherId);
-    console.log(`Found ${teacherStudents.length} students for teacher`);
+    logger.info(`Found ${teacherStudents.length} students for teacher`);
 
     // Find student by studentId
     const specificStudent = await Student.findByStudentId(schoolId, '241234');
-    console.log(`Found student: ${specificStudent ? specificStudent.fullName : 'Not found'}`);
+    logger.info(`Found student: ${specificStudent ? specificStudent.fullName : 'Not found'}`);
 
     return {
       allStudents,
@@ -204,7 +205,7 @@ async function queryStudents(schoolId) {
       specificStudent
     };
   } catch (error) {
-    console.error('Error querying students:', error.message);
+    logger.error('Error querying students:', error.message);
     throw error;
   }
 }
@@ -216,15 +217,15 @@ async function getSchoolStatistics(schoolId) {
   try {
     const stats = await Student.getSchoolStatistics(schoolId);
 
-    console.log('School Student Statistics:');
-    console.log(`Total Students: ${stats.totalStudents}`);
-    console.log(`Active Students: ${stats.activeStudents}`);
-    console.log(`Enrolled Students: ${stats.enrolledStudents}`);
-    console.log(`Deactivated Students: ${stats.deactivatedStudents}`);
+    logger.info('School Student Statistics:');
+    logger.info(`Total Students: ${stats.totalStudents}`);
+    logger.info(`Active Students: ${stats.activeStudents}`);
+    logger.info(`Enrolled Students: ${stats.enrolledStudents}`);
+    logger.info(`Deactivated Students: ${stats.deactivatedStudents}`);
 
     return stats;
   } catch (error) {
-    console.error('Error getting school statistics:', error.message);
+    logger.error('Error getting school statistics:', error.message);
     throw error;
   }
 }
@@ -239,30 +240,30 @@ async function manageParentStudentRelationships(studentId) {
       throw new Error('Student not found');
     }
 
-    console.log('Current Parent-Student Relationships:');
-    console.log(`Student: ${student.fullName}`);
-    console.log(`Parents: ${student.parents.length}`);
+    logger.info('Current Parent-Student Relationships:');
+    logger.info(`Student: ${student.fullName}`);
+    logger.info(`Parents: ${student.parents.length}`);
     
     if (student.parents.length > 0) {
       student.parents.forEach((parent, index) => {
-        console.log(`  ${index + 1}. ${parent.firstName} ${parent.lastName} (${parent.email})`);
+        logger.info(`  ${index + 1}. ${parent.firstName} ${parent.lastName} (${parent.email})`);
       });
     }
 
     // Add a new parent
     const newParentId = new mongoose.Types.ObjectId();
     await student.addParent(newParentId);
-    console.log('New parent added');
+    logger.info('New parent added');
 
     // Remove a parent (if exists)
     if (student.parents.length > 1) {
       await student.removeParent(student.parents[0]);
-      console.log('Parent removed');
+      logger.info('Parent removed');
     }
 
     return student;
   } catch (error) {
-    console.error('Error managing parent-student relationships:', error.message);
+    logger.error('Error managing parent-student relationships:', error.message);
     throw error;
   }
 }
@@ -277,30 +278,30 @@ async function manageTeacherStudentRelationships(studentId) {
       throw new Error('Student not found');
     }
 
-    console.log('Current Teacher-Student Relationships:');
-    console.log(`Student: ${student.fullName}`);
-    console.log(`Teachers: ${student.teachers.length}`);
+    logger.info('Current Teacher-Student Relationships:');
+    logger.info(`Student: ${student.fullName}`);
+    logger.info(`Teachers: ${student.teachers.length}`);
     
     if (student.teachers.length > 0) {
       student.teachers.forEach((teacher, index) => {
-        console.log(`  ${index + 1}. ${teacher.firstName} ${teacher.lastName} - ${teacher.subjects?.join(', ')}`);
+        logger.info(`  ${index + 1}. ${teacher.firstName} ${teacher.lastName} - ${teacher.subjects?.join(', ')}`);
       });
     }
 
     // Add a new teacher
     const newTeacherId = new mongoose.Types.ObjectId();
     await student.addTeacher(newTeacherId);
-    console.log('New teacher added');
+    logger.info('New teacher added');
 
     // Remove a teacher (if exists)
     if (student.teachers.length > 1) {
       await student.removeTeacher(student.teachers[0]);
-      console.log('Teacher removed');
+      logger.info('Teacher removed');
     }
 
     return student;
   } catch (error) {
-    console.error('Error managing teacher-student relationships:', error.message);
+    logger.error('Error managing teacher-student relationships:', error.message);
     throw error;
   }
 }
@@ -310,7 +311,7 @@ async function manageTeacherStudentRelationships(studentId) {
  */
 async function demonstrateStudentLifecycle(schoolId, adminUserId) {
   try {
-    console.log('=== Student Lifecycle Management ===');
+    logger.info('=== Student Lifecycle Management ===');
 
     // 1. Create student
     const studentData = {
@@ -328,7 +329,7 @@ async function demonstrateStudentLifecycle(schoolId, adminUserId) {
     };
 
     const student = await createStudent(schoolId, studentData, adminUserId);
-    console.log('');
+    logger.info('');
 
     // 2. Update class information
     await updateStudentClass(student._id, {
@@ -337,7 +338,7 @@ async function demonstrateStudentLifecycle(schoolId, adminUserId) {
       rollNumber: '010',
       grade: '10th'
     });
-    console.log('');
+    logger.info('');
 
     // 3. Link to parent and teacher
     const parentId = new mongoose.Types.ObjectId();
@@ -345,19 +346,19 @@ async function demonstrateStudentLifecycle(schoolId, adminUserId) {
     
     await linkStudentToParent(student._id, parentId);
     await linkStudentToTeacher(student._id, teacherId);
-    console.log('');
+    logger.info('');
 
     // 4. Deactivate student
     await deactivateStudent(student._id, adminUserId, 'Transferred to another school');
-    console.log('');
+    logger.info('');
 
     // 5. Reactivate student
     await reactivateStudent(student._id);
-    console.log('');
+    logger.info('');
 
     return student;
   } catch (error) {
-    console.error('Error in student lifecycle demo:', error.message);
+    logger.error('Error in student lifecycle demo:', error.message);
     throw error;
   }
 }
@@ -367,7 +368,7 @@ async function demonstrateStudentLifecycle(schoolId, adminUserId) {
  */
 async function bulkStudentOperations(schoolId) {
   try {
-    console.log('=== Bulk Student Operations ===');
+    logger.info('=== Bulk Student Operations ===');
 
     // Create multiple students
     const studentsData = [
@@ -400,21 +401,21 @@ async function bulkStudentOperations(schoolId) {
       createdStudents.push(student);
     }
 
-    console.log(`Created ${createdStudents.length} students`);
+    logger.info(`Created ${createdStudents.length} students`);
 
     // Query students by class
     const grade8Students = await Student.findByClass(schoolId, 'Grade 8');
-    console.log(`Grade 8 students: ${grade8Students.length}`);
+    logger.info(`Grade 8 students: ${grade8Students.length}`);
 
     const grade9Students = await Student.findByClass(schoolId, 'Grade 9');
-    console.log(`Grade 9 students: ${grade9Students.length}`);
+    logger.info(`Grade 9 students: ${grade9Students.length}`);
 
     // Get statistics
     await getSchoolStatistics(schoolId);
 
     return createdStudents;
   } catch (error) {
-    console.error('Error in bulk operations:', error.message);
+    logger.error('Error in bulk operations:', error.message);
     throw error;
   }
 }
@@ -424,34 +425,34 @@ async function bulkStudentOperations(schoolId) {
  */
 async function runExamples() {
   try {
-    console.log('=== Student Model Usage Examples ===\n');
+    logger.info('=== Student Model Usage Examples ===\n');
 
     const schoolId = 'ABC1234';
     const adminUserId = new mongoose.Types.ObjectId();
 
     // Example 1: Student lifecycle
-    console.log('1. Student lifecycle management...');
+    logger.info('1. Student lifecycle management...');
     await demonstrateStudentLifecycle(schoolId, adminUserId);
-    console.log('');
+    logger.info('');
 
     // Example 2: Query operations
-    console.log('2. Student query operations...');
+    logger.info('2. Student query operations...');
     await queryStudents(schoolId);
-    console.log('');
+    logger.info('');
 
     // Example 3: Bulk operations
-    console.log('3. Bulk student operations...');
+    logger.info('3. Bulk student operations...');
     await bulkStudentOperations(schoolId);
-    console.log('');
+    logger.info('');
 
     // Example 4: Statistics
-    console.log('4. School statistics...');
+    logger.info('4. School statistics...');
     await getSchoolStatistics(schoolId);
-    console.log('');
+    logger.info('');
 
-    console.log('=== All examples completed ===');
+    logger.info('=== All examples completed ===');
   } catch (error) {
-    console.error('Error running examples:', error);
+    logger.error('Error running examples:', error);
   }
 }
 

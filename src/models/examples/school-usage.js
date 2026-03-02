@@ -4,6 +4,7 @@
  */
 
 const School = require('../School');
+const logger = require('../../utils/logger');
 
 /**
  * Example 1: Create a new school with automatic schoolId generation
@@ -23,14 +24,14 @@ async function createSchool() {
     const school = new School(schoolData);
     await school.save();
 
-    console.log('School created successfully:');
-    console.log(`School ID: ${school.schoolId}`);
-    console.log(`Display Name: ${school.displayName}`);
-    console.log(`Verification Status: ${school.verificationStatus}`);
+    logger.info('School created successfully:');
+    logger.info(`School ID: ${school.schoolId}`);
+    logger.info(`Display Name: ${school.displayName}`);
+    logger.info(`Verification Status: ${school.verificationStatus}`);
     
     return school;
   } catch (error) {
-    console.error('Error creating school:', error.message);
+    logger.error('Error creating school:', error.message);
     throw error;
   }
 }
@@ -50,23 +51,23 @@ async function verifySchoolEmail(schoolId) {
     const otp = school.generateVerificationOTP();
     await school.save();
 
-    console.log(`OTP generated for ${school.email}: ${otp}`);
-    console.log(`OTP expires at: ${school.otpExpires}`);
+    logger.info(`OTP generated for ${school.email}: ${otp}`);
+    logger.info(`OTP expires at: ${school.otpExpires}`);
 
     // Simulate email verification
     const userEnteredOTP = otp; // In real app, this comes from user input
     
     if (school.verifyOTP(userEnteredOTP)) {
       await school.completeVerification();
-      console.log('Email verification completed successfully!');
-      console.log(`School ${school.schoolName} is now verified`);
+      logger.info('Email verification completed successfully!');
+      logger.info(`School ${school.schoolName} is now verified`);
     } else {
-      console.log('Invalid or expired OTP');
+      logger.info('Invalid or expired OTP');
     }
 
     return school;
   } catch (error) {
-    console.error('Error in email verification:', error.message);
+    logger.error('Error in email verification:', error.message);
     throw error;
   }
 }
@@ -102,14 +103,14 @@ async function authenticateSchool(schoolId, email, password) {
       throw new Error('Invalid password');
     }
 
-    console.log(`Authentication successful for ${school.schoolName}`);
-    console.log(`School ID: ${school.schoolId}`);
-    console.log(`Email: ${school.email}`);
+    logger.info(`Authentication successful for ${school.schoolName}`);
+    logger.info(`School ID: ${school.schoolId}`);
+    logger.info(`Email: ${school.email}`);
     
     // Return school without sensitive data
     return school.toJSON();
   } catch (error) {
-    console.error('Authentication failed:', error.message);
+    logger.error('Authentication failed:', error.message);
     throw error;
   }
 }
@@ -129,23 +130,23 @@ async function resetSchoolPassword(email) {
     const resetToken = school.generatePasswordResetToken();
     await school.save();
 
-    console.log(`Password reset token generated for ${school.email}`);
-    console.log(`Reset token: ${resetToken}`);
-    console.log(`Token expires at: ${school.passwordResetExpires}`);
+    logger.info(`Password reset token generated for ${school.email}`);
+    logger.info(`Reset token: ${resetToken}`);
+    logger.info(`Token expires at: ${school.passwordResetExpires}`);
 
     // Simulate password reset
     const newPassword = 'NewSecurePassword123!';
     
     if (school.verifyPasswordResetToken(resetToken)) {
       await school.resetPassword(newPassword);
-      console.log('Password reset completed successfully!');
+      logger.info('Password reset completed successfully!');
     } else {
-      console.log('Invalid or expired reset token');
+      logger.info('Invalid or expired reset token');
     }
 
     return school;
   } catch (error) {
-    console.error('Error in password reset:', error.message);
+    logger.error('Error in password reset:', error.message);
     throw error;
   }
 }
@@ -160,34 +161,34 @@ async function manageSchool(schoolId) {
       throw new Error('School not found');
     }
 
-    console.log('School Information:');
-    console.log(`Name: ${school.schoolName}`);
-    console.log(`Email: ${school.email}`);
-    console.log(`School ID: ${school.schoolId}`);
-    console.log(`Type: ${school.schoolType}`);
-    console.log(`Principal: ${school.principalName}`);
-    console.log(`Verified: ${school.isVerified}`);
-    console.log(`Active: ${school.isActive}`);
-    console.log(`Created: ${school.createdAt}`);
+    logger.info('School Information:');
+    logger.info(`Name: ${school.schoolName}`);
+    logger.info(`Email: ${school.email}`);
+    logger.info(`School ID: ${school.schoolId}`);
+    logger.info(`Type: ${school.schoolType}`);
+    logger.info(`Principal: ${school.principalName}`);
+    logger.info(`Verified: ${school.isVerified}`);
+    logger.info(`Active: ${school.isActive}`);
+    logger.info(`Created: ${school.createdAt}`);
 
     // Update school information
     school.principalName = 'Dr. Michael Brown';
     school.phone = '+1-555-0456';
     await school.save();
 
-    console.log('School information updated successfully');
+    logger.info('School information updated successfully');
 
     // Deactivate school
     await school.setActiveStatus(false);
-    console.log('School deactivated');
+    logger.info('School deactivated');
 
     // Reactivate school
     await school.setActiveStatus(true);
-    console.log('School reactivated');
+    logger.info('School reactivated');
 
     return school;
   } catch (error) {
-    console.error('Error managing school:', error.message);
+    logger.error('Error managing school:', error.message);
     throw error;
   }
 }
@@ -199,18 +200,18 @@ async function querySchools() {
   try {
     // Find all verified schools
     const verifiedSchools = await School.findVerified();
-    console.log(`Found ${verifiedSchools.length} verified schools`);
+    logger.info(`Found ${verifiedSchools.length} verified schools`);
 
     // Find schools pending verification
     const pendingSchools = await School.findPendingVerification();
-    console.log(`Found ${pendingSchools.length} schools pending verification`);
+    logger.info(`Found ${pendingSchools.length} schools pending verification`);
 
     // Find schools by type
     const publicSchools = await School.find({ 
       schoolType: 'public', 
       isActive: true 
     });
-    console.log(`Found ${publicSchools.length} public schools`);
+    logger.info(`Found ${publicSchools.length} public schools`);
 
     // Find schools created in the last 30 days
     const recentSchools = await School.find({
@@ -219,7 +220,7 @@ async function querySchools() {
       },
       isActive: true
     });
-    console.log(`Found ${recentSchools.length} schools created in the last 30 days`);
+    logger.info(`Found ${recentSchools.length} schools created in the last 30 days`);
 
     return {
       verified: verifiedSchools,
@@ -228,7 +229,7 @@ async function querySchools() {
       recent: recentSchools
     };
   } catch (error) {
-    console.error('Error querying schools:', error.message);
+    logger.error('Error querying schools:', error.message);
     throw error;
   }
 }
@@ -249,14 +250,14 @@ async function handleSchoolErrors() {
 
     await invalidSchool.save();
   } catch (error) {
-    console.log('Validation errors caught:');
+    logger.info('Validation errors caught:');
     
     if (error.name === 'ValidationError') {
       Object.keys(error.errors).forEach(field => {
-        console.log(`${field}: ${error.errors[field].message}`);
+        logger.info(`${field}: ${error.errors[field].message}`);
       });
     } else {
-      console.log('Other error:', error.message);
+      logger.info('Other error:', error.message);
     }
   }
 
@@ -276,7 +277,7 @@ async function handleSchoolErrors() {
     });
     await school2.save();
   } catch (error) {
-    console.log('Duplicate email error:', error.message);
+    logger.info('Duplicate email error:', error.message);
   }
 }
 
@@ -285,46 +286,46 @@ async function handleSchoolErrors() {
  */
 async function runExamples() {
   try {
-    console.log('=== School Model Usage Examples ===\n');
+    logger.info('=== School Model Usage Examples ===\n');
 
     // Example 1: Create school
-    console.log('1. Creating a new school...');
+    logger.info('1. Creating a new school...');
     const school = await createSchool();
-    console.log('');
+    logger.info('');
 
     // Example 2: Email verification
-    console.log('2. Email verification workflow...');
+    logger.info('2. Email verification workflow...');
     await verifySchoolEmail(school.schoolId);
-    console.log('');
+    logger.info('');
 
     // Example 3: Authentication
-    console.log('3. School authentication...');
+    logger.info('3. School authentication...');
     await authenticateSchool(school.schoolId, school.email, 'SecurePassword123!');
-    console.log('');
+    logger.info('');
 
     // Example 4: Password reset
-    console.log('4. Password reset workflow...');
+    logger.info('4. Password reset workflow...');
     await resetSchoolPassword(school.email);
-    console.log('');
+    logger.info('');
 
     // Example 5: School management
-    console.log('5. School management operations...');
+    logger.info('5. School management operations...');
     await manageSchool(school.schoolId);
-    console.log('');
+    logger.info('');
 
     // Example 6: Query schools
-    console.log('6. Querying schools...');
+    logger.info('6. Querying schools...');
     await querySchools();
-    console.log('');
+    logger.info('');
 
     // Example 7: Error handling
-    console.log('7. Error handling examples...');
+    logger.info('7. Error handling examples...');
     await handleSchoolErrors();
-    console.log('');
+    logger.info('');
 
-    console.log('=== All examples completed ===');
+    logger.info('=== All examples completed ===');
   } catch (error) {
-    console.error('Error running examples:', error);
+    logger.error('Error running examples:', error);
   }
 }
 

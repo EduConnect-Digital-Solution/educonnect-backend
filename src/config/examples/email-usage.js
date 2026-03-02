@@ -4,23 +4,24 @@
  */
 
 const EmailService = require('../email');
+const logger = require('../../utils/logger');
 
 async function emailServiceExamples() {
   try {
-    console.log('=== Email Service Usage Examples ===\n');
+    logger.info('=== Email Service Usage Examples ===\n');
 
     // Example 1: Basic Email Sending
-    console.log('1. Basic Email Sending:');
+    logger.info('1. Basic Email Sending:');
     const basicResult = await EmailService.sendEmail({
       to: 'user@example.com',
       subject: 'Welcome to EduConnect',
       html: '<h1>Welcome!</h1><p>Thank you for joining EduConnect.</p>',
       text: 'Welcome! Thank you for joining EduConnect.'
     });
-    console.log('Basic email result:', basicResult);
+    logger.info('Basic email result:', basicResult);
 
     // Example 2: Send OTP Email
-    console.log('\n2. Sending OTP Email:');
+    logger.info('\n2. Sending OTP Email:');
     const otpResult = await EmailService.sendOTPEmail(
       'school@example.com',
       '123456',
@@ -31,10 +32,10 @@ async function emailServiceExamples() {
         expirationMinutes: 15
       }
     );
-    console.log('OTP email result:', otpResult);
+    logger.info('OTP email result:', otpResult);
 
     // Example 3: Send School Welcome Email
-    console.log('\n3. Sending School Welcome Email:');
+    logger.info('\n3. Sending School Welcome Email:');
     const welcomeResult = await EmailService.sendSchoolIdEmail(
       'admin@school.com',
       'SCH001',
@@ -44,10 +45,10 @@ async function emailServiceExamples() {
         subject: 'Your School Registration is Complete'
       }
     );
-    console.log('School welcome result:', welcomeResult);
+    logger.info('School welcome result:', welcomeResult);
 
     // Example 4: Send Teacher Invitation
-    console.log('\n4. Sending Teacher Invitation:');
+    logger.info('\n4. Sending Teacher Invitation:');
     const teacherInviteResult = await EmailService.sendInvitationEmail(
       'teacher@example.com',
       'invitation-token-abc123',
@@ -61,10 +62,10 @@ async function emailServiceExamples() {
         expirationHours: 48
       }
     );
-    console.log('Teacher invitation result:', teacherInviteResult);
+    logger.info('Teacher invitation result:', teacherInviteResult);
 
     // Example 5: Send Parent Invitation
-    console.log('\n5. Sending Parent Invitation:');
+    logger.info('\n5. Sending Parent Invitation:');
     const parentInviteResult = await EmailService.sendInvitationEmail(
       'parent@example.com',
       'invitation-token-def456',
@@ -77,10 +78,10 @@ async function emailServiceExamples() {
         expirationHours: 72
       }
     );
-    console.log('Parent invitation result:', parentInviteResult);
+    logger.info('Parent invitation result:', parentInviteResult);
 
     // Example 6: Send Password Reset Email
-    console.log('\n6. Sending Password Reset Email:');
+    logger.info('\n6. Sending Password Reset Email:');
     const resetResult = await EmailService.sendPasswordResetEmail(
       'user@example.com',
       'reset-token-ghi789',
@@ -90,10 +91,10 @@ async function emailServiceExamples() {
         expirationHours: 2
       }
     );
-    console.log('Password reset result:', resetResult);
+    logger.info('Password reset result:', resetResult);
 
     // Example 7: Send Custom Templated Email
-    console.log('\n7. Sending Custom Templated Email:');
+    logger.info('\n7. Sending Custom Templated Email:');
     const templatedResult = await EmailService.sendTemplatedEmail(
       'otp-verification',
       'custom@example.com',
@@ -110,10 +111,10 @@ async function emailServiceExamples() {
         }
       }
     );
-    console.log('Templated email result:', templatedResult);
+    logger.info('Templated email result:', templatedResult);
 
     // Example 8: Bulk Email Sending
-    console.log('\n8. Bulk Email Sending:');
+    logger.info('\n8. Bulk Email Sending:');
     const bulkEmails = [
       {
         to: 'teacher1@example.com',
@@ -133,10 +134,10 @@ async function emailServiceExamples() {
     ];
 
     const bulkResult = await EmailService.sendBulkEmails(bulkEmails, 2, 100);
-    console.log('Bulk email result:', bulkResult);
+    logger.info('Bulk email result:', bulkResult);
 
     // Example 9: Email with Attachments
-    console.log('\n9. Email with Attachments:');
+    logger.info('\n9. Email with Attachments:');
     const attachmentResult = await EmailService.sendEmail({
       to: 'recipient@example.com',
       subject: 'Document Attached',
@@ -149,19 +150,19 @@ async function emailServiceExamples() {
         }
       ]
     });
-    console.log('Email with attachment result:', attachmentResult);
+    logger.info('Email with attachment result:', attachmentResult);
 
     // Example 10: Multiple Recipients
-    console.log('\n10. Multiple Recipients:');
+    logger.info('\n10. Multiple Recipients:');
     const multipleResult = await EmailService.sendEmail({
       to: ['admin1@school.com', 'admin2@school.com', 'admin3@school.com'],
       subject: 'Important School Announcement',
       html: '<h1>Announcement</h1><p>Important information for all admins.</p>'
     });
-    console.log('Multiple recipients result:', multipleResult);
+    logger.info('Multiple recipients result:', multipleResult);
 
     // Example 11: Custom Template Rendering
-    console.log('\n11. Custom Template Rendering:');
+    logger.info('\n11. Custom Template Rendering:');
     const customTemplate = `
       <div style="font-family: Arial, sans-serif;">
         <h2>Hello {{name}}!</h2>
@@ -176,36 +177,36 @@ async function emailServiceExamples() {
       schoolName: 'Example High School',
       role: 'Teacher'
     });
-    console.log('Rendered template:', renderedHtml);
+    logger.info('Rendered template:', renderedHtml);
 
     // Example 12: Service Statistics
-    console.log('\n12. Service Statistics:');
+    logger.info('\n12. Service Statistics:');
     const stats = EmailService.getStatistics();
-    console.log('Email service statistics:', stats);
+    logger.info('Email service statistics:', stats);
 
     // Example 13: Health Check
-    console.log('\n13. Health Check:');
+    logger.info('\n13. Health Check:');
     const health = await EmailService.healthCheck();
-    console.log('Email service health:', health);
+    logger.info('Email service health:', health);
 
     // Example 14: Template Cache Management
-    console.log('\n14. Template Cache Management:');
-    console.log('Templates cached before clear:', EmailService.templateCache.size);
+    logger.info('\n14. Template Cache Management:');
+    logger.info('Templates cached before clear:', EmailService.templateCache.size);
     EmailService.clearTemplateCache();
-    console.log('Templates cached after clear:', EmailService.templateCache.size);
+    logger.info('Templates cached after clear:', EmailService.templateCache.size);
 
     // Example 15: Error Handling
-    console.log('\n15. Error Handling Example:');
+    logger.info('\n15. Error Handling Example:');
     const errorResult = await EmailService.sendEmail({
       // Missing required fields to demonstrate error handling
       subject: 'Test',
       html: '<p>Test</p>'
       // Missing 'to' field
     });
-    console.log('Error handling result:', errorResult);
+    logger.info('Error handling result:', errorResult);
 
     // Example 16: Custom Headers and Options
-    console.log('\n16. Custom Headers and Options:');
+    logger.info('\n16. Custom Headers and Options:');
     const customResult = await EmailService.sendEmail({
       to: 'test@example.com',
       subject: 'Custom Email',
@@ -216,21 +217,21 @@ async function emailServiceExamples() {
         'Reply-To': 'noreply@educonnect.com'
       }
     });
-    console.log('Custom headers result:', customResult);
+    logger.info('Custom headers result:', customResult);
 
-    console.log('\n=== All Email Service Examples Completed ===');
+    logger.info('\n=== All Email Service Examples Completed ===');
 
   } catch (error) {
-    console.error('Error in email service examples:', error);
+    logger.error('Error in email service examples:', error);
   }
 }
 
 // Example of integrating with other services
 async function integrationExamples() {
-  console.log('\n=== Integration Examples ===\n');
+  logger.info('\n=== Integration Examples ===\n');
 
   // Example: Integration with OTP service
-  console.log('1. OTP Service Integration:');
+  logger.info('1. OTP Service Integration:');
   try {
     // Simulate OTP creation (would normally use OTP model)
     const otpData = {
@@ -249,13 +250,13 @@ async function integrationExamples() {
       }
     );
 
-    console.log('OTP integration result:', result);
+    logger.info('OTP integration result:', result);
   } catch (error) {
-    console.error('OTP integration error:', error);
+    logger.error('OTP integration error:', error);
   }
 
   // Example: Integration with Invitation service
-  console.log('\n2. Invitation Service Integration:');
+  logger.info('\n2. Invitation Service Integration:');
   try {
     // Simulate invitation creation (would normally use Invitation model)
     const invitationData = {
@@ -278,12 +279,12 @@ async function integrationExamples() {
       }
     );
 
-    console.log('Invitation integration result:', result);
+    logger.info('Invitation integration result:', result);
   } catch (error) {
-    console.error('Invitation integration error:', error);
+    logger.error('Invitation integration error:', error);
   }
 
-  console.log('\n=== Integration Examples Completed ===');
+  logger.info('\n=== Integration Examples Completed ===');
 }
 
 // Run examples if this file is executed directly

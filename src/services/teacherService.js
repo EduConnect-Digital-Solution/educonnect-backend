@@ -8,6 +8,7 @@ const User = require('../models/User');
 const Student = require('../models/Student');
 const School = require('../models/School');
 const CacheService = require('./cacheService');
+const logger = require('../utils/logger');
 
 class TeacherService {
   /**
@@ -22,7 +23,7 @@ class TeacherService {
     const cachedData = await CacheService.get('teacher', cacheKey);
     
     if (cachedData) {
-      console.log(`👨‍🏫 Teacher dashboard cache HIT for ${userId}`);
+      logger.info(`👨‍🏫 Teacher dashboard cache HIT for ${userId}`);
       return {
         ...cachedData,
         cached: true,
@@ -30,7 +31,7 @@ class TeacherService {
       };
     }
 
-    console.log(`👨‍🏫 Teacher dashboard cache MISS for ${userId} - generating fresh data`);
+    logger.info(`👨‍🏫 Teacher dashboard cache MISS for ${userId} - generating fresh data`);
 
     // Get teacher information
     const teacher = await User.findById(userId).select('-password');
@@ -173,7 +174,7 @@ class TeacherService {
 
     // Cache teacher dashboard for 10 minutes
     await CacheService.set('teacher', cacheKey, dashboardData, 600);
-    console.log(`👨‍🏫 Teacher dashboard cached for ${userId}`);
+    logger.info(`👨‍🏫 Teacher dashboard cached for ${userId}`);
 
     return dashboardData;
   }
@@ -192,7 +193,7 @@ class TeacherService {
     // Try cache first
     const cachedData = await CacheService.get('teacher', cacheKey);
     if (cachedData) {
-      console.log(`👨‍🏫 Teacher students cache HIT for ${cacheKey}`);
+      logger.info(`👨‍🏫 Teacher students cache HIT for ${cacheKey}`);
       return {
         ...cachedData,
         cached: true,
@@ -200,7 +201,7 @@ class TeacherService {
       };
     }
 
-    console.log(`👨‍🏫 Teacher students cache MISS for ${cacheKey} - querying database`);
+    logger.info(`👨‍🏫 Teacher students cache MISS for ${cacheKey} - querying database`);
 
     // Get teacher information
     const teacher = await User.findById(userId);
@@ -308,7 +309,7 @@ class TeacherService {
 
     // Cache teacher students data for 5 minutes (shorter TTL due to frequent updates)
     await CacheService.set('teacher', cacheKey, studentsData, 300);
-    console.log(`👨‍🏫 Teacher students cached for ${cacheKey}`);
+    logger.info(`👨‍🏫 Teacher students cached for ${cacheKey}`);
 
     return studentsData;
   }
@@ -325,7 +326,7 @@ class TeacherService {
     const cachedProfile = await CacheService.get('teacher', cacheKey);
     
     if (cachedProfile) {
-      console.log(`👨‍🏫 Teacher profile cache HIT for ${userId}`);
+      logger.info(`👨‍🏫 Teacher profile cache HIT for ${userId}`);
       return {
         ...cachedProfile,
         cached: true,
@@ -333,7 +334,7 @@ class TeacherService {
       };
     }
 
-    console.log(`👨‍🏫 Teacher profile cache MISS for ${userId} - fetching from database`);
+    logger.info(`👨‍🏫 Teacher profile cache MISS for ${userId} - fetching from database`);
 
     // Get teacher information
     const teacher = await User.findById(userId).select('-password');
@@ -374,7 +375,7 @@ class TeacherService {
 
     // Cache teacher profile for 15 minutes
     await CacheService.set('teacher', cacheKey, profileData, 900);
-    console.log(`👨‍🏫 Teacher profile cached for ${userId}`);
+    logger.info(`👨‍🏫 Teacher profile cached for ${userId}`);
 
     return profileData;
   }
@@ -385,7 +386,7 @@ class TeacherService {
    * @param {string} teacherId - Teacher identifier (optional)
    */
   static async invalidateTeacherCaches(schoolId, teacherId = null) {
-    console.log(`🗑️ Invalidating teacher caches for school ${schoolId}${teacherId ? ` and teacher ${teacherId}` : ''}`);
+    logger.info(`🗑️ Invalidating teacher caches for school ${schoolId}${teacherId ? ` and teacher ${teacherId}` : ''}`);
     
     // Invalidate specific teacher caches if teacherId provided
     if (teacherId) {
@@ -395,14 +396,14 @@ class TeacherService {
       // Invalidate teacher students caches (all variations)
       const teacherStudentsPattern = `educonnect:teacher:students:${teacherId}*`;
       const deletedCount = await CacheService.delPattern(teacherStudentsPattern);
-      console.log(`🗑️ Invalidated ${deletedCount} teacher-specific cache entries`);
+      logger.info(`🗑️ Invalidated ${deletedCount} teacher-specific cache entries`);
     }
     
     // Invalidate dashboard caches that depend on teacher data
     const dashboardPattern = `educonnect:dashboard:analytics:${schoolId}*`;
     const dashboardDeleted = await CacheService.delPattern(dashboardPattern);
     
-    console.log(`🗑️ Invalidated ${dashboardDeleted} dashboard entries for school ${schoolId}`);
+    logger.info(`🗑️ Invalidated ${dashboardDeleted} dashboard entries for school ${schoolId}`);
   }
 
   /**
@@ -411,7 +412,7 @@ class TeacherService {
    * @param {string} schoolId - School identifier
    */
   static async warmUpTeacherCaches(teacherId, schoolId) {
-    console.log(`🔥 Warming up teacher caches for ${teacherId}`);
+    logger.info(`🔥 Warming up teacher caches for ${teacherId}`);
     
     try {
       // Pre-load teacher dashboard
@@ -423,9 +424,9 @@ class TeacherService {
       // Pre-load common student views
       await this.getMyStudents(teacherId, schoolId, { page: 1, limit: 20 });
       
-      console.log(`🔥 Teacher caches warmed up successfully for ${teacherId}`);
+      logger.info(`🔥 Teacher caches warmed up successfully for ${teacherId}`);
     } catch (error) {
-      console.error(`❌ Failed to warm up teacher caches for ${teacherId}:`, error.message);
+      logger.error(`❌ Failed to warm up teacher caches for ${teacherId}:`, error.message);
     }
   }
 }

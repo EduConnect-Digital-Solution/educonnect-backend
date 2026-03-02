@@ -21,7 +21,7 @@ process.on('uncaughtException', (error) => {
     }
   };
 
-  console.error('💀 UNCAUGHT EXCEPTION:', JSON.stringify(errorDetails, null, 2));
+  logger.error('💀 UNCAUGHT EXCEPTION:', JSON.stringify(errorDetails, null, 2));
   logger.error('Uncaught Exception', errorDetails);
   
   // Exit process after logging
@@ -45,7 +45,7 @@ process.on('unhandledRejection', (reason, promise) => {
     }
   };
 
-  console.error('⚠️ UNHANDLED REJECTION:', JSON.stringify(errorDetails, null, 2));
+  logger.error('⚠️ UNHANDLED REJECTION:', JSON.stringify(errorDetails, null, 2));
   logger.error('Unhandled Rejection', errorDetails);
   
   // Don't exit process for unhandled rejections, just log them
@@ -62,24 +62,24 @@ process.on('warning', (warning) => {
     }
   };
 
-  console.warn('⚠️ PROCESS WARNING:', JSON.stringify(warningDetails, null, 2));
+  logger.warn('⚠️ PROCESS WARNING:', JSON.stringify(warningDetails, null, 2));
   logger.warn('Process Warning', warningDetails);
 });
 
 // Initialize services
 const initializeServices = async () => {
   try {
-    console.log('🔄 Initializing services...');
+    logger.info('🔄 Initializing services...');
     
     // Connect to database
-    console.log('📊 Connecting to database...');
+    logger.info('📊 Connecting to database...');
     await connectDB();
-    console.log('✅ Database connected successfully');
+    logger.info('✅ Database connected successfully');
     
     // Initialize Redis (with graceful fallback)
-    console.log('🔴 Initializing Redis...');
+    logger.info('🔴 Initializing Redis...');
     await initializeRedis();
-    console.log('✅ Redis initialized successfully');
+    logger.info('✅ Redis initialized successfully');
     
   } catch (error) {
     const initError = {
@@ -92,7 +92,7 @@ const initializeServices = async () => {
       }
     };
 
-    console.error('💥 SERVICE INITIALIZATION FAILED:', JSON.stringify(initError, null, 2));
+    logger.error('💥 SERVICE INITIALIZATION FAILED:', JSON.stringify(initError, null, 2));
     logger.error('Service Initialization Failed', initError);
     process.exit(1);
   }
@@ -103,7 +103,7 @@ initializeServices();
 
 // Start server
 const server = app.listen(config.port, () => {
-  console.log(`
+  logger.info(`
 🚀 EduConnect Phase 1 API Server Started
 📍 Environment: ${config.nodeEnv}
 🌐 Port: ${config.port}
@@ -127,28 +127,28 @@ server.on('error', (error) => {
     port: config.port
   };
 
-  console.error('🚨 SERVER ERROR:', JSON.stringify(serverError, null, 2));
+  logger.error('🚨 SERVER ERROR:', JSON.stringify(serverError, null, 2));
   logger.error('Server Error', serverError);
 });
 
 // Graceful shutdown
 const gracefulShutdown = async () => {
-  console.log('🔄 Shutting down gracefully...');
+  logger.info('🔄 Shutting down gracefully...');
   
   try {
     // Close Redis connection
-    console.log('🔴 Closing Redis connection...');
+    logger.info('🔴 Closing Redis connection...');
     await closeRedis();
-    console.log('✅ Redis connection closed');
+    logger.info('✅ Redis connection closed');
     
     // Close server
     server.close(() => {
-      console.log('✅ Server closed successfully');
-      console.log('🛑 Process terminated');
+      logger.info('✅ Server closed successfully');
+      logger.info('🛑 Process terminated');
       process.exit(0);
     });
   } catch (error) {
-    console.error('💥 Error during graceful shutdown:', error);
+    logger.error('💥 Error during graceful shutdown:', error);
     process.exit(1);
   }
 };

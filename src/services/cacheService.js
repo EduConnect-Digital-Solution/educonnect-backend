@@ -5,6 +5,7 @@
  */
 
 const { getRedisClient, isRedisAvailable, cacheTTL } = require('../config/redis');
+const logger = require('../utils/logger');
 
 class CacheService {
   /**
@@ -34,14 +35,14 @@ class CacheService {
       const redisClient = getRedisClient();
       const cacheKey = this.generateKey(namespace, key);
       const serializedValue = JSON.stringify(value);
-      
+
       // Use namespace-specific TTL if not provided
       const timeToLive = ttl || cacheTTL[namespace] || cacheTTL.dashboard;
-      
+
       await redisClient.setex(cacheKey, timeToLive, serializedValue);
       return true;
     } catch (error) {
-      console.error(`Cache set error for ${namespace}:${key}:`, error.message);
+      logger.error(`Cache set error for ${namespace}:${key}:`, error.message);
       return false;
     }
   }
@@ -60,16 +61,16 @@ class CacheService {
     try {
       const redisClient = getRedisClient();
       const cacheKey = this.generateKey(namespace, key);
-      
+
       const cachedValue = await redisClient.get(cacheKey);
-      
+
       if (cachedValue) {
         return JSON.parse(cachedValue);
       }
-      
+
       return null;
     } catch (error) {
-      console.error(`Cache get error for ${namespace}:${key}:`, error.message);
+      logger.error(`Cache get error for ${namespace}:${key}:`, error.message);
       return null;
     }
   }
@@ -88,11 +89,11 @@ class CacheService {
     try {
       const redisClient = getRedisClient();
       const cacheKey = this.generateKey(namespace, key);
-      
+
       await redisClient.del(cacheKey);
       return true;
     } catch (error) {
-      console.error(`Cache delete error for ${namespace}:${key}:`, error.message);
+      logger.error(`Cache delete error for ${namespace}:${key}:`, error.message);
       return false;
     }
   }
@@ -109,16 +110,21 @@ class CacheService {
 
     try {
       const redisClient = getRedisClient();
-      const keys = await redisClient.keys(pattern);
-      
-      if (keys.length > 0) {
-        await redisClient.del(...keys);
-        return keys.length;
-      }
-      
-      return 0;
+      let totalDeleted = 0;
+      let cursor = '0';
+
+      do {
+        const [newCursor, keys] = await redisClient.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
+        cursor = newCursor;
+        if (keys.length > 0) {
+          await redisClient.del(...keys);
+          totalDeleted += keys.length;
+        }
+      } while (cursor !== '0');
+
+      return totalDeleted;
     } catch (error) {
-      console.error(`Cache delete pattern error for ${pattern}:`, error.message);
+      logger.error(`Cache delete pattern error for ${pattern}:`, error.message);
       return 0;
     }
   }
@@ -137,11 +143,11 @@ class CacheService {
     try {
       const redisClient = getRedisClient();
       const cacheKey = this.generateKey(namespace, key);
-      
+
       const exists = await redisClient.exists(cacheKey);
       return exists === 1;
     } catch (error) {
-      console.error(`Cache exists error for ${namespace}:${key}:`, error.message);
+      logger.error(`Cache exists error for ${namespace}:${key}:`, error.message);
       return false;
     }
   }
@@ -160,10 +166,10 @@ class CacheService {
     try {
       const redisClient = getRedisClient();
       const cacheKey = this.generateKey(namespace, key);
-      
+
       return await redisClient.ttl(cacheKey);
     } catch (error) {
-      console.error(`Cache TTL error for ${namespace}:${key}:`, error.message);
+      logger.error(`Cache TTL error for ${namespace}:${key}:`, error.message);
       return -2;
     }
   }
@@ -188,7 +194,7 @@ class CacheService {
       totalDeleted += await this.delPattern(pattern);
     }
 
-    console.log(`Invalidated ${totalDeleted} cache keys for school ${schoolId}`);
+    logger.info(`Invalidated ${totalDeleted} cache keys for school ${schoolId}`);
     return totalDeleted;
   }
 
@@ -210,7 +216,7 @@ class CacheService {
       totalDeleted += await this.delPattern(pattern);
     }
 
-    console.log(`Invalidated ${totalDeleted} cache keys for user ${userId}`);
+    logger.info(`Invalidated ${totalDeleted} cache keys for user ${userId}`);
     return totalDeleted;
   }
 
@@ -227,7 +233,7 @@ class CacheService {
       const redisClient = getRedisClient();
       const info = await redisClient.info('memory');
       const keyspace = await redisClient.info('keyspace');
-      
+
       return {
         available: true,
         memory: info,
@@ -235,7 +241,7 @@ class CacheService {
         connected: redisClient.status === 'ready'
       };
     } catch (error) {
-      console.error('Cache stats error:', error.message);
+      logger.error('Cache stats error:', error.message);
       return { available: false, error: error.message };
     }
   }
@@ -252,11 +258,58 @@ class CacheService {
     try {
       const redisClient = getRedisClient();
       await redisClient.flushdb();
-      console.log('Cache flushed successfully');
+      logger.info('Cache flushed successfully');
       return true;
     } catch (error) {
-      console.error('Cache flush error:', error.message);
+      logger.error('Cache flush error:', error.message);
       return false;
+    }
+  }
+
+  // ========================================
+  // TOKEN BLACKLIST (for logout invalidation)
+  // ========================================
+
+  /**
+   * Blacklist a JWT token (used on logout)
+   * @param {string} token - The JWT token to blacklist
+   * @param {number} ttl - TTL in seconds (should match remaining token lifetime)
+   * @returns {Promise<boolean>} Success status
+   */
+  static async blacklistToken(token, ttl = 3600) {
+    if (!isRedisAvailable()) {
+      return false;
+    }
+
+    try {
+      const redisClient = getRedisClient();
+      const key = `educonnect:blacklist:${token}`;
+      await redisClient.set(key, '1', 'EX', ttl);
+      return true;
+    } catch (error) {
+      logger.error('Token blacklist error:', error.message);
+      return false;
+    }
+  }
+
+  /**
+   * Check if a token is blacklisted
+   * @param {string} token - The JWT token to check
+   * @returns {Promise<boolean>} True if blacklisted
+   */
+  static async isTokenBlacklisted(token) {
+    if (!isRedisAvailable()) {
+      return false;
+    }
+
+    try {
+      const redisClient = getRedisClient();
+      const key = `educonnect:blacklist:${token}`;
+      const result = await redisClient.exists(key);
+      return result === 1;
+    } catch (error) {
+      logger.error('Token blacklist check error:', error.message);
+      return false; // Fail open — don't block if Redis is down
     }
   }
 
@@ -311,7 +364,7 @@ class CacheService {
       totalDeleted += await this.delPattern(pattern);
     }
 
-    console.log(`Invalidated ${totalDeleted} cross-school cache keys`);
+    logger.info(`Invalidated ${totalDeleted} cross-school cache keys`);
     return totalDeleted;
   }
 
@@ -323,11 +376,11 @@ class CacheService {
   static async invalidatePlatformCachesForSchool(schoolId) {
     // Invalidate cross-school aggregations that might include this school
     const crossSchoolDeleted = await this.invalidateCrossSchoolCaches();
-    
+
     // Invalidate school-specific caches
     const schoolDeleted = await this.invalidateSchoolCache(schoolId);
-    
-    console.log(`Invalidated platform caches for school ${schoolId}: ${crossSchoolDeleted + schoolDeleted} keys`);
+
+    logger.info(`Invalidated platform caches for school ${schoolId}: ${crossSchoolDeleted + schoolDeleted} keys`);
     return crossSchoolDeleted + schoolDeleted;
   }
 
@@ -337,8 +390,8 @@ class CacheService {
    * @returns {Promise<Object>} Warm-up results
    */
   static async warmUpPlatformCaches(schoolIds = null) {
-    console.log('🔥 Starting platform cache warm-up...');
-    
+    logger.info('🔥 Starting platform cache warm-up...');
+
     const results = {
       success: 0,
       failed: 0,
@@ -348,14 +401,14 @@ class CacheService {
     try {
       // Import CrossSchoolAggregator here to avoid circular dependency
       const CrossSchoolAggregator = require('./crossSchoolAggregator');
-      
+
       // Warm up overview metrics
       try {
         await CrossSchoolAggregator.aggregateMetrics(schoolIds, 'overview');
         results.success++;
         results.operations.push('overview_metrics');
       } catch (error) {
-        console.error('Failed to warm up overview metrics:', error.message);
+        logger.error('Failed to warm up overview metrics:', error.message);
         results.failed++;
       }
 
@@ -365,7 +418,7 @@ class CacheService {
         results.success++;
         results.operations.push('user_metrics');
       } catch (error) {
-        console.error('Failed to warm up user metrics:', error.message);
+        logger.error('Failed to warm up user metrics:', error.message);
         results.failed++;
       }
 
@@ -375,14 +428,14 @@ class CacheService {
         results.success++;
         results.operations.push('platform_kpis');
       } catch (error) {
-        console.error('Failed to warm up platform KPIs:', error.message);
+        logger.error('Failed to warm up platform KPIs:', error.message);
         results.failed++;
       }
 
-      console.log(`🔥 Platform cache warm-up completed: ${results.success} success, ${results.failed} failed`);
-      
+      logger.info(`🔥 Platform cache warm-up completed: ${results.success} success, ${results.failed} failed`);
+
     } catch (error) {
-      console.error('Platform cache warm-up error:', error.message);
+      logger.error('Platform cache warm-up error:', error.message);
       results.failed++;
     }
 
@@ -395,8 +448,8 @@ class CacheService {
    */
   static async getCachePerformanceMetrics() {
     if (!isRedisAvailable()) {
-      return { 
-        available: false, 
+      return {
+        available: false,
         error: 'Redis not available',
         metrics: null
       };
@@ -404,7 +457,7 @@ class CacheService {
 
     try {
       const redisClient = getRedisClient();
-      
+
       // Get Redis info
       const [memoryInfo, statsInfo, keyspaceInfo] = await Promise.all([
         redisClient.info('memory'),
@@ -454,9 +507,9 @@ class CacheService {
       };
 
     } catch (error) {
-      console.error('Cache performance metrics error:', error.message);
-      return { 
-        available: false, 
+      logger.error('Cache performance metrics error:', error.message);
+      return {
+        available: false,
         error: error.message,
         metrics: null
       };
@@ -475,7 +528,7 @@ class CacheService {
       try {
         const pattern = `educonnect:${namespace}:*`;
         const keys = await this._getKeysByPattern(pattern);
-        
+
         metrics[namespace] = {
           keyCount: keys.length,
           estimatedMemoryUsage: keys.length * 1024 // Rough estimate
@@ -503,10 +556,19 @@ class CacheService {
 
     try {
       const redisClient = getRedisClient();
-      const keys = await redisClient.keys(pattern);
-      return keys.slice(0, limit); // Limit to prevent performance issues
+      const allKeys = [];
+      let cursor = '0';
+
+      do {
+        const [newCursor, keys] = await redisClient.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
+        cursor = newCursor;
+        allKeys.push(...keys);
+        if (allKeys.length >= limit) break;
+      } while (cursor !== '0');
+
+      return allKeys.slice(0, limit);
     } catch (error) {
-      console.error(`Error getting keys for pattern ${pattern}:`, error.message);
+      logger.error(`Error getting keys for pattern ${pattern}:`, error.message);
       return [];
     }
   }
@@ -532,7 +594,7 @@ class CacheService {
     }
 
     const results = [];
-    
+
     try {
       const redisClient = getRedisClient();
       const pipeline = redisClient.pipeline();
@@ -540,7 +602,7 @@ class CacheService {
       // Add operations to pipeline
       operations.forEach(op => {
         const cacheKey = this.generateKey(op.namespace, op.key);
-        
+
         switch (op.type) {
           case 'set':
             pipeline.setex(cacheKey, op.ttl || 900, JSON.stringify(op.value));
@@ -556,12 +618,12 @@ class CacheService {
 
       // Execute pipeline
       const pipelineResults = await pipeline.exec();
-      
+
       // Process results
       pipelineResults.forEach((result, index) => {
         const [error, value] = result;
         const operation = operations[index];
-        
+
         if (error) {
           results.push({ success: false, error: error.message, operation: operation.type });
         } else {
@@ -578,7 +640,7 @@ class CacheService {
       });
 
     } catch (error) {
-      console.error('Batch cache operations error:', error.message);
+      logger.error('Batch cache operations error:', error.message);
       return operations.map(() => ({ success: false, error: error.message }));
     }
 
@@ -595,41 +657,41 @@ class CacheService {
       return 0;
     }
 
-    console.log('🧹 Starting scheduled cache cleanup...');
-    
+    logger.info('🧹 Starting scheduled cache cleanup...');
+
     try {
       const redisClient = getRedisClient();
       let cleanedCount = 0;
-      
+
       // Get all educonnect keys
       const allKeys = await redisClient.keys('educonnect:*');
-      
+
       for (const key of allKeys) {
         try {
           const ttl = await redisClient.ttl(key);
-          
+
           // If key has no expiry (-1) or is very old, check if it should be cleaned
           if (ttl === -1) {
             // Key has no expiry, check its age by attempting to determine from key pattern
             // For now, we'll skip keys without expiry to be safe
             continue;
           }
-          
+
           // If TTL is very short (less than 60 seconds), let it expire naturally
           if (ttl > 0 && ttl < 60) {
             continue;
           }
-          
+
         } catch (keyError) {
-          console.error(`Error checking key ${key}:`, keyError.message);
+          logger.error(`Error checking key ${key}:`, keyError.message);
         }
       }
-      
-      console.log(`🧹 Cache cleanup completed: ${cleanedCount} keys cleaned`);
+
+      logger.info(`🧹 Cache cleanup completed: ${cleanedCount} keys cleaned`);
       return cleanedCount;
-      
+
     } catch (error) {
-      console.error('Cache cleanup error:', error.message);
+      logger.error('Cache cleanup error:', error.message);
       return 0;
     }
   }

@@ -8,6 +8,7 @@ const Grade = require('../models/Grade');
 const User = require('../models/User');
 const Student = require('../models/Student');
 const CacheService = require('./cacheService');
+const logger = require('../utils/logger');
 
 class GradeService {
   /**
@@ -22,11 +23,11 @@ class GradeService {
     // Try cache first
     const cachedData = await CacheService.get('grades', cacheKey);
     if (cachedData) {
-      console.log(`📚 Teacher classes cache HIT for ${teacherId}`);
+      logger.info(`📚 Teacher classes cache HIT for ${teacherId}`);
       return cachedData;
     }
 
-    console.log(`📚 Teacher classes cache MISS for ${teacherId}`);
+    logger.info(`📚 Teacher classes cache MISS for ${teacherId}`);
 
     // Get teacher information
     const teacher = await User.findById(teacherId);
@@ -34,8 +35,8 @@ class GradeService {
       throw new Error('Access denied. Teacher role required.');
     }
 
-    console.log(`👨‍🏫 Teacher found: ${teacher.firstName} ${teacher.lastName}`);
-    console.log(`📚 Teacher classes from profile: ${JSON.stringify(teacher.classes)}`);
+    logger.info(`👨‍🏫 Teacher found: ${teacher.firstName} ${teacher.lastName}`);
+    logger.info(`📚 Teacher classes from profile: ${JSON.stringify(teacher.classes)}`);
 
     // Use the SAME logic as the dashboard - simply return teacher.classes
     const teacherClasses = teacher.classes || [];
@@ -50,7 +51,7 @@ class GradeService {
           isEnrolled: true
         });
         
-        console.log(`👥 Class ${className}: ${studentCount} students`);
+        logger.info(`👥 Class ${className}: ${studentCount} students`);
         
         return {
           name: className,
@@ -65,7 +66,7 @@ class GradeService {
       generatedAt: new Date().toISOString()
     };
 
-    console.log(`📊 Final result: ${JSON.stringify(result)}`);
+    logger.info(`📊 Final result: ${JSON.stringify(result)}`);
 
     // Cache for 5 minutes (shorter for debugging)
     await CacheService.set('grades', cacheKey, result, 300);
@@ -86,11 +87,11 @@ class GradeService {
     // Try cache first
     const cachedData = await CacheService.get('grades', cacheKey);
     if (cachedData) {
-      console.log(`📖 Teacher subjects cache HIT for ${teacherId}:${className}`);
+      logger.info(`📖 Teacher subjects cache HIT for ${teacherId}:${className}`);
       return cachedData;
     }
 
-    console.log(`📖 Teacher subjects cache MISS for ${teacherId}:${className}`);
+    logger.info(`📖 Teacher subjects cache MISS for ${teacherId}:${className}`);
 
     // Get teacher information
     const teacher = await User.findById(teacherId);
@@ -161,11 +162,11 @@ class GradeService {
     // Try cache first
     const cachedData = await CacheService.get('grades', cacheKey);
     if (cachedData) {
-      console.log(`👥 Students cache HIT for ${cacheKey}`);
+      logger.info(`👥 Students cache HIT for ${cacheKey}`);
       return cachedData;
     }
 
-    console.log(`👥 Students cache MISS for ${cacheKey}`);
+    logger.info(`👥 Students cache MISS for ${cacheKey}`);
 
     // Verify teacher access
     const teacher = await User.findById(teacherId);
@@ -574,31 +575,31 @@ class GradeService {
   static async publishGrades(teacherId, publishData) {
     const { class: className, subject, term, academicYear } = publishData;
 
-    console.log(`📚 Starting grade publishing process for teacher ${teacherId}`);
-    console.log(`📋 Publish data:`, { className, subject, term, academicYear });
+    logger.info(`📚 Starting grade publishing process for teacher ${teacherId}`);
+    logger.info(`📋 Publish data:`, { className, subject, term, academicYear });
 
     try {
       // Verify teacher access
       const teacher = await User.findById(teacherId);
       if (!teacher || teacher.role !== 'teacher') {
-        console.error(`❌ Teacher verification failed for ${teacherId}: ${teacher ? 'Invalid role' : 'Teacher not found'}`);
+        logger.error(`❌ Teacher verification failed for ${teacherId}: ${teacher ? 'Invalid role' : 'Teacher not found'}`);
         throw new Error('Access denied. Teacher role required.');
       }
 
-      console.log(`👨‍🏫 Teacher verified: ${teacher.firstName} ${teacher.lastName} (${teacher.email})`);
+      logger.info(`👨‍🏫 Teacher verified: ${teacher.firstName} ${teacher.lastName} (${teacher.email})`);
 
       // Verify teacher teaches this subject and class
       if (!teacher.subjects?.includes(subject)) {
-        console.error(`❌ Teacher ${teacherId} does not teach subject: ${subject}. Teacher subjects:`, teacher.subjects);
+        logger.error(`❌ Teacher ${teacherId} does not teach subject: ${subject}. Teacher subjects:`, teacher.subjects);
         throw new Error(`Access denied. You do not teach the subject "${subject}". Please contact your administrator if this is incorrect.`);
       }
 
       if (!teacher.classes?.includes(className)) {
-        console.error(`❌ Teacher ${teacherId} does not teach class: ${className}. Teacher classes:`, teacher.classes);
+        logger.error(`❌ Teacher ${teacherId} does not teach class: ${className}. Teacher classes:`, teacher.classes);
         throw new Error(`Access denied. You do not teach the class "${className}". Please contact your administrator if this is incorrect.`);
       }
 
-      console.log(`✅ Teacher authorization verified for ${subject} in ${className}`);
+      logger.info(`✅ Teacher authorization verified for ${subject} in ${className}`);
 
       // Get current academic year if not provided
       const currentAcademicYear = academicYear || (() => {
@@ -608,7 +609,7 @@ class GradeService {
 
       const currentTerm = term || 'First Term';
 
-      console.log(`📅 Using academic year: ${currentAcademicYear}, term: ${currentTerm}`);
+      logger.info(`📅 Using academic year: ${currentAcademicYear}, term: ${currentTerm}`);
 
       // First, check if any grades exist for this class/subject combination
       const existingGrades = await Grade.find({
@@ -619,20 +620,20 @@ class GradeService {
         academicYear: currentAcademicYear
       });
 
-      console.log(`📊 Found ${existingGrades.length} existing grades for ${subject} in ${className}`);
+      logger.info(`📊 Found ${existingGrades.length} existing grades for ${subject} in ${className}`);
 
       if (existingGrades.length === 0) {
-        console.error(`❌ No grades found for publishing: ${subject} in ${className} for ${currentTerm} ${currentAcademicYear}`);
+        logger.error(`❌ No grades found for publishing: ${subject} in ${className} for ${currentTerm} ${currentAcademicYear}`);
         throw new Error(`No grades found to publish for ${subject} in ${className} for ${currentTerm} ${currentAcademicYear}. Please assign grades to students first.`);
       }
 
       // Log details about existing grades
       const publishedCount = existingGrades.filter(g => g.isPublished).length;
       const unpublishedCount = existingGrades.length - publishedCount;
-      console.log(`📈 Grade status: ${publishedCount} already published, ${unpublishedCount} unpublished`);
+      logger.info(`📈 Grade status: ${publishedCount} already published, ${unpublishedCount} unpublished`);
 
       // Update all grades for this class/subject to published
-      console.log(`🔄 Updating grades to published status...`);
+      logger.info(`🔄 Updating grades to published status...`);
       const result = await Grade.updateMany(
         {
           teacherId: teacherId,
@@ -648,23 +649,23 @@ class GradeService {
         }
       );
 
-      console.log(`✅ Grade update result:`, {
+      logger.info(`✅ Grade update result:`, {
         matched: result.matchedCount,
         modified: result.modifiedCount,
         acknowledged: result.acknowledged
       });
 
       if (result.matchedCount === 0) {
-        console.error(`❌ No grades matched the update criteria`);
+        logger.error(`❌ No grades matched the update criteria`);
         throw new Error(`No grades found matching the specified criteria. Please verify the class, subject, term, and academic year.`);
       }
 
       // Invalidate related caches
-      console.log(`🗑️ Invalidating caches for teacher ${teacherId}, class ${className}, subject ${subject}`);
+      logger.info(`🗑️ Invalidating caches for teacher ${teacherId}, class ${className}, subject ${subject}`);
       await this.invalidateGradeCaches(teacher.schoolId, teacherId, className, subject);
 
       const successMessage = `Published ${result.modifiedCount} grades for ${subject} in ${className} (${currentTerm} ${currentAcademicYear})`;
-      console.log(`🎉 ${successMessage}`);
+      logger.info(`🎉 ${successMessage}`);
 
       return {
         success: true,
@@ -684,7 +685,7 @@ class GradeService {
       };
 
     } catch (error) {
-      console.error(`❌ Error in publishGrades service:`, {
+      logger.error(`❌ Error in publishGrades service:`, {
         teacherId,
         publishData,
         error: error.message,
@@ -734,33 +735,33 @@ class GradeService {
    * @param {string} subject - Subject name (optional)
    */
   static async invalidateGradeCaches(schoolId, teacherId, className = null, subject = null) {
-    console.log(`🗑️ Invalidating grade caches for teacher ${teacherId}, school ${schoolId}`);
+    logger.info(`🗑️ Invalidating grade caches for teacher ${teacherId}, school ${schoolId}`);
     
     // Invalidate teacher-specific caches
     await CacheService.del('grades', `classes:${teacherId}`);
-    console.log(`🗑️ Invalidated teacher classes cache`);
+    logger.info(`🗑️ Invalidated teacher classes cache`);
     
     if (className) {
       await CacheService.del('grades', `subjects:${teacherId}:${className}`);
-      console.log(`🗑️ Invalidated subjects cache for ${className}`);
+      logger.info(`🗑️ Invalidated subjects cache for ${className}`);
       
       if (subject) {
         // Invalidate all student lists for this class/subject combination
         const studentPattern = `educonnect:grades:students:${teacherId}:${className}:${subject}*`;
         const deletedStudents = await CacheService.delPattern(studentPattern);
-        console.log(`🗑️ Invalidated ${deletedStudents} student cache entries`);
+        logger.info(`🗑️ Invalidated ${deletedStudents} student cache entries`);
         
         // Invalidate statistics
         const statsPattern = `educonnect:grades:stats:${teacherId}:${className}:${subject}*`;
         const deletedStats = await CacheService.delPattern(statsPattern);
-        console.log(`🗑️ Invalidated ${deletedStats} statistics cache entries`);
+        logger.info(`🗑️ Invalidated ${deletedStats} statistics cache entries`);
       }
     }
     
     // Invalidate student grades caches (since we don't know which students are affected)
     const studentGradesPattern = `educonnect:grades:student-grades:${teacherId}*`;
     const deletedGrades = await CacheService.delPattern(studentGradesPattern);
-    console.log(`🗑️ Invalidated ${deletedGrades} student grades cache entries`);
+    logger.info(`🗑️ Invalidated ${deletedGrades} student grades cache entries`);
   }
 }
 

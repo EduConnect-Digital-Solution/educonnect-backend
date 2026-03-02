@@ -106,7 +106,7 @@ const sendErrorProd = (err, req, res) => {
 
   if (err.isOperational) {
     // Log operational errors with context
-    console.warn(`🚨 OPERATIONAL ERROR [${errorId}]:`, JSON.stringify(errorDetails, null, 2));
+    logger.warn(`🚨 OPERATIONAL ERROR [${errorId}]:`, JSON.stringify(errorDetails, null, 2));
     logger.warn('Operational Error', errorDetails);
     
     res.status(err.statusCode).json({
@@ -118,7 +118,7 @@ const sendErrorProd = (err, req, res) => {
     });
   } else {
     // Log non-operational errors with full details
-    console.error(`💥 CRITICAL ERROR [${errorId}]:`, JSON.stringify(errorDetails, null, 2));
+    logger.error(`💥 CRITICAL ERROR [${errorId}]:`, JSON.stringify(errorDetails, null, 2));
     logger.error('Critical Error', errorDetails);
 
     res.status(500).json({

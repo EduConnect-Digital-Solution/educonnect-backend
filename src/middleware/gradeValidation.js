@@ -4,6 +4,7 @@
  */
 
 const { body, param, query } = require('express-validator');
+const logger = require('../utils/logger');
 
 /**
  * Validate grade assignment request
@@ -316,7 +317,7 @@ const validateTeacherAccess = async (req, res, next) => {
     
     next();
   } catch (error) {
-    console.error('Teacher access validation error:', error);
+    logger.error('Teacher access validation error:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error during access validation'

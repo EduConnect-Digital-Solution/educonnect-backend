@@ -376,24 +376,6 @@ schoolSchema.pre('save', async function (next) {
 });
 
 /**
- * Pre-validate middleware to generate schoolId if not present
- */
-schoolSchema.pre('validate', async function (next) {
-  // Generate schoolId if it's a new document and doesn't have one
-  if (this.isNew && !this.schoolId && this.schoolName) {
-    const namePrefix = this.schoolName
-      .replace(/[^a-zA-Z]/g, '')
-      .substring(0, 3)
-      .toUpperCase()
-      .padEnd(3, 'X');
-
-    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-    this.schoolId = `${namePrefix}${randomSuffix}`;
-  }
-  next();
-});
-
-/**
  * Pre-save middleware to update timestamps
  */
 schoolSchema.pre('save', function (next) {

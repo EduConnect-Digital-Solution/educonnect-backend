@@ -7,6 +7,7 @@
 const { body, param, query, validationResult } = require('express-validator');
 const { ROLES } = require('./rbac');
 const { logSystemAdminActivity } = require('../services/authService');
+const logger = require('../utils/logger');
 
 /**
  * Handle validation errors
@@ -402,7 +403,7 @@ const validateSystemAdminPermission = (requiredPermission, options = {}) => {
       next();
 
     } catch (error) {
-      console.error('System admin permission validation error:', error);
+      logger.error('System admin permission validation error:', error);
       return res.status(500).json({
         success: false,
         message: 'Permission validation error',
@@ -472,7 +473,7 @@ const validateAuditLogging = (operationType, options = {}) => {
       next();
 
     } catch (error) {
-      console.error('Audit logging validation error:', error);
+      logger.error('Audit logging validation error:', error);
       // Don't fail the request due to audit logging issues, but log the error
       await logSystemAdminActivity(
         req.user?.email || 'unknown',
@@ -516,7 +517,7 @@ const completeAuditLog = async (req, res, next) => {
         `${req.auditContext.operationType}_completed`,
         completionData
       ).catch(error => {
-        console.error('Audit completion logging error:', error);
+        logger.error('Audit completion logging error:', error);
       });
     }
 
@@ -560,7 +561,7 @@ const sanitizeSystemAdminInput = (req, res, next) => {
     next();
 
   } catch (error) {
-    console.error('Input sanitization error:', error);
+    logger.error('Input sanitization error:', error);
     return res.status(400).json({
       success: false,
       message: 'Invalid request format',

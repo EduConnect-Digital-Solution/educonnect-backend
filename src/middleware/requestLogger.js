@@ -27,7 +27,7 @@ const requestLogger = (req, res, next) => {
     query: Object.keys(req.query).length > 0 ? JSON.stringify(req.query) : 'No query'
   };
 
-  console.log(`📥 INCOMING REQUEST [${requestId}]:`, JSON.stringify(requestInfo, null, 2));
+  logger.info(`📥 INCOMING REQUEST [${requestId}]:`, JSON.stringify(requestInfo, null, 2));
   logger.info('Incoming Request', requestInfo);
 
   // Override res.json to log responses
@@ -45,13 +45,13 @@ const requestLogger = (req, res, next) => {
     };
 
     if (res.statusCode >= 400) {
-      console.error(`📤 ERROR RESPONSE [${requestId}]:`, JSON.stringify({
+      logger.error(`📤 ERROR RESPONSE [${requestId}]:`, JSON.stringify({
         ...responseInfo,
         response: data
       }, null, 2));
       logger.error('Error Response', { ...responseInfo, response: data });
     } else {
-      console.log(`📤 SUCCESS RESPONSE [${requestId}]:`, JSON.stringify(responseInfo, null, 2));
+      logger.info(`📤 SUCCESS RESPONSE [${requestId}]:`, JSON.stringify(responseInfo, null, 2));
       logger.info('Success Response', responseInfo);
     }
 

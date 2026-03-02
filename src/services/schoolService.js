@@ -8,6 +8,7 @@ const School = require('../models/School');
 const User = require('../models/User');
 const Student = require('../models/Student');
 const CacheService = require('./cacheService');
+const logger = require('../utils/logger');
 
 /**
  * Get School Profile Service
@@ -19,7 +20,7 @@ const getSchoolProfile = async (schoolId) => {
   const cachedProfile = await CacheService.get('school', cacheKey);
   
   if (cachedProfile) {
-    console.log(`🏫 School profile cache HIT for ${schoolId}`);
+    logger.info(`🏫 School profile cache HIT for ${schoolId}`);
     return {
       ...cachedProfile,
       cached: true,
@@ -27,7 +28,7 @@ const getSchoolProfile = async (schoolId) => {
     };
   }
 
-  console.log(`🏫 School profile cache MISS for ${schoolId} - fetching from database`);
+  logger.info(`🏫 School profile cache MISS for ${schoolId} - fetching from database`);
 
   // Find the school
   const school = await School.findOne({ schoolId });
@@ -101,7 +102,7 @@ const getSchoolProfile = async (schoolId) => {
 
   // Cache the school profile for 30 minutes
   await CacheService.set('school', cacheKey, profileData, 1800);
-  console.log(`🏫 School profile cached for ${schoolId}`);
+  logger.info(`🏫 School profile cached for ${schoolId}`);
 
   return profileData;
 };
@@ -350,7 +351,7 @@ const getSchoolStatistics = async (schoolId) => {
   const cachedStats = await CacheService.get('school', cacheKey);
   
   if (cachedStats) {
-    console.log(`📊 School statistics cache HIT for ${schoolId}`);
+    logger.info(`📊 School statistics cache HIT for ${schoolId}`);
     return {
       ...cachedStats,
       cached: true,
@@ -358,7 +359,7 @@ const getSchoolStatistics = async (schoolId) => {
     };
   }
 
-  console.log(`📊 School statistics cache MISS for ${schoolId} - generating fresh data`);
+  logger.info(`📊 School statistics cache MISS for ${schoolId} - generating fresh data`);
 
   // Verify school exists
   const school = await School.findOne({ schoolId });
@@ -433,7 +434,7 @@ const getSchoolStatistics = async (schoolId) => {
 
   // Cache statistics for 10 minutes (shorter TTL due to frequent changes)
   await CacheService.set('school', cacheKey, statisticsData, 600);
-  console.log(`📊 School statistics cached for ${schoolId}`);
+  logger.info(`📊 School statistics cached for ${schoolId}`);
 
   return statisticsData;
 };
@@ -443,7 +444,7 @@ const getSchoolStatistics = async (schoolId) => {
  * @param {string} schoolId - School identifier
  */
 const invalidateSchoolCaches = async (schoolId) => {
-  console.log(`🗑️ Invalidating school caches for ${schoolId}`);
+  logger.info(`🗑️ Invalidating school caches for ${schoolId}`);
   
   // Invalidate school profile cache
   await CacheService.del('school', `profile:${schoolId}`);
@@ -455,7 +456,7 @@ const invalidateSchoolCaches = async (schoolId) => {
   const dashboardPattern = `educonnect:dashboard:analytics:${schoolId}*`;
   const deletedCount = await CacheService.delPattern(dashboardPattern);
   
-  console.log(`🗑️ Invalidated school caches and ${deletedCount} related dashboard entries for ${schoolId}`);
+  logger.info(`🗑️ Invalidated school caches and ${deletedCount} related dashboard entries for ${schoolId}`);
 };
 
 /**
@@ -463,7 +464,7 @@ const invalidateSchoolCaches = async (schoolId) => {
  * @param {string} schoolId - School identifier
  */
 const warmUpSchoolCaches = async (schoolId) => {
-  console.log(`🔥 Warming up school caches for ${schoolId}`);
+  logger.info(`🔥 Warming up school caches for ${schoolId}`);
   
   try {
     // Pre-load school profile
@@ -472,9 +473,9 @@ const warmUpSchoolCaches = async (schoolId) => {
     // Pre-load school statistics
     await getSchoolStatistics(schoolId);
     
-    console.log(`🔥 School caches warmed up successfully for ${schoolId}`);
+    logger.info(`🔥 School caches warmed up successfully for ${schoolId}`);
   } catch (error) {
-    console.error(`❌ Failed to warm up school caches for ${schoolId}:`, error.message);
+    logger.error(`❌ Failed to warm up school caches for ${schoolId}:`, error.message);
   }
 };
 

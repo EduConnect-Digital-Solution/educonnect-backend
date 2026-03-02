@@ -8,6 +8,7 @@ const parentService = require('../services/parentService');
 const invitationService = require('../services/invitationService');
 const catchAsync = require('../utils/catchAsync');
 const { validationResult } = require('express-validator');
+const logger = require('../utils/logger');
 
 /**
  * Invite Parent
@@ -263,10 +264,10 @@ const getParentDetails = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Get parent details error:', error);
-    console.error('Error stack:', error.stack);
-    console.error('Parent ID:', req.params.parentId);
-    console.error('School ID:', req.query.schoolId);
+    logger.error('Get parent details error:', error);
+    logger.error('Error stack:', error.stack);
+    logger.error('Parent ID:', req.params.parentId);
+    logger.error('School ID:', req.query.schoolId);
     
     res.status(500).json({
       success: false,
@@ -398,7 +399,7 @@ const linkParentToStudents = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Link parent to students error:', error);
+    logger.error('Link parent to students error:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error while linking parent to students'
@@ -508,7 +509,7 @@ const unlinkParentFromStudents = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Unlink parent from students error:', error);
+    logger.error('Unlink parent from students error:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error while unlinking parent from students'
@@ -641,7 +642,7 @@ const removeParent = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Remove parent error:', error);
+    logger.error('Remove parent error:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error while removing parent'

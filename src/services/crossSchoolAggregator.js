@@ -11,6 +11,7 @@ const Student = require('../models/Student');
 const SystemAlert = require('../models/SystemAlert');
 const PlatformAuditLog = require('../models/PlatformAuditLog');
 const CacheService = require('./cacheService');
+const logger = require('../utils/logger');
 
 class CrossSchoolAggregator {
   /**
@@ -25,11 +26,11 @@ class CrossSchoolAggregator {
     const cachedData = await CacheService.get('platform', cacheKey);
     
     if (cachedData) {
-      console.log(`📊 Cross-school metrics cache HIT for ${metric}`);
+      logger.info(`📊 Cross-school metrics cache HIT for ${metric}`);
       return cachedData;
     }
 
-    console.log(`📊 Cross-school metrics cache MISS for ${metric} - aggregating from database`);
+    logger.info(`📊 Cross-school metrics cache MISS for ${metric} - aggregating from database`);
 
     // Get target schools
     const targetSchools = await this._getTargetSchools(schoolIds);
@@ -73,7 +74,7 @@ class CrossSchoolAggregator {
 
     // Cache for 10 minutes
     await CacheService.set('platform', cacheKey, result, 600);
-    console.log(`📊 Cross-school metrics cached for ${metric}`);
+    logger.info(`📊 Cross-school metrics cached for ${metric}`);
 
     return result;
   }
@@ -90,11 +91,11 @@ class CrossSchoolAggregator {
     const cachedData = await CacheService.get('platform', cacheKey);
     
     if (cachedData) {
-      console.log(`📊 School comparison cache HIT`);
+      logger.info(`📊 School comparison cache HIT`);
       return cachedData;
     }
 
-    console.log(`📊 School comparison cache MISS - generating comparison`);
+    logger.info(`📊 School comparison cache MISS - generating comparison`);
 
     // Get school details
     const schools = await School.find({ 
@@ -133,7 +134,7 @@ class CrossSchoolAggregator {
 
     // Cache for 15 minutes
     await CacheService.set('platform', cacheKey, result, 900);
-    console.log(`📊 School comparison cached`);
+    logger.info(`📊 School comparison cached`);
 
     return result;
   }
@@ -150,11 +151,11 @@ class CrossSchoolAggregator {
     const cachedData = await CacheService.get('platform', cacheKey);
     
     if (cachedData) {
-      console.log(`📊 Trend analysis cache HIT for ${metric}`);
+      logger.info(`📊 Trend analysis cache HIT for ${metric}`);
       return cachedData;
     }
 
-    console.log(`📊 Trend analysis cache MISS for ${metric} - generating trends`);
+    logger.info(`📊 Trend analysis cache MISS for ${metric} - generating trends`);
 
     // Calculate time periods
     const periods = this._generateTimePeriods(period, duration);
@@ -185,7 +186,7 @@ class CrossSchoolAggregator {
 
     // Cache for 30 minutes
     await CacheService.set('platform', cacheKey, result, 1800);
-    console.log(`📊 Trend analysis cached for ${metric}`);
+    logger.info(`📊 Trend analysis cached for ${metric}`);
 
     return result;
   }
@@ -200,11 +201,11 @@ class CrossSchoolAggregator {
     const cachedData = await CacheService.get('platform', cacheKey);
     
     if (cachedData) {
-      console.log(`📊 Platform KPIs cache HIT`);
+      logger.info(`📊 Platform KPIs cache HIT`);
       return cachedData;
     }
 
-    console.log(`📊 Platform KPIs cache MISS - calculating KPIs`);
+    logger.info(`📊 Platform KPIs cache MISS - calculating KPIs`);
 
     // Get all active schools
     const activeSchools = await School.find({ isActive: true });
@@ -244,7 +245,7 @@ class CrossSchoolAggregator {
 
     // Cache for 5 minutes (KPIs need to be relatively fresh)
     await CacheService.set('platform', cacheKey, kpis, 300);
-    console.log(`📊 Platform KPIs cached`);
+    logger.info(`📊 Platform KPIs cached`);
 
     return kpis;
   }

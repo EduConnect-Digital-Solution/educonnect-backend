@@ -1,6 +1,7 @@
 const { Resend } = require('resend');
 const path = require('path');
 const fs = require('fs').promises;
+const logger = require('../utils/logger');
 
 /**
  * EmailService Class
@@ -43,7 +44,7 @@ class EmailService {
     };
 
     if (process.env.NODE_ENV !== 'test') {
-      console.log('EmailService initialized with Resend API');
+      logger.info('EmailService initialized with Resend API');
     }
   }
 
@@ -84,7 +85,7 @@ class EmailService {
 
       // Log email payload for debugging
       if (process.env.NODE_ENV === 'development') {
-        console.log('📧 Sending email with payload:', {
+        logger.info('📧 Sending email with payload:', {
           from: emailPayload.from,
           to: emailPayload.to,
           subject: emailPayload.subject,
@@ -104,8 +105,8 @@ class EmailService {
       this.stats.sent++;
 
       if (process.env.NODE_ENV !== 'test') {
-        console.log(`✅ Email sent successfully to ${to}:`, result.id);
-        console.log(`📊 Resend response:`, result);
+        logger.info(`✅ Email sent successfully to ${to}:`, result.id);
+        logger.info(`📊 Resend response:`, result);
       }
       return {
         success: true,
@@ -117,8 +118,8 @@ class EmailService {
 
     } catch (error) {
       if (process.env.NODE_ENV !== 'test') {
-        console.error(`❌ Email sending failed (attempt ${retryCount + 1}):`, error.message);
-        console.error(`📋 Error details:`, {
+        logger.error(`❌ Email sending failed (attempt ${retryCount + 1}):`, error.message);
+        logger.error(`📋 Error details:`, {
           name: error.name,
           message: error.message,
           status: error.status,
@@ -131,7 +132,7 @@ class EmailService {
       if (retryCount < this.config.maxRetries && this.isRetryableError(error)) {
         this.stats.retries++;
         if (process.env.NODE_ENV !== 'test') {
-          console.log(`Retrying email send in ${this.config.retryDelay}ms...`);
+          logger.info(`Retrying email send in ${this.config.retryDelay}ms...`);
         }
 
         await new Promise(resolve => setTimeout(resolve, this.config.retryDelay));
@@ -187,7 +188,7 @@ class EmailService {
     };
 
     if (process.env.NODE_ENV !== 'test') {
-      console.log(`Starting bulk email send: ${emails.length} emails in batches of ${batchSize}`);
+      logger.info(`Starting bulk email send: ${emails.length} emails in batches of ${batchSize}`);
     }
 
     for (let i = 0; i < emails.length; i += batchSize) {
@@ -216,7 +217,7 @@ class EmailService {
     }
 
     if (process.env.NODE_ENV !== 'test') {
-      console.log(`Bulk email send completed: ${results.sent} sent, ${results.failed} failed`);
+      logger.info(`Bulk email send completed: ${results.sent} sent, ${results.failed} failed`);
     }
     return results;
   }
@@ -251,7 +252,7 @@ class EmailService {
         throw new Error(`Template '${templateName}' not found`);
       }
     } catch (error) {
-      console.error(`Template rendering failed for '${templateName}':`, error.message);
+      logger.error(`Template rendering failed for '${templateName}':`, error.message);
       throw error;
     }
   }
@@ -623,7 +624,7 @@ class EmailService {
         }
       });
     } catch (error) {
-      console.error('Failed to send OTP email:', error);
+      logger.error('Failed to send OTP email:', error);
       return { success: false, error: error.message };
     }
   }
@@ -660,7 +661,7 @@ class EmailService {
         }
       });
     } catch (error) {
-      console.error('Failed to send school ID email:', error);
+      logger.error('Failed to send school ID email:', error);
       return { success: false, error: error.message };
     }
   }
@@ -712,7 +713,7 @@ class EmailService {
         }
       });
     } catch (error) {
-      console.error('Failed to send invitation email:', error);
+      logger.error('Failed to send invitation email:', error);
       return { success: false, error: error.message };
     }
   }
@@ -746,7 +747,7 @@ class EmailService {
         }
       });
     } catch (error) {
-      console.error('Failed to send password reset email:', error);
+      logger.error('Failed to send password reset email:', error);
       return { success: false, error: error.message };
     }
   }
@@ -778,7 +779,7 @@ class EmailService {
         }
       });
     } catch (error) {
-      console.error(`Failed to send templated email (${templateName}):`, error);
+      logger.error(`Failed to send templated email (${templateName}):`, error);
       return { success: false, error: error.message };
     }
   }
@@ -805,7 +806,7 @@ class EmailService {
    */
   clearTemplateCache() {
     this.templateCache.clear();
-    console.log('Email template cache cleared');
+    logger.info('Email template cache cleared');
   }
 
   /**
@@ -842,7 +843,7 @@ if (process.env.NODE_ENV !== 'test') {
   try {
     module.exports = new EmailService();
   } catch (error) {
-    console.error('Failed to initialize EmailService:', error.message);
+    logger.error('Failed to initialize EmailService:', error.message);
     // In production, you might want to handle this differently
     module.exports = EmailService;
   }

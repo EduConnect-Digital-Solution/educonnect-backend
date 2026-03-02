@@ -7,6 +7,7 @@
 const GradeService = require('../services/gradeService');
 const catchAsync = require('../utils/catchAsync');
 const { validationResult } = require('express-validator');
+const logger = require('../utils/logger');
 
 /**
  * Get Teacher's Classes
@@ -333,12 +334,12 @@ const publishGrades = catchAsync(async (req, res) => {
     });
   }
 
-  console.log(`📚 Publishing grades for teacher ${teacherId}, class: ${className}, subject: ${subject}, term: ${term || 'First Term'}`);
+  logger.info(`📚 Publishing grades for teacher ${teacherId}, class: ${className}, subject: ${subject}, term: ${term || 'First Term'}`);
 
   try {
     const result = await GradeService.publishGrades(teacherId, req.body);
 
-    console.log(`✅ Successfully published ${result.publishedCount} grades for ${subject} in ${className}`);
+    logger.info(`✅ Successfully published ${result.publishedCount} grades for ${subject} in ${className}`);
 
     res.status(200).json({
       success: true,
@@ -358,7 +359,7 @@ const publishGrades = catchAsync(async (req, res) => {
       }
     });
   } catch (error) {
-    console.error(`❌ Error publishing grades for teacher ${teacherId}:`, error);
+    logger.error(`❌ Error publishing grades for teacher ${teacherId}:`, error);
 
     // Handle specific error types with detailed messages
     if (error.message.includes('Access denied')) {

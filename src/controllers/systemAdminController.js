@@ -8,6 +8,7 @@ const catchAsync = require('../utils/catchAsync');
 const SystemAdminService = require('../services/systemAdminService');
 const CrossSchoolAggregator = require('../services/crossSchoolAggregator');
 const { logSystemAdminActivity } = require('../services/authService');
+const logger = require('../utils/logger');
 
 /**
  * Get Platform Overview
@@ -34,7 +35,7 @@ const getPlatformOverview = catchAsync(async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Platform overview error:', error);
+    logger.error('Platform overview error:', error);
     
     // Log the error
     await logSystemAdminActivity(req.user.email, 'platform_overview_error', {
@@ -83,7 +84,7 @@ const getSystemHealth = catchAsync(async (req, res) => {
     });
 
   } catch (error) {
-    console.error('System health error:', error);
+    logger.error('System health error:', error);
     
     // Log the error
     await logSystemAdminActivity(req.user.email, 'system_health_error', {
@@ -131,7 +132,7 @@ const getPlatformKPIs = catchAsync(async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Platform KPIs error:', error);
+    logger.error('Platform KPIs error:', error);
     
     // Log the error
     await logSystemAdminActivity(req.user.email, 'platform_kpis_error', {
@@ -186,7 +187,7 @@ const getCrossSchoolMetrics = catchAsync(async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Cross-school metrics error:', error);
+    logger.error('Cross-school metrics error:', error);
     
     // Log the error
     await logSystemAdminActivity(req.user.email, 'cross_school_metrics_error', {
@@ -241,7 +242,7 @@ const determineOverallHealthStatus = (healthMetrics) => {
     return 'healthy';
 
   } catch (error) {
-    console.error('Error determining health status:', error);
+    logger.error('Error determining health status:', error);
     return 'unknown';
   }
 };
@@ -284,7 +285,7 @@ const parseTimeRange = (timeRange) => {
     return { startDate, endDate };
 
   } catch (error) {
-    console.error('Error parsing time range:', error);
+    logger.error('Error parsing time range:', error);
     return {};
   }
 };
@@ -298,7 +299,7 @@ const parseTimeRange = (timeRange) => {
  * @param {string} operation - The operation that failed
  */
 const handleCrossSchoolError = async (error, req, res, operation) => {
-  console.error(`Cross-school ${operation} error:`, error);
+  logger.error(`Cross-school ${operation} error:`, error);
 
   // Log the error for audit purposes
   await logSystemAdminActivity(req.user.email, `cross_school_${operation}_error`, {
@@ -468,8 +469,8 @@ const updateSchoolConfig = catchAsync(async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Update school config error:', error);
-    console.error('Error details:', {
+    logger.error('Update school config error:', error);
+    logger.error('Error details:', {
       message: error.message,
       stack: error.stack,
       schoolId: req.params.schoolId,

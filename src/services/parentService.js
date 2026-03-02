@@ -8,6 +8,7 @@ const User = require('../models/User');
 const Student = require('../models/Student');
 const School = require('../models/School');
 const CacheService = require('./cacheService');
+const logger = require('../utils/logger');
 
 /**
  * Get Parents Service
@@ -23,7 +24,7 @@ const getParents = async (filters, pagination) => {
   // Try cache first
   const cachedData = await CacheService.get('parent', cacheKey);
   if (cachedData) {
-    console.log(`👨‍👩‍👧‍👦 Parent list cache HIT for ${cacheKey}`);
+    logger.info(`👨‍👩‍👧‍👦 Parent list cache HIT for ${cacheKey}`);
     return {
       ...cachedData,
       cached: true,
@@ -31,7 +32,7 @@ const getParents = async (filters, pagination) => {
     };
   }
 
-  console.log(`👨‍👩‍👧‍👦 Parent list cache MISS for ${cacheKey} - querying database`);
+  logger.info(`👨‍👩‍👧‍👦 Parent list cache MISS for ${cacheKey} - querying database`);
 
   // Build query
   const query = { schoolId, role: 'parent' };
@@ -103,7 +104,7 @@ const getParents = async (filters, pagination) => {
 
   // Cache parent data for 5 minutes (shorter TTL due to frequent updates)
   await CacheService.set('parent', cacheKey, parentData, 300);
-  console.log(`👨‍👩‍👧‍👦 Parent list cached for ${cacheKey}`);
+  logger.info(`👨‍👩‍👧‍👦 Parent list cached for ${cacheKey}`);
 
   return parentData;
 };
@@ -118,7 +119,7 @@ const getParentById = async (parentId, schoolId) => {
   const cachedParent = await CacheService.get('parent', cacheKey);
   
   if (cachedParent) {
-    console.log(`👨‍👩‍👧‍👦 Parent cache HIT for ${parentId}`);
+    logger.info(`👨‍👩‍👧‍👦 Parent cache HIT for ${parentId}`);
     return {
       ...cachedParent,
       cached: true,
@@ -126,7 +127,7 @@ const getParentById = async (parentId, schoolId) => {
     };
   }
 
-  console.log(`👨‍👩‍👧‍👦 Parent cache MISS for ${parentId} - fetching from database`);
+  logger.info(`👨‍👩‍👧‍👦 Parent cache MISS for ${parentId} - fetching from database`);
 
   const parent = await User.findOne({
     _id: parentId,
@@ -172,7 +173,7 @@ const getParentById = async (parentId, schoolId) => {
 
   // Cache parent data for 15 minutes
   await CacheService.set('parent', cacheKey, parentData, 900);
-  console.log(`👨‍👩‍👧‍👦 Parent data cached for ${parentId}`);
+  logger.info(`👨‍👩‍👧‍👦 Parent data cached for ${parentId}`);
 
   return parentData;
 };
@@ -503,7 +504,7 @@ const deleteParent = async (parentId, schoolId, adminUserId) => {
  * @param {string} parentId - Parent identifier (optional)
  */
 const invalidateParentCaches = async (schoolId, parentId = null) => {
-  console.log(`🗑️ Invalidating parent caches for school ${schoolId}${parentId ? ` and parent ${parentId}` : ''}`);
+  logger.info(`🗑️ Invalidating parent caches for school ${schoolId}${parentId ? ` and parent ${parentId}` : ''}`);
   
   // Invalidate specific parent cache if parentId provided
   if (parentId) {
@@ -518,7 +519,7 @@ const invalidateParentCaches = async (schoolId, parentId = null) => {
   const dashboardPattern = `educonnect:dashboard:analytics:${schoolId}*`;
   const dashboardDeleted = await CacheService.delPattern(dashboardPattern);
   
-  console.log(`🗑️ Invalidated ${deletedCount} parent list entries and ${dashboardDeleted} dashboard entries for school ${schoolId}`);
+  logger.info(`🗑️ Invalidated ${deletedCount} parent list entries and ${dashboardDeleted} dashboard entries for school ${schoolId}`);
 };
 
 /**
@@ -526,16 +527,16 @@ const invalidateParentCaches = async (schoolId, parentId = null) => {
  * @param {string} schoolId - School identifier
  */
 const warmUpParentCaches = async (schoolId) => {
-  console.log(`🔥 Warming up parent caches for school ${schoolId}`);
+  logger.info(`🔥 Warming up parent caches for school ${schoolId}`);
   
   try {
     // Pre-load common parent views
     await getParents({ schoolId, isActive: true }, { page: 1, limit: 20 });
     await getParents({ schoolId }, { page: 1, limit: 20 });
     
-    console.log(`🔥 Parent caches warmed up successfully for school ${schoolId}`);
+    logger.info(`🔥 Parent caches warmed up successfully for school ${schoolId}`);
   } catch (error) {
-    console.error(`❌ Failed to warm up parent caches for school ${schoolId}:`, error.message);
+    logger.error(`❌ Failed to warm up parent caches for school ${schoolId}:`, error.message);
   }
 };
 

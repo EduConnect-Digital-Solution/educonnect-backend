@@ -6,6 +6,7 @@
 
 const rateLimit = require('express-rate-limit');
 const { RateLimitError } = require('./errorHandler');
+const logger = require('../utils/logger');
 
 /**
  * Create a custom rate limit handler
@@ -276,7 +277,7 @@ const createLoggingLimiter = (options = {}) => {
     windowMs: config.windowMs,
     max: config.max,
     handler: (req, res) => {
-      console.log(`Rate limit exceeded for IP: ${req.ip}`);
+      logger.info(`Rate limit exceeded for IP: ${req.ip}`);
       createRateLimitHandler('Rate limit exceeded')(req, res);
     }
   });

@@ -10,6 +10,7 @@ const School = require('../models/School');
 const Student = require('../models/Student');
 const Invitation = require('../models/Invitation');
 const CacheService = require('./cacheService');
+const logger = require('../utils/logger');
 
 class DashboardService {
   /**
@@ -19,7 +20,7 @@ class DashboardService {
    */
   static async getDashboardAnalytics(schoolId) {
     // TEMPORARILY DISABLE CACHING - Always fetch fresh data
-    console.log(`📊 Dashboard cache DISABLED for school ${schoolId} - fetching fresh data from database`);
+    logger.info(`📊 Dashboard cache DISABLED for school ${schoolId} - fetching fresh data from database`);
 
     // Get school information
     const school = await School.findOne({ schoolId });
@@ -55,7 +56,7 @@ class DashboardService {
       }
     ]);
 
-    console.log(`📊 DEBUG: Raw invitation stats for ${schoolId}:`, invitationStats);
+    logger.info(`📊 DEBUG: Raw invitation stats for ${schoolId}:`, invitationStats);
 
     // Get recent activity (last 30 days)
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
@@ -107,7 +108,7 @@ class DashboardService {
       }
     });
 
-    console.log(`📊 DEBUG: Formatted invitation stats for ${schoolId}:`, formattedInvitationStats);
+    logger.info(`📊 DEBUG: Formatted invitation stats for ${schoolId}:`, formattedInvitationStats);
 
     // Calculate totals
     const totalUsers = Object.values(formattedUserStats).reduce((sum, role) => sum + role.total, 0);
@@ -182,7 +183,7 @@ class DashboardService {
     };
 
     // TEMPORARILY DISABLE CACHING - Don't cache the data
-    console.log(`📊 Dashboard caching DISABLED for school ${schoolId} - returning fresh data`);
+    logger.info(`📊 Dashboard caching DISABLED for school ${schoolId} - returning fresh data`);
 
     return dashboardData;
   }
@@ -456,7 +457,7 @@ class DashboardService {
     const success = await CacheService.del('dashboard', cacheKey);
 
     if (success) {
-      console.log(`🗑️ Dashboard cache invalidated for school ${schoolId}`);
+      logger.info(`🗑️ Dashboard cache invalidated for school ${schoolId}`);
     }
 
     return success;

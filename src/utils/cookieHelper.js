@@ -53,7 +53,7 @@ const getCookieConfig = (req) => {
   }
 
   if (!isProduction) {
-    console.log('🍪 Cookie config:', {
+    logger.info('🍪 Cookie config:', {
       ...config,
       origin,
       isProduction,
@@ -77,7 +77,7 @@ const setRefreshTokenCookie = (res, refreshToken, req = null) => {
 
   res.cookie('refreshToken', refreshToken, cookieConfig);
 
-  console.log('🍪 Refresh token cookie set with secure configuration');
+  logger.info('🍪 Refresh token cookie set with secure configuration');
 };
 
 /**
@@ -95,7 +95,7 @@ const clearRefreshTokenCookie = (res, req = null) => {
     maxAge: 0
   });
 
-  console.log('🍪 Refresh token cookie cleared');
+  logger.info('🍪 Refresh token cookie cleared');
 };
 
 /**
@@ -108,11 +108,11 @@ const getRefreshTokenFromCookie = (req) => {
   const refreshToken = req.cookies?.refreshToken;
 
   if (refreshToken) {
-    console.log('🍪 Refresh token found in cookie');
+    logger.info('🍪 Refresh token found in cookie');
     return refreshToken;
   }
 
-  console.log('🍪 No refresh token found in cookies');
+  logger.info('🍪 No refresh token found in cookies');
   return null;
 };
 

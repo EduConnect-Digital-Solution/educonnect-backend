@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const config = require('../config');
 const { verifySystemAdminToken } = require('../services/systemAdminAuthService');
+const CacheService = require('../services/cacheService');
 const { ROLES } = require('./rbac');
 
 /**
@@ -33,6 +34,15 @@ const authenticateToken = async (req, res, next) => {
       return res.status(401).json({
         success: false,
         message: 'Access token required'
+      });
+    }
+
+    // Check if token has been blacklisted (e.g. after logout)
+    const isBlacklisted = await CacheService.isTokenBlacklisted(token);
+    if (isBlacklisted) {
+      return res.status(401).json({
+        success: false,
+        message: 'Token has been revoked'
       });
     }
 
@@ -85,7 +95,7 @@ const authenticateToken = async (req, res, next) => {
         role: decoded.role,
         schoolId: decoded.schoolId
       };
-      
+
       // Only add optional fields if they exist in the decoded token
       if (decoded.firstName) req.user.firstName = decoded.firstName;
       if (decoded.lastName) req.user.lastName = decoded.lastName;

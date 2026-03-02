@@ -22,7 +22,7 @@ const catchAsync = (fn) => {
         }
       };
 
-      console.error(`🔥 ASYNC ERROR CAUGHT [${req.requestId || 'NO_ID'}]:`, JSON.stringify(errorContext, null, 2));
+      logger.error(`🔥 ASYNC ERROR CAUGHT [${req.requestId || 'NO_ID'}]:`, JSON.stringify(errorContext, null, 2));
       logger.error('Async Error Caught', errorContext);
       
       next(error);

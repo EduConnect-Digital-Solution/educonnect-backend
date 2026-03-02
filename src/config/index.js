@@ -1,4 +1,5 @@
 require('dotenv').config();
+const logger = require('../utils/logger');
 
 const config = {
   port: process.env.PORT || 3000,
@@ -58,8 +59,8 @@ const requiredEnvVars = [
 const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
 
 if (missingEnvVars.length > 0) {
-  console.error('Missing required environment variables:', missingEnvVars.join(', '));
-  console.error('Please check your .env file and ensure all required variables are set.');
+  logger.error('Missing required environment variables:', missingEnvVars.join(', '));
+  logger.error('Please check your .env file and ensure all required variables are set.');
   process.exit(1);
 }
 

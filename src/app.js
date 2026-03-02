@@ -45,7 +45,7 @@ app.use(cors({
     if (isAllowed) {
       callback(null, true);
     } else {
-      console.log(`🚫 CORS blocked origin: ${origin}`);
+      logger.info(`🚫 CORS blocked origin: ${origin}`);
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -75,9 +75,9 @@ if (process.env.NODE_ENV !== 'development') {
   app.use('/api/school/auth', authLimiter);
   app.use('/api/user/auth', authLimiter);
   app.use('/api/system-admin/auth', authLimiter);
-  console.log('🛡️ Rate limiting enabled for production');
+  logger.info('🛡️ Rate limiting enabled for production');
 } else {
-  console.log('🚧 Rate limiting disabled for development');
+  logger.info('🚧 Rate limiting disabled for development');
 }
 
 // Body parsing middleware
@@ -158,7 +158,7 @@ app.get('/debug', (req, res) => {
     }
   };
 
-  console.log('🔍 DEBUG INFO REQUESTED:', JSON.stringify(debugInfo, null, 2));
+  logger.info('🔍 DEBUG INFO REQUESTED:', JSON.stringify(debugInfo, null, 2));
   res.status(200).json(debugInfo);
 });
 

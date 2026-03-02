@@ -5,6 +5,7 @@
 
 const { verifySystemAdminToken } = require('../services/systemAdminAuthService');
 const { ROLES } = require('./rbac');
+const logger = require('../utils/logger');
 
 /**
  * Authenticate system admin using JWT token
@@ -66,7 +67,7 @@ const authenticateSystemAdmin = (req, res, next) => {
     next();
 
   } catch (error) {
-    console.error('System admin authentication error:', error);
+    logger.error('System admin authentication error:', error);
     return res.status(500).json({
       success: false,
       message: 'Authentication error',
@@ -210,13 +211,13 @@ const auditSystemOperation = (operationType = 'unknown') => {
       req.auditData = auditData;
 
       // Log the operation (in a real implementation, this would go to PlatformAuditLog)
-      console.log('🔍 System Admin Operation:', JSON.stringify(auditData, null, 2));
+      logger.info('🔍 System Admin Operation:', JSON.stringify(auditData, null, 2));
 
       // Continue to next middleware
       next();
 
     } catch (error) {
-      console.error('Audit logging error:', error);
+      logger.error('Audit logging error:', error);
       // Don't fail the request due to audit logging issues
       next();
     }
@@ -238,10 +239,10 @@ const completeAuditLog = (req, res, next) => {
         success: res.statusCode < 400
       };
 
-      console.log('✅ System Admin Operation Completed:', JSON.stringify(completedAudit, null, 2));
+      logger.info('✅ System Admin Operation Completed:', JSON.stringify(completedAudit, null, 2));
     }
   } catch (error) {
-    console.error('Complete audit log error:', error);
+    logger.error('Complete audit log error:', error);
   }
   
   next();
