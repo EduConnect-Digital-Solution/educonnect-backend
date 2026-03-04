@@ -192,32 +192,49 @@ const loginSchoolAdmin = catchAsync(async (req, res) => {
 
 /**
  * Refresh JWT Token
- * Generates new access token using refresh token from HttpOnly cookie
+ * Reads session ID from HttpOnly cookie, retrieves refresh token from Redis,
+ * generates new tokens, and updates the session.
  * Requirements: 2.5
  */
 const refreshToken = catchAsync(async (req, res) => {
+  const SessionService = require('../services/sessionService');
+
   try {
-    // Try to get refresh token from cookie first, then fallback to body for backward compatibility
-    let refreshTokenValue = getRefreshTokenFromCookie(req);
-    let source = 'cookie';
+    const sessionId = getSessionIdFromCookie(req);
 
-    if (!refreshTokenValue && req.body.refreshToken) {
-      refreshTokenValue = req.body.refreshToken;
-      source = 'body';
-      logger.info('⚠️ Using refresh token from request body (deprecated)');
-    }
-
-    if (!refreshTokenValue) {
+    if (!sessionId) {
       return res.status(401).json({
         success: false,
-        message: 'Refresh token not found. Please login again.'
+        message: 'No session found. Please login again.'
       });
     }
 
-    const result = await authService.refreshToken(refreshTokenValue, source);
+    const session = await SessionService.validateSession(sessionId);
 
-    // Set new refresh token as HttpOnly cookie
-    setRefreshTokenCookie(res, result.tokens.refreshToken, req);
+    if (!session || !session.tokens || !session.tokens.refreshToken) {
+      clearSessionIdCookie(res, req);
+      return res.status(401).json({
+        success: false,
+        message: 'Session expired or invalid. Please login again.'
+      });
+    }
+
+    const result = await authService.refreshToken(session.tokens.refreshToken, 'session');
+
+    const { getRedisClient, isRedisAvailable } = require('../config/redis');
+    if (isRedisAvailable()) {
+      const redis = getRedisClient();
+      const sessionKey = `session:${sessionId}`;
+      const updatedSession = {
+        ...session,
+        tokens: {
+          accessToken: result.tokens.accessToken,
+          refreshToken: result.tokens.refreshToken
+        },
+        lastActivity: new Date().toISOString()
+      };
+      await redis.setex(sessionKey, 7 * 24 * 60 * 60, JSON.stringify(updatedSession));
+    }
 
     res.status(200).json({
       success: true,
@@ -227,57 +244,55 @@ const refreshToken = catchAsync(async (req, res) => {
         tokens: {
           accessToken: result.tokens.accessToken,
           expiresIn: result.tokens.expiresIn
-          // refreshToken is now in HttpOnly cookie
         }
       }
     });
   } catch (error) {
-    // Clear invalid refresh token cookie
-    clearRefreshTokenCookie(res, req);
+    clearSessionIdCookie(res, req);
 
     if (error.message.includes('Invalid') || error.message.includes('expired') ||
       error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
       return res.status(401).json({
         success: false,
-        message: 'Invalid or expired refresh token. Please login again.'
+        message: 'Session expired. Please login again.'
       });
     }
 
-    // Re-throw for global error handler
     throw error;
   }
 });
 
 /**
  * Logout
- * Clears HttpOnly cookie and invalidates the current session
+ * Clears session cookie and revokes server-side session
  * Requirements: 2.5
  */
 const logout = catchAsync(async (req, res) => {
-  try {
-    // Clear both cookies (refresh token + session ID)
-    clearRefreshTokenCookie(res, req);
-    clearSessionIdCookie(res, req);
+  const SessionService = require('../services/sessionService');
 
-    // Blacklist the access token so it can't be used after logout
+  try {
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.split(' ')[1];
       const CacheService = require('../services/cacheService');
-      await CacheService.blacklistToken(token, 3600); // 1 hour (access token TTL)
+      await CacheService.blacklistToken(token, 3600);
     }
 
-    // If user ID is available from auth middleware, invalidate cached session
-    if (req.user && req.user.userId) {
-      await authService.invalidateUserSession(req.user.userId);
+    const sessionId = getSessionIdFromCookie(req);
+    if (sessionId) {
+      const session = await SessionService.validateSession(sessionId);
+      const userId = session ? session.userId : (req.user && req.user.userId);
+      await SessionService.revokeSession(sessionId, userId);
     }
+
+    clearRefreshTokenCookie(res, req);
+    clearSessionIdCookie(res, req);
 
     res.status(200).json({
       success: true,
       message: 'Logged out successfully'
     });
   } catch (error) {
-    // Even if session invalidation fails, clear the cookies
     clearRefreshTokenCookie(res, req);
     clearSessionIdCookie(res, req);
 
