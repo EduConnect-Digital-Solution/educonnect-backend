@@ -659,17 +659,16 @@ const resendInvitation = catchAsync(async (req, res) => {
       });
     }
 
-    if (error.message === 'Cannot resend invitation - user has already completed registration' ||
-      error.message === 'Cannot resend cancelled invitation' ||
-      error.message === 'Can only resend pending invitations' ||
-      error.message === 'Cannot resend expired invitation. Please create a new invitation.') {
+    if (error.message.includes('Cannot resend') ||
+      error.message.includes('expired') ||
+      error.message.includes('Can only resend')) {
       return res.status(400).json({
         success: false,
         message: error.message
       });
     }
 
-    if (error.message === 'Associated user or school not found') {
+    if (error.message.includes('not found')) {
       return res.status(404).json({
         success: false,
         message: error.message
@@ -745,21 +744,11 @@ const cancelInvitation = catchAsync(async (req, res) => {
       });
     }
 
-    // For testing, find admin user. In production, this would be req.user.userId from auth middleware
-    const User = require('../models/User');
-    const adminUser = await User.findOne({
-      schoolId: targetSchoolId,
-      role: 'admin'
-    });
+    // Use the authenticated user's ID as the admin ID for tracking
+    // This works for both School admins (req.user.id) and User admins (req.user.userId)
+    const adminId = req.user.userId || req.user.id;
 
-    if (!adminUser) {
-      return res.status(400).json({
-        success: false,
-        message: 'No admin user found for this school'
-      });
-    }
-
-    const result = await invitationService.cancelInvitation(invitationId, targetSchoolId, adminUser._id, reason);
+    const result = await invitationService.cancelInvitation(invitationId, targetSchoolId, adminId, reason);
 
     res.status(200).json({
       success: true,
@@ -777,15 +766,9 @@ const cancelInvitation = catchAsync(async (req, res) => {
       });
     }
 
-    if (error.message === 'No admin user found for this school') {
-      return res.status(400).json({
-        success: false,
-        message: error.message
-      });
-    }
-
-    if (error.message === 'Cannot cancel invitation - user has already completed registration' ||
-      error.message === 'Invitation is already cancelled') {
+    if (error.message.includes('Cannot cancel') ||
+      error.message.includes('already cancelled') ||
+      error.message.includes('already expired')) {
       return res.status(400).json({
         success: false,
         message: error.message

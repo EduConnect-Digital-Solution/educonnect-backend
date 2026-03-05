@@ -18,7 +18,7 @@ const getSchoolProfile = async (schoolId) => {
   // Try to get cached school profile first
   const cacheKey = `profile:${schoolId}`;
   const cachedProfile = await CacheService.get('school', cacheKey);
-  
+
   if (cachedProfile) {
     logger.info(`🏫 School profile cache HIT for ${schoolId}`);
     return {
@@ -37,13 +37,13 @@ const getSchoolProfile = async (schoolId) => {
   }
 
   // Get admin user information
-  const adminUser = await User.findOne({ 
-    schoolId, 
-    role: 'admin' 
+  const adminUser = await User.findOne({
+    schoolId,
+    role: 'admin'
   }).select('-password');
 
   if (!adminUser) {
-    throw new Error('Admin user not found for this school');
+    logger.warn(`No admin user found for school ${schoolId} - profile will have null admin section`);
   }
 
   // Get school statistics
@@ -78,7 +78,7 @@ const getSchoolProfile = async (schoolId) => {
       terms: school.terms || [],
       holidays: school.holidays || []
     },
-    admin: {
+    admin: adminUser ? {
       id: adminUser._id,
       firstName: adminUser.firstName,
       lastName: adminUser.lastName,
@@ -88,7 +88,7 @@ const getSchoolProfile = async (schoolId) => {
       isActive: adminUser.isActive,
       createdAt: adminUser.createdAt,
       lastLoginAt: adminUser.lastLoginAt
-    },
+    } : null,
     statistics: {
       totalStudents,
       totalTeachers,
@@ -212,9 +212,9 @@ const updateAdminProfile = async (schoolId, updateData) => {
   } = updateData;
 
   // Find the admin user
-  const adminUser = await User.findOne({ 
-    schoolId, 
-    role: 'admin' 
+  const adminUser = await User.findOne({
+    schoolId,
+    role: 'admin'
   });
 
   if (!adminUser) {
@@ -349,7 +349,7 @@ const getSchoolStatistics = async (schoolId) => {
   // Try to get cached statistics first
   const cacheKey = `statistics:${schoolId}`;
   const cachedStats = await CacheService.get('school', cacheKey);
-  
+
   if (cachedStats) {
     logger.info(`📊 School statistics cache HIT for ${schoolId}`);
     return {
@@ -445,17 +445,17 @@ const getSchoolStatistics = async (schoolId) => {
  */
 const invalidateSchoolCaches = async (schoolId) => {
   logger.info(`🗑️ Invalidating school caches for ${schoolId}`);
-  
+
   // Invalidate school profile cache
   await CacheService.del('school', `profile:${schoolId}`);
-  
+
   // Invalidate school statistics cache
   await CacheService.del('school', `statistics:${schoolId}`);
-  
+
   // Invalidate dashboard caches that depend on school data
   const dashboardPattern = `educonnect:dashboard:analytics:${schoolId}*`;
   const deletedCount = await CacheService.delPattern(dashboardPattern);
-  
+
   logger.info(`🗑️ Invalidated school caches and ${deletedCount} related dashboard entries for ${schoolId}`);
 };
 
@@ -465,14 +465,14 @@ const invalidateSchoolCaches = async (schoolId) => {
  */
 const warmUpSchoolCaches = async (schoolId) => {
   logger.info(`🔥 Warming up school caches for ${schoolId}`);
-  
+
   try {
     // Pre-load school profile
     await getSchoolProfile(schoolId);
-    
+
     // Pre-load school statistics
     await getSchoolStatistics(schoolId);
-    
+
     logger.info(`🔥 School caches warmed up successfully for ${schoolId}`);
   } catch (error) {
     logger.error(`❌ Failed to warm up school caches for ${schoolId}:`, error.message);

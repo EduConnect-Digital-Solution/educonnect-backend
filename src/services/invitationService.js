@@ -448,29 +448,35 @@ const listInvitations = async (filters, pagination) => {
   // Get total count for pagination
   const total = await Invitation.countDocuments(query);
 
-  // Format response
-  const formattedInvitations = invitations.map(invitation => ({
-    id: invitation._id,
-    email: invitation.email,
-    role: invitation.role,
-    status: invitation.status,
-    statusDisplay: invitation.statusDisplay,
-    firstName: invitation.metadata?.firstName,
-    lastName: invitation.metadata?.lastName,
-    subjects: invitation.subjects,
-    invitedBy: invitation.invitedBy ? {
-      name: `${invitation.invitedBy.firstName} ${invitation.invitedBy.lastName}`,
-      email: invitation.invitedBy.email
-    } : null,
-    invitedAt: invitation.createdAt,
-    expiresAt: invitation.expiresAt,
-    isExpired: invitation.isExpired(),
-    resendCount: invitation.resendCount,
-    lastResendAt: invitation.lastResendAt,
-    acceptedAt: invitation.acceptedAt,
-    cancelledAt: invitation.cancelledAt,
-    cancellationReason: invitation.cancellationReason
-  }));
+  // Format response — override status/statusDisplay for expired invitations
+  const formattedInvitations = invitations.map(invitation => {
+    const isExpired = invitation.isExpired && invitation.isExpired();
+    const effectiveStatus = (isExpired && invitation.status === 'pending') ? 'expired' : invitation.status;
+    const effectiveStatusDisplay = (isExpired && invitation.status === 'pending') ? 'Expired' : invitation.statusDisplay;
+
+    return {
+      id: invitation._id,
+      email: invitation.email,
+      role: invitation.role,
+      status: effectiveStatus,
+      statusDisplay: effectiveStatusDisplay,
+      firstName: invitation.metadata?.firstName,
+      lastName: invitation.metadata?.lastName,
+      subjects: invitation.subjects,
+      invitedBy: invitation.invitedBy ? {
+        name: `${invitation.invitedBy.firstName} ${invitation.invitedBy.lastName}`,
+        email: invitation.invitedBy.email
+      } : null,
+      invitedAt: invitation.createdAt,
+      expiresAt: invitation.expiresAt,
+      isExpired: isExpired,
+      resendCount: invitation.resendCount,
+      lastResendAt: invitation.lastResendAt,
+      acceptedAt: invitation.acceptedAt,
+      cancelledAt: invitation.cancelledAt,
+      cancellationReason: invitation.cancellationReason
+    };
+  });
 
   const invitationData = {
     invitations: formattedInvitations,
@@ -517,16 +523,8 @@ const cancelInvitation = async (invitationId, schoolId, adminUserId, reason) => 
     throw new Error('Invitation not found');
   }
 
-  // Get admin user for cancellation tracking
-  const adminUser = await User.findOne({
-    _id: adminUserId,
-    schoolId,
-    role: 'admin'
-  });
-
-  if (!adminUser) {
-    throw new Error('No admin user found for this school');
-  }
+  // Get the admin user ID for tracking — trust the caller's ID
+  const adminId = adminUserId;
 
   // Check if invitation can be cancelled
   if (invitation.status === 'accepted') {
@@ -543,7 +541,7 @@ const cancelInvitation = async (invitationId, schoolId, adminUserId, reason) => 
   }
 
   // Cancel invitation using the model method
-  await invitation.cancel(adminUser._id, reason || 'Cancelled by administrator');
+  await invitation.cancel(adminId, reason || 'Cancelled by administrator');
 
   // Also deactivate the associated user if they haven't completed registration
   const userId = invitation.metadata?.userId;

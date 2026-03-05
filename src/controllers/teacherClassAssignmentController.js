@@ -56,12 +56,11 @@ const assignClassesToTeacher = catchAsync(async (req, res) => {
   if (newClasses.length > 0) {
     teacher.classes = [...existingClasses, ...newClasses];
     await teacher.save();
-
-    // Invalidate teacher caches after class assignment
-    await TeacherService.invalidateTeacherCaches(targetSchoolId, teacherId);
-    // Also invalidate grades namespace cache (teacher classes are cached there)
-    await CacheService.del('grades', `classes:${teacherId}`);
   }
+
+  // Always invalidate caches to ensure fresh data on teacher dashboard
+  await TeacherService.invalidateTeacherCaches(targetSchoolId, teacherId);
+  await CacheService.del('grades', `classes:${teacherId}`);
 
   res.status(200).json({
     success: true,
