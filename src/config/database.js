@@ -5,11 +5,8 @@ const connectDB = async () => {
   try {
     logger.info('🔄 Attempting to connect to MongoDB...');
     logger.info('📍 MongoDB URI:', process.env.MONGODB_URI ? 'Set' : 'Not set');
-    
-    const conn = await mongoose.connect(process.env.MONGODB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
+
+    const conn = await mongoose.connect(process.env.MONGODB_URI);
 
     logger.info(`✅ MongoDB Connected: ${conn.connection.host}`);
     logger.info('Database Connected', {
@@ -17,7 +14,7 @@ const connectDB = async () => {
       name: conn.connection.name,
       readyState: conn.connection.readyState
     });
-    
+
     // Handle connection events with enhanced logging
     mongoose.connection.on('error', (err) => {
       const dbError = {
@@ -84,7 +81,7 @@ const connectDB = async () => {
 
     logger.error('💥 DATABASE CONNECTION FAILED:', JSON.stringify(connectionError, null, 2));
     logger.error('Database Connection Failed', connectionError);
-    
+
     // Don't exit the process - let the server run without DB for now
     logger.info('⚠️ Server will continue running without database connection');
   }

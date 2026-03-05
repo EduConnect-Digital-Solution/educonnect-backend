@@ -17,6 +17,10 @@ const {
   verifySystemAdminToken
 } = require('./systemAdminAuthService');
 const jwt = require('jsonwebtoken');
+const {
+  generateTokenPair,
+  verifyRefreshToken: verifyRefreshTokenFn
+} = require('../middleware/auth');
 const SessionService = require('./sessionService');
 const logger = require('../utils/logger');
 
@@ -668,36 +672,11 @@ const completeRegistration = async (userData) => {
 
 /**
  * Token Generation Helper
- * Generates access and refresh tokens
+ * Delegates to the canonical token functions in middleware/auth.js
  */
 const generateTokens = (userId, schoolId, role) => {
-  const accessToken = jwt.sign(
-    {
-      userId,
-      schoolId,
-      role,
-      type: 'access'
-    },
-    process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
-  );
-
-  const refreshToken = jwt.sign(
-    {
-      userId,
-      schoolId,
-      role,
-      type: 'refresh'
-    },
-    process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET,
-    { expiresIn: '7d' }
-  );
-
-  return {
-    accessToken,
-    refreshToken,
-    expiresIn: process.env.JWT_EXPIRES_IN || '24h'
-  };
+  const payload = { userId, schoolId, role };
+  return generateTokenPair(payload);
 };
 
 /**
@@ -711,10 +690,7 @@ const refreshToken = async (refreshTokenValue, source = 'body') => {
   }
 
   // Verify refresh token
-  const decoded = jwt.verify(
-    refreshTokenValue,
-    process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET
-  );
+  const decoded = verifyRefreshTokenFn(refreshTokenValue);
 
   // Find the user
   const user = await User.findById(decoded.userId);

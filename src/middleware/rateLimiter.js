@@ -5,8 +5,28 @@
  */
 
 const rateLimit = require('express-rate-limit');
+const RedisStore = require('rate-limit-redis');
+const { getRedisClient, isRedisAvailable } = require('../config/redis');
 const { RateLimitError } = require('./errorHandler');
 const logger = require('../utils/logger');
+
+/**
+ * Create a Redis-backed store for rate limiting
+ * Falls back to in-memory if Redis is unavailable
+ */
+const createRedisStore = (prefix = 'rl') => {
+  if (!isRedisAvailable()) return undefined;
+  try {
+    const client = getRedisClient();
+    return new RedisStore({
+      sendCommand: (...args) => client.call(...args),
+      prefix: `educonnect:ratelimit:${prefix}:`
+    });
+  } catch (error) {
+    logger.warn('Redis rate limit store unavailable, using in-memory fallback');
+    return undefined;
+  }
+};
 
 /**
  * Create a custom rate limit handler
@@ -26,6 +46,7 @@ const createRateLimitHandler = (message) => {
  * Applies to all API endpoints
  */
 const generalLimiter = rateLimit({
+  store: createRedisStore('general'),
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 1000, // Limit each IP to 1000 requests per windowMs
   message: 'Too many requests from this IP, please try again later.',
@@ -39,6 +60,7 @@ const generalLimiter = rateLimit({
  * Stricter limits for auth endpoints
  */
 const authLimiter = rateLimit({
+  store: createRedisStore('auth'),
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 20, // Limit each IP to 20 auth requests per windowMs
   message: 'Too many authentication attempts, please try again later.',
@@ -53,6 +75,7 @@ const authLimiter = rateLimit({
  * Very strict limits for registration
  */
 const registrationLimiter = rateLimit({
+  store: createRedisStore('register'),
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 5, // Limit each IP to 5 registration attempts per hour
   message: 'Too many registration attempts, please try again later.',
@@ -65,6 +88,7 @@ const registrationLimiter = rateLimit({
  * Password reset rate limiter
  */
 const passwordResetLimiter = rateLimit({
+  store: createRedisStore('pwreset'),
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 10, // Limit each IP to 10 password reset requests per hour
   message: 'Too many password reset attempts, please try again later.',
@@ -77,6 +101,7 @@ const passwordResetLimiter = rateLimit({
  * Email verification rate limiter
  */
 const emailVerificationLimiter = rateLimit({
+  store: createRedisStore('emailverify'),
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 10, // Limit each IP to 10 verification attempts per 15 minutes
   message: 'Too many email verification attempts, please try again later.',
@@ -89,6 +114,7 @@ const emailVerificationLimiter = rateLimit({
  * OTP request rate limiter
  */
 const otpLimiter = rateLimit({
+  store: createRedisStore('otp'),
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 5, // Limit each IP to 5 OTP requests per 15 minutes
   message: 'Too many OTP requests, please try again later.',
@@ -101,6 +127,7 @@ const otpLimiter = rateLimit({
  * File upload rate limiter
  */
 const uploadLimiter = rateLimit({
+  store: createRedisStore('upload'),
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 50, // Limit each IP to 50 upload requests per 15 minutes
   message: 'Too many file upload attempts, please try again later.',
@@ -113,6 +140,7 @@ const uploadLimiter = rateLimit({
  * Search rate limiter
  */
 const searchLimiter = rateLimit({
+  store: createRedisStore('search'),
   windowMs: 1 * 60 * 1000, // 1 minute
   max: 100, // Limit each IP to 100 search requests per minute
   message: 'Too many search requests, please try again later.',
@@ -125,6 +153,7 @@ const searchLimiter = rateLimit({
  * Admin operations rate limiter
  */
 const adminLimiter = rateLimit({
+  store: createRedisStore('admin'),
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 200, // Limit each IP to 200 admin requests per 15 minutes
   message: 'Too many admin requests, please try again later.',
@@ -155,14 +184,14 @@ const createCustomLimiter = (options = {}) => {
 const skipRateLimit = (req) => {
   // Skip rate limiting for health checks
   if (req.path === '/health') return true;
-  
+
   // Skip for localhost in development
   if (process.env.NODE_ENV === 'development' && req.ip === '127.0.0.1') return true;
-  
+
   // Skip for whitelisted IPs (if configured)
   const whitelistedIPs = process.env.RATE_LIMIT_WHITELIST?.split(',') || [];
   if (whitelistedIPs.includes(req.ip)) return true;
-  
+
   return false;
 };
 
@@ -175,7 +204,7 @@ const dynamicRateLimiter = (req, res, next) => {
 
   // Different limits based on user role
   let limiter;
-  
+
   if (req.user) {
     switch (req.user.role) {
       case 'admin':
@@ -209,14 +238,14 @@ const endpointLimiters = {
   '/api/school/auth/reset-password': passwordResetLimiter,
   '/api/school/auth/verify-email': emailVerificationLimiter,
   '/api/school/auth/resend-otp': otpLimiter,
-  
+
   '/api/user/auth/login': authLimiter,
   '/api/user/auth/complete-registration': authLimiter,
-  
+
   // Search endpoints
   '/api/students/search': searchLimiter,
   '/api/parent-management/parents': searchLimiter,
-  
+
   // Upload endpoints
   '/api/upload': uploadLimiter
 };
@@ -253,9 +282,9 @@ const createDynamicLimiter = (options = {}) => {
     maxAnonymous: 10,
     maxAuthenticated: 50
   };
-  
+
   const config = { ...defaultOptions, ...options };
-  
+
   return rateLimit({
     windowMs: config.windowMs,
     max: (req) => {
@@ -270,9 +299,9 @@ const createLoggingLimiter = (options = {}) => {
     windowMs: 15 * 60 * 1000,
     max: 100
   };
-  
+
   const config = { ...defaultOptions, ...options };
-  
+
   return rateLimit({
     windowMs: config.windowMs,
     max: config.max,
