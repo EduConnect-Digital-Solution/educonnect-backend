@@ -232,9 +232,9 @@ const refreshToken = catchAsync(async (req, res) => {
  * Clears session cookie and revokes server-side session
  */
 const logout = catchAsync(async (req, res) => {
-  const SessionService = require('../services/sessionService');
-
   try {
+    const SessionService = require('../services/sessionService');
+
     // 1. Blacklist the access token if present
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -260,9 +260,13 @@ const logout = catchAsync(async (req, res) => {
       message: 'Logged out successfully'
     });
   } catch (error) {
-    // Even if session invalidation fails, clear the cookies
-    clearRefreshTokenCookie(res, req);
-    clearSessionIdCookie(res, req);
+    // Even if anything fails, always clear cookies and return success
+    try {
+      clearRefreshTokenCookie(res, req);
+      clearSessionIdCookie(res, req);
+    } catch (cookieError) {
+      // Ignore cookie clearing errors
+    }
 
     res.status(200).json({
       success: true,

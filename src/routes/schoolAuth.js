@@ -191,4 +191,17 @@ router.post('/cancel-invitation',
   schoolAuthController.cancelInvitation
 );
 
+/**
+ * @route   POST /api/school/auth/delete-invitation
+ * @desc    Permanently delete a cancelled, expired, or pending invitation (Admin only)
+ * @access  Private (Admin)
+ * @body    {invitationId, schoolId?}
+ */
+router.post('/delete-invitation',
+  rateLimiter.authLimiter,
+  authenticateToken,
+  requireRole(['admin']),
+  schoolAuthController.deleteInvitation
+);
+
 module.exports = router;

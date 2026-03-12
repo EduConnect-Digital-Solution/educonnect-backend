@@ -658,12 +658,64 @@ const warmUpInvitationCaches = async (schoolId) => {
   }
 };
 
+/**
+ * Delete Invitation Service
+ * Permanently removes a cancelled or expired invitation from the database
+ * Only cancelled, expired, or pending invitations can be deleted
+ */
+const deleteInvitation = async (invitationId, schoolId) => {
+  const invitation = await Invitation.findOne({
+    _id: invitationId,
+    schoolId
+  });
+
+  if (!invitation) {
+    throw new Error('Invitation not found');
+  }
+
+  // Cannot delete accepted invitations (user already registered)
+  if (invitation.status === 'accepted') {
+    throw new Error('Cannot delete invitation - user has already completed registration');
+  }
+
+  // Also deactivate the associated user if they haven't completed registration
+  const userId = invitation.metadata?.userId;
+  if (userId) {
+    const user = await User.findById(userId);
+    if (user && user.isTemporaryPassword) {
+      user.isActive = false;
+      user.deactivatedAt = new Date();
+      user.deactivationReason = 'Invitation deleted by administrator';
+      await user.save();
+    }
+  }
+
+  // Permanently remove the invitation
+  await Invitation.findByIdAndDelete(invitationId);
+
+  // Invalidate caches
+  await invalidateInvitationCaches(schoolId);
+  const DashboardService = require('./dashboardService');
+  await DashboardService.invalidateDashboardCache(schoolId);
+
+  return {
+    message: 'Invitation deleted successfully',
+    deletedInvitation: {
+      id: invitation._id,
+      email: invitation.email,
+      role: invitation.role,
+      status: invitation.status
+    }
+  };
+};
+
 module.exports = {
   createTeacherInvitation,
   createParentInvitation,
   resendInvitation,
   listInvitations,
   cancelInvitation,
+  deleteInvitation,
   // Cache management functions
   invalidateInvitationCaches,
   cacheInvitationRateLimit,

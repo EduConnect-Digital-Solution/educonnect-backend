@@ -6,6 +6,10 @@
 const Student = require('../models/Student');
 const User = require('../models/User');
 const School = require('../models/School');
+const CacheService = require('./cacheService');
+const GradeService = require('./gradeService');
+const TeacherService = require('./teacherService');
+const logger = require('../utils/logger');
 
 /**
  * Assign Teacher to Students
@@ -86,6 +90,15 @@ const assignTeacherToStudents = async (teacherId, studentIds, schoolId, adminUse
         error: error.message
       });
     }
+  }
+
+  // Invalidate teacher dashboard caches so student counts update immediately
+  try {
+    await GradeService.invalidateGradeCaches(schoolId, teacherId);
+    await TeacherService.invalidateTeacherCaches(schoolId, teacherId);
+    logger.info(`🗑️ Invalidated teacher caches after student assignment for teacher ${teacherId}`);
+  } catch (cacheError) {
+    logger.error(`❌ Failed to invalidate caches after assignment:`, cacheError.message);
   }
 
   return results;
@@ -216,6 +229,15 @@ const unassignTeacherFromStudents = async (teacherId, studentIds, schoolId, admi
         error: error.message
       });
     }
+  }
+
+  // Invalidate teacher dashboard caches so student counts update immediately
+  try {
+    await GradeService.invalidateGradeCaches(schoolId, teacherId);
+    await TeacherService.invalidateTeacherCaches(schoolId, teacherId);
+    logger.info(`🗑️ Invalidated teacher caches after student unassignment for teacher ${teacherId}`);
+  } catch (cacheError) {
+    logger.error(`❌ Failed to invalidate caches after unassignment:`, cacheError.message);
   }
 
   return results;

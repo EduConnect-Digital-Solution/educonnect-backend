@@ -268,9 +268,9 @@ const refreshToken = catchAsync(async (req, res) => {
  * Requirements: 2.5
  */
 const logout = catchAsync(async (req, res) => {
-  const SessionService = require('../services/sessionService');
-
   try {
+    const SessionService = require('../services/sessionService');
+
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.split(' ')[1];
@@ -293,8 +293,13 @@ const logout = catchAsync(async (req, res) => {
       message: 'Logged out successfully'
     });
   } catch (error) {
-    clearRefreshTokenCookie(res, req);
-    clearSessionIdCookie(res, req);
+    // Even if anything fails, always clear cookies and return success
+    try {
+      clearRefreshTokenCookie(res, req);
+      clearSessionIdCookie(res, req);
+    } catch (cookieError) {
+      // Ignore cookie clearing errors
+    }
 
     res.status(200).json({
       success: true,
@@ -878,6 +883,60 @@ const getMe = catchAsync(async (req, res) => {
   }
 });
 
+/**
+ * Delete Invitation
+ * Permanently removes a cancelled, expired, or pending invitation from the database
+ * Requirements: 8.6
+ */
+const deleteInvitation = catchAsync(async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({
+      success: false,
+      message: 'Validation failed',
+      errors: errors.array()
+    });
+  }
+
+  try {
+    const { invitationId } = req.body;
+
+    // Use authenticated user's schoolId from JWT token
+    const targetSchoolId = req.user.schoolId;
+
+    if (!targetSchoolId) {
+      return res.status(400).json({
+        success: false,
+        message: 'School ID not found in authentication token'
+      });
+    }
+
+    const result = await invitationService.deleteInvitation(invitationId, targetSchoolId);
+
+    res.status(200).json({
+      success: true,
+      message: result.message,
+      data: result
+    });
+  } catch (error) {
+    if (error.message === 'Invitation not found') {
+      return res.status(404).json({
+        success: false,
+        message: error.message
+      });
+    }
+
+    if (error.message.includes('Cannot delete')) {
+      return res.status(400).json({
+        success: false,
+        message: error.message
+      });
+    }
+
+    throw error;
+  }
+});
+
 module.exports = {
   registerSchool,
   verifySchoolEmail,
@@ -892,5 +951,6 @@ module.exports = {
   resendInvitation,
   listInvitations,
   cancelInvitation,
+  deleteInvitation,
   getMe
 };

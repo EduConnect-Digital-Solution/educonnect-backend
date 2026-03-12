@@ -136,4 +136,15 @@ router.post('/invitations/:invitationId/resend',
   adminDashboardController.resendInvitation
 );
 
+/**
+ * @route   DELETE /api/admin/dashboard/invitations/:invitationId/permanent
+ * @desc    Permanently delete a cancelled, expired, or pending invitation (Admin only)
+ * @access  Private (Admin)
+ */
+router.delete('/invitations/:invitationId/permanent',
+  rateLimiter.authLimiter,
+  sanitizeAdminData,
+  adminDashboardController.deleteInvitation
+);
+
 module.exports = router;

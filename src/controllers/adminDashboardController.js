@@ -298,18 +298,12 @@ const cancelInvitation = catchAsync(async (req, res) => {
       });
     }
 
-    if (error.message === 'Cannot cancel invitation - user has already completed registration' ||
-        error.message === 'Invitation is already cancelled') {
+    if (error.message.includes('Cannot cancel') ||
+        error.message.includes('already cancelled') ||
+        error.message.includes('already expired')) {
       return res.status(400).json({
         success: false,
         message: error.message
-      });
-    }
-
-    if (error.message === 'No admin user found for this school') {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied. Admin privileges required.'
       });
     }
 
@@ -363,10 +357,9 @@ const resendInvitation = catchAsync(async (req, res) => {
       });
     }
 
-    if (error.message === 'Cannot resend invitation - user has already completed registration' ||
-        error.message === 'Cannot resend cancelled invitation' ||
-        error.message === 'Can only resend pending invitations' ||
-        error.message === 'Cannot resend expired invitation. Please create a new invitation.') {
+    if (error.message.includes('Cannot resend') ||
+        error.message.includes('expired') ||
+        error.message.includes('Can only resend')) {
       return res.status(400).json({
         success: false,
         message: error.message
@@ -374,6 +367,49 @@ const resendInvitation = catchAsync(async (req, res) => {
     }
 
     // Re-throw for global error handler
+    throw error;
+  }
+});
+
+/**
+ * Delete Invitation
+ * Permanently delete a cancelled, expired, or pending invitation
+ */
+const deleteInvitation = catchAsync(async (req, res) => {
+  try {
+    const { invitationId } = req.params;
+
+    const targetSchoolId = req.user.schoolId;
+
+    if (!targetSchoolId) {
+      return res.status(400).json({
+        success: false,
+        message: 'School ID not found in authentication token'
+      });
+    }
+
+    const result = await InvitationService.deleteInvitation(invitationId, targetSchoolId);
+
+    res.status(200).json({
+      success: true,
+      message: result.message,
+      data: result
+    });
+  } catch (error) {
+    if (error.message === 'Invitation not found') {
+      return res.status(404).json({
+        success: false,
+        message: error.message
+      });
+    }
+
+    if (error.message.includes('Cannot delete')) {
+      return res.status(400).json({
+        success: false,
+        message: error.message
+      });
+    }
+
     throw error;
   }
 });
@@ -387,5 +423,6 @@ module.exports = {
   removeUser,
   listInvitations,
   cancelInvitation,
+  deleteInvitation,
   resendInvitation
 };
