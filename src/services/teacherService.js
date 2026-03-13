@@ -50,9 +50,10 @@ class TeacherService {
     const directlyAssignedStudents = await Student.find({
       schoolId: schoolId,
       $or: [
-        { teacherIds: teacher._id }, // Updated to use new field name
-        { teachers: teacher._id }    // Keep legacy field for backward compatibility
+        { teacherIds: teacher._id },
+        { teachers: teacher._id }
       ],
+      excludedTeacherIds: { $ne: teacher._id },
       isActive: true
     }).select('firstName lastName studentId class section grade');
 
@@ -63,7 +64,7 @@ class TeacherService {
         schoolId: schoolId,
         class: { $in: teacher.classes },
         isActive: true,
-        // Exclude students already directly assigned to avoid duplicates
+        excludedTeacherIds: { $ne: teacher._id },
         _id: { $nin: directlyAssignedStudents.map(s => s._id) }
       }).select('firstName lastName studentId class section grade');
     }
@@ -212,7 +213,8 @@ class TeacherService {
     // Build query for students - both directly assigned AND in teacher's classes
     let studentQuery = {
       schoolId: schoolId,
-      isActive: true
+      isActive: true,
+      excludedTeacherIds: { $ne: teacher._id } // Exclude unassigned students
     };
 
     // Get directly assigned students

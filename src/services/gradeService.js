@@ -48,7 +48,8 @@ class GradeService {
           schoolId: schoolId,
           class: className,
           isActive: true,
-          isEnrolled: true
+          isEnrolled: true,
+          excludedTeacherIds: { $ne: teacherId }
         });
         
         logger.info(`👥 Class ${className}: ${studentCount} students`);
@@ -190,7 +191,8 @@ class GradeService {
       schoolId: schoolId,
       class: className,
       isActive: true,
-      isEnrolled: true
+      isEnrolled: true,
+      excludedTeacherIds: { $ne: teacherId }
     })
     .sort({ firstName: 1, lastName: 1 })
     .skip(skip)
@@ -201,7 +203,8 @@ class GradeService {
       schoolId: schoolId,
       class: className,
       isActive: true,
-      isEnrolled: true
+      isEnrolled: true,
+      excludedTeacherIds: { $ne: teacherId }
     });
 
     // Get existing grades for these students

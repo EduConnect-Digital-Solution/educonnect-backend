@@ -67,11 +67,12 @@ const assignTeacherToStudents = async (teacherId, studentIds, schoolId, adminUse
         continue;
       }
 
-      // Add teacher to student's teacherIds array
+      // Add teacher to student's teacherIds array and remove from exclusion list
       await Student.findByIdAndUpdate(
         student._id,
         { 
           $addToSet: { teacherIds: teacherId },
+          $pull: { excludedTeacherIds: teacherId }, // Clear exclusion if previously unassigned
           $set: { updatedAt: new Date() }
         },
         { new: true }
@@ -196,31 +197,56 @@ const unassignTeacherFromStudents = async (teacherId, studentIds, schoolId, admi
   // Process each student
   for (const student of students) {
     try {
-      // Check if teacher is assigned
-      if (!student.teacherIds || !student.teacherIds.includes(teacherId)) {
+      const isDirectlyAssigned = student.teacherIds && student.teacherIds.some(id => id.toString() === teacherId.toString());
+      const isInTeacherClass = teacher.classes && teacher.classes.includes(student.class);
+      const isAlreadyExcluded = student.excludedTeacherIds && student.excludedTeacherIds.some(id => id.toString() === teacherId.toString());
+
+      if (isDirectlyAssigned) {
+        // Remove direct assignment
+        await Student.findByIdAndUpdate(
+          student._id,
+          { 
+            $pull: { teacherIds: teacherId },
+            $addToSet: { excludedTeacherIds: teacherId }, // Also exclude from class-based view
+            $set: { updatedAt: new Date() }
+          },
+          { new: true }
+        );
+
+        results.unassignments.push({
+          studentId: student._id,
+          studentName: `${student.firstName} ${student.lastName}`,
+          message: 'Teacher unassigned successfully (direct assignment removed)'
+        });
+      } else if (isInTeacherClass && !isAlreadyExcluded) {
+        // Student is visible via class membership — add to exclusion list
+        await Student.findByIdAndUpdate(
+          student._id,
+          { 
+            $addToSet: { excludedTeacherIds: teacherId },
+            $set: { updatedAt: new Date() }
+          },
+          { new: true }
+        );
+
+        results.unassignments.push({
+          studentId: student._id,
+          studentName: `${student.firstName} ${student.lastName}`,
+          message: 'Student excluded from teacher view (class-based assignment)'
+        });
+      } else if (isAlreadyExcluded) {
+        results.notAssigned.push({
+          studentId: student._id,
+          studentName: `${student.firstName} ${student.lastName}`,
+          message: 'Student is already excluded from this teacher'
+        });
+      } else {
         results.notAssigned.push({
           studentId: student._id,
           studentName: `${student.firstName} ${student.lastName}`,
           message: 'Teacher was not assigned to this student'
         });
-        continue;
       }
-
-      // Remove teacher from student's teacherIds array
-      await Student.findByIdAndUpdate(
-        student._id,
-        { 
-          $pull: { teacherIds: teacherId },
-          $set: { updatedAt: new Date() }
-        },
-        { new: true }
-      );
-
-      results.unassignments.push({
-        studentId: student._id,
-        studentName: `${student.firstName} ${student.lastName}`,
-        message: 'Teacher unassigned successfully'
-      });
 
     } catch (error) {
       results.errors.push({

@@ -142,6 +142,14 @@ const studentSchema = new mongoose.Schema({
     }
   }],
 
+  // Teachers that this student is excluded from (for class-based unassignment)
+  // When an admin unassigns a class-based student from a teacher, the teacher ID
+  // is added here so the student is hidden from that teacher's dashboard
+  excludedTeacherIds: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
+
   // Legacy fields for backward compatibility
   parents: [{
     type: mongoose.Schema.Types.ObjectId,
