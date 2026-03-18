@@ -644,15 +644,19 @@ const invalidateStudentCaches = async (schoolId, studentId = null) => {
   const dashboardPattern = `educonnect:dashboard:analytics:${schoolId}*`;
   const dashboardDeleted = await CacheService.delPattern(dashboardPattern);
   
-  // Invalidate teacher caches that might include this student
-  const teacherPattern = `educonnect:teacher:*`;
-  const teacherDeleted = await CacheService.delPattern(teacherPattern);
+  // Invalidate teacher dashboard and grade caches for this school
+  const teacherDashboardPattern = `educonnect:teacher:dashboard:*`;
+  const teacherStudentsPattern = `educonnect:teacher:students:*`;
+  const gradeClassesPattern = `educonnect:grades:classes:*`;
+  const teacherDashboardDeleted = await CacheService.delPattern(teacherDashboardPattern);
+  const teacherStudentsDeleted = await CacheService.delPattern(teacherStudentsPattern);
+  const gradeClassesDeleted = await CacheService.delPattern(gradeClassesPattern);
   
   // Invalidate parent caches that might include this student
   const parentPattern = `educonnect:parent:*`;
   const parentDeleted = await CacheService.delPattern(parentPattern);
   
-  logger.info(`🗑️ Invalidated ${deletedCount} student list entries, ${dashboardDeleted} dashboard entries, ${teacherDeleted} teacher entries, and ${parentDeleted} parent entries for school ${schoolId}`);
+  logger.info(`🗑️ Invalidated ${deletedCount} student list entries, ${dashboardDeleted} dashboard entries, ${teacherDashboardDeleted + teacherStudentsDeleted + gradeClassesDeleted} teacher/grade entries, and ${parentDeleted} parent entries for school ${schoolId}`);
 };
 
 /**

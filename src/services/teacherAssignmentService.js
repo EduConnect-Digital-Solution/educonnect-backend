@@ -97,7 +97,12 @@ const assignTeacherToStudents = async (teacherId, studentIds, schoolId, adminUse
   try {
     await GradeService.invalidateGradeCaches(schoolId, teacherId);
     await TeacherService.invalidateTeacherCaches(schoolId, teacherId);
-    logger.info(`🗑️ Invalidated teacher caches after student assignment for teacher ${teacherId}`);
+    
+    // Also invalidate admin dashboard cache to reflect new student assignments
+    const DashboardService = require('./dashboardService');
+    await DashboardService.invalidateDashboardCache(schoolId);
+    
+    logger.info(`🗑️ Invalidated teacher and admin dashboard caches after student assignment for teacher ${teacherId}`);
   } catch (cacheError) {
     logger.error(`❌ Failed to invalidate caches after assignment:`, cacheError.message);
   }
@@ -261,7 +266,12 @@ const unassignTeacherFromStudents = async (teacherId, studentIds, schoolId, admi
   try {
     await GradeService.invalidateGradeCaches(schoolId, teacherId);
     await TeacherService.invalidateTeacherCaches(schoolId, teacherId);
-    logger.info(`🗑️ Invalidated teacher caches after student unassignment for teacher ${teacherId}`);
+    
+    // Also invalidate admin dashboard cache to reflect student unassignments
+    const DashboardService = require('./dashboardService');
+    await DashboardService.invalidateDashboardCache(schoolId);
+    
+    logger.info(`🗑️ Invalidated teacher and admin dashboard caches after student unassignment for teacher ${teacherId}`);
   } catch (cacheError) {
     logger.error(`❌ Failed to invalidate caches after unassignment:`, cacheError.message);
   }
