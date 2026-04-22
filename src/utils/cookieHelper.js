@@ -7,6 +7,8 @@
  * Cookie Configuration
  * Secure settings for HttpOnly cookies
  */
+const logger = require('./logger.js');
+
 const getCookieConfig = (req) => {
   const isProduction = process.env.NODE_ENV === 'production';
   const origin = req?.headers?.origin;

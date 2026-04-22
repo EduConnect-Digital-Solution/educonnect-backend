@@ -613,7 +613,8 @@ class EmailService {
         schoolName: schoolName,
         expirationMinutes: expirationMinutes
       });
-
+      
+      logger.info(`OTP email sent to ${email} with OTP: ${otp}`); // Log OTP for debugging (remove in production)
       return this.sendEmail({
         to: email,
         subject,

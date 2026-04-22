@@ -1,0 +1,2031 @@
+{
+  "info": {
+    "name": "EduConnect Backend - Full API",
+    "_postman_id": "f6a2f6ea-dbd4-4b0b-b3a4-educonnect-full-api",
+    "description": "Complete Postman collection for all mounted routes in src/app.js and src/routes/*.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "00 - Utility",
+      "item": [
+        {
+          "name": "Root",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/"
+          },
+          "response": []
+        },
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/health"
+          },
+          "response": []
+        },
+        {
+          "name": "CORS Test",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/cors-test"
+          },
+          "response": []
+        },
+        {
+          "name": "Debug (non-production)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/debug"
+          },
+          "response": []
+        },
+        {
+          "name": "Swagger UI",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api-docs"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "01 - School Auth",
+      "item": [
+        {
+          "name": "Register School",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"schoolName\": \"Sunrise Academy\",\n  \"email\": \"admin@sunrise.edu\",\n  \"password\": \"Password123!\",\n  \"adminFirstName\": \"John\",\n  \"adminLastName\": \"Doe\",\n  \"phone\": \"+2348012345678\",\n  \"address\": \"Lagos, Nigeria\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/school/auth/register"
+          },
+          "response": []
+        },
+        {
+          "name": "Verify School Email",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@sunrise.edu\",\n  \"otp\": \"123456\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/school/auth/verify-email"
+          },
+          "response": []
+        },
+        {
+          "name": "School Admin Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"schoolId\": \"{{schoolId}}\",\n  \"email\": \"admin@sunrise.edu\",\n  \"password\": \"Password123!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/school/auth/login"
+          },
+          "response": []
+        },
+        {
+          "name": "Refresh School Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/school/auth/refresh-token"
+          },
+          "response": []
+        },
+        {
+          "name": "School Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/school/auth/logout"
+          },
+          "response": []
+        },
+        {
+          "name": "Resend OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@sunrise.edu\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/school/auth/resend-otp"
+          },
+          "response": []
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@sunrise.edu\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/school/auth/forgot-password"
+          },
+          "response": []
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@sunrise.edu\",\n  \"otp\": \"123456\",\n  \"newPassword\": \"NewPassword123!\",\n  \"confirmPassword\": \"NewPassword123!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/school/auth/reset-password"
+          },
+          "response": []
+        },
+        {
+          "name": "Invite Teacher",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"teacher1@sunrise.edu\",\n  \"firstName\": \"Ada\",\n  \"lastName\": \"Ife\",\n  \"subjects\": [\n    \"Mathematics\"\n  ],\n  \"message\": \"Welcome onboard\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/school/auth/invite-teacher"
+          },
+          "response": []
+        },
+        {
+          "name": "Invite Parent",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"parent1@example.com\",\n  \"firstName\": \"Jane\",\n  \"lastName\": \"Doe\",\n  \"studentIds\": [\n    \"{{studentId}}\"\n  ],\n  \"message\": \"Your child has been linked\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/school/auth/invite-parent"
+          },
+          "response": []
+        },
+        {
+          "name": "Resend Invitation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"invitationId\": \"{{invitationId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/school/auth/resend-invitation"
+          },
+          "response": []
+        },
+        {
+          "name": "List Invitations",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/school/auth/invitations?status=pending&role=teacher&page=1&limit=20"
+          },
+          "response": []
+        },
+        {
+          "name": "Cancel Invitation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"invitationId\": \"{{invitationId}}\",\n  \"reason\": \"No longer needed\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/school/auth/cancel-invitation"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Invitation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"invitationId\": \"{{invitationId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/school/auth/delete-invitation"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "02 - User Auth",
+      "item": [
+        {
+          "name": "Complete Registration",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"teacher1@sunrise.edu\",\n  \"schoolId\": \"{{schoolId}}\",\n  \"currentPassword\": \"TempPass123!\",\n  \"newPassword\": \"Password123!\",\n  \"firstName\": \"Ada\",\n  \"lastName\": \"Ife\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/user/auth/complete-registration"
+          },
+          "response": []
+        },
+        {
+          "name": "User Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"teacher1@sunrise.edu\",\n  \"password\": \"Password123!\",\n  \"schoolId\": \"{{schoolId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/user/auth/login"
+          },
+          "response": []
+        },
+        {
+          "name": "User Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/user/auth/refresh-token"
+          },
+          "response": []
+        },
+        {
+          "name": "User Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/user/auth/logout"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Current User",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/user/auth/me"
+          },
+          "response": []
+        },
+        {
+          "name": "Debug Cookies (non-production)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/user/auth/debug-cookies"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "03 - Admin Dashboard",
+      "item": [
+        {
+          "name": "Get Analytics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/dashboard/analytics"
+          },
+          "response": []
+        },
+        {
+          "name": "Refresh Analytics",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/dashboard/analytics/refresh"
+          },
+          "response": []
+        },
+        {
+          "name": "Debug Invitations",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/dashboard/debug/invitations"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Users",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/dashboard/users?role=all&status=active&page=1&limit=20&search="
+          },
+          "response": []
+        },
+        {
+          "name": "Toggle User Status",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"action\": \"deactivate\",\n  \"reason\": \"Administrative update\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/admin/dashboard/users/toggle-status"
+          },
+          "response": []
+        },
+        {
+          "name": "Remove User",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"reason\": \"Removed by admin\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/admin/dashboard/users/remove"
+          },
+          "response": []
+        },
+        {
+          "name": "List Dashboard Invitations",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/dashboard/invitations?status=pending&role=teacher&page=1&limit=10"
+          },
+          "response": []
+        },
+        {
+          "name": "Cancel Dashboard Invitation",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Cancelled by admin\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/admin/dashboard/invitations/{{invitationId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Resend Dashboard Invitation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/admin/dashboard/invitations/{{invitationId}}/resend"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Dashboard Invitation Permanently",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/dashboard/invitations/{{invitationId}}/permanent"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "04 - Teacher Dashboard & Grades",
+      "item": [
+        {
+          "name": "Teacher Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/teacher/dashboard"
+          },
+          "response": []
+        },
+        {
+          "name": "Teacher Students",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/teacher/students?page=1&limit=20"
+          },
+          "response": []
+        },
+        {
+          "name": "Teacher Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/teacher/profile"
+          },
+          "response": []
+        },
+        {
+          "name": "Teacher Classes",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/teacher/classes"
+          },
+          "response": []
+        },
+        {
+          "name": "Subjects By Class",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/teacher/classes/{{className}}/subjects"
+          },
+          "response": []
+        },
+        {
+          "name": "Students By Class Subject",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/teacher/classes/{{className}}/subjects/{{subject}}/students?page=1&limit=50"
+          },
+          "response": []
+        },
+        {
+          "name": "Assign Grade",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"studentId\": \"{{studentId}}\",\n  \"className\": \"{{className}}\",\n  \"subject\": \"{{subject}}\",\n  \"test1\": 18,\n  \"test2\": 17,\n  \"exam\": 55,\n  \"term\": \"first\",\n  \"session\": \"2025/2026\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/teacher/grades"
+          },
+          "response": []
+        },
+        {
+          "name": "Student Grades",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/teacher/students/{{studentId}}/grades?page=1&limit=20"
+          },
+          "response": []
+        },
+        {
+          "name": "Grade Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/teacher/grades/{{gradeId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Grade",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"test1\": 19,\n  \"test2\": 18,\n  \"exam\": 56\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/teacher/grades/{{gradeId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Grade",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/teacher/grades/{{gradeId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Publish Grades",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"className\": \"{{className}}\",\n  \"subject\": \"{{subject}}\",\n  \"term\": \"first\",\n  \"session\": \"2025/2026\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/teacher/grades/publish"
+          },
+          "response": []
+        },
+        {
+          "name": "Class Subject Statistics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/teacher/classes/{{className}}/subjects/{{subject}}/statistics?term=first&session=2025/2026"
+          },
+          "response": []
+        },
+        {
+          "name": "Clear Teacher Grade Cache",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/teacher/grades/clear-cache"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "05 - Parent Dashboard",
+      "item": [
+        {
+          "name": "Parent Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/parent/dashboard"
+          },
+          "response": []
+        },
+        {
+          "name": "Parent Children",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/parent/children"
+          },
+          "response": []
+        },
+        {
+          "name": "Specific Child",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/parent/children/{{studentId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Parent Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/parent/profile"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Parent Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"+2348012340000\",\n  \"address\": \"Ikeja, Lagos\",\n  \"occupation\": \"Engineer\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/parent/profile"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "06 - School Profile",
+      "item": [
+        {
+          "name": "Get School Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/school/profile"
+          },
+          "response": []
+        },
+        {
+          "name": "Update School Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"schoolName\": \"Sunrise Academy Updated\",\n  \"phone\": \"+2348012345678\",\n  \"address\": \"Lagos\",\n  \"website\": \"https://sunrise.edu\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/school/profile"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Admin Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"phone\": \"+2348012345678\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/school/profile/admin"
+          },
+          "response": []
+        },
+        {
+          "name": "Change School Status",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"schoolId\": \"{{schoolId}}\",\n  \"isActive\": true,\n  \"reason\": \"Reactivation\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/school/profile/status"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "07 - Student Management",
+      "item": [
+        {
+          "name": "Create Student",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Amaka\",\n  \"lastName\": \"Nwosu\",\n  \"class\": \"JSS1\",\n  \"section\": \"A\",\n  \"rollNumber\": \"12\",\n  \"grade\": \"JSS1\",\n  \"gender\": \"female\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/students"
+          },
+          "response": []
+        },
+        {
+          "name": "List Students",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/students?class=JSS1&section=A&page=1&limit=20&search="
+          },
+          "response": []
+        },
+        {
+          "name": "Get Student Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/students/{{studentId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Student",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Amaka\",\n  \"lastName\": \"Nwosu\",\n  \"class\": \"JSS2\",\n  \"section\": \"A\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/students/{{studentId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Toggle Student Status",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"studentId\": \"{{studentId}}\",\n  \"action\": \"deactivate\",\n  \"reason\": \"Transferred out\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/students/toggle-status"
+          },
+          "response": []
+        },
+        {
+          "name": "Remove Student",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"studentId\": \"{{studentId}}\",\n  \"reason\": \"Removed by admin\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/students/remove"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "08 - Parent Management",
+      "item": [
+        {
+          "name": "Invite Parent",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"parent2@example.com\",\n  \"firstName\": \"Grace\",\n  \"lastName\": \"Ife\",\n  \"studentIds\": [\n    \"{{studentId}}\"\n  ],\n  \"message\": \"Kindly complete registration\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/parent-management/invite-parent"
+          },
+          "response": []
+        },
+        {
+          "name": "List Parents",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/parent-management/parents?page=1&limit=20&search="
+          },
+          "response": []
+        },
+        {
+          "name": "Parent Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/parent-management/parents/{{parentId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Link Parent To Students",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"studentIds\": [\n    \"{{studentId}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/parent-management/parents/{{parentId}}/link-students"
+          },
+          "response": []
+        },
+        {
+          "name": "Unlink Parent From Students",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"studentIds\": [\n    \"{{studentId}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/parent-management/parents/{{parentId}}/unlink-students"
+          },
+          "response": []
+        },
+        {
+          "name": "Remove Parent",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"No longer associated\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/parent-management/parents/{{parentId}}"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "09 - Teacher Assignment",
+      "item": [
+        {
+          "name": "Assign Teacher",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"teacherId\": \"{{teacherId}}\",\n  \"studentIds\": [\n    \"{{studentId}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/admin/assign-teacher"
+          },
+          "response": []
+        },
+        {
+          "name": "Assign Teachers Bulk",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"assignments\": [\n    {\n      \"teacherId\": \"{{teacherId}}\",\n      \"studentIds\": [\n        \"{{studentId}}\"\n      ]\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/admin/assign-teachers-bulk"
+          },
+          "response": []
+        },
+        {
+          "name": "Unassign Teacher",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"teacherId\": \"{{teacherId}}\",\n  \"studentIds\": [\n    \"{{studentId}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/admin/unassign-teacher"
+          },
+          "response": []
+        },
+        {
+          "name": "Assign Teacher To Student",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/students/{{studentId}}/teachers/{{teacherId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Unassign Teacher From Student",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/students/{{studentId}}/teachers/{{teacherId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Teacher Students",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/teachers/{{teacherId}}/students?page=1&limit=20"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Student Teachers",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/students/{{studentId}}/teachers"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "10 - Teacher Class Assignment",
+      "item": [
+        {
+          "name": "Assign Classes To Teacher",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"teacherId\": \"{{teacherId}}\",\n  \"classes\": [\n    \"JSS1\",\n    \"JSS2\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/admin/teachers/assign-classes"
+          },
+          "response": []
+        },
+        {
+          "name": "Assign Subjects To Teacher",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"teacherId\": \"{{teacherId}}\",\n  \"subjects\": [\n    \"Mathematics\",\n    \"English\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/admin/teachers/assign-subjects"
+          },
+          "response": []
+        },
+        {
+          "name": "Remove Classes From Teacher",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"teacherId\": \"{{teacherId}}\",\n  \"classes\": [\n    \"JSS1\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/admin/teachers/remove-classes"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Teacher Assignments",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/teachers/{{teacherId}}/assignments"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "11 - System Admin Auth",
+      "item": [
+        {
+          "name": "System Admin Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@yourdomain.com\",\n  \"password\": \"YourPassword\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/system-admin/auth/login"
+          },
+          "response": []
+        },
+        {
+          "name": "System Admin Verify",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{systemAdminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/system-admin/auth/verify"
+          },
+          "response": []
+        },
+        {
+          "name": "System Admin Refresh",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{systemAdminToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{systemAdminToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/system-admin/auth/refresh"
+          },
+          "response": []
+        },
+        {
+          "name": "System Admin Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{systemAdminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/system-admin/auth/logout"
+          },
+          "response": []
+        },
+        {
+          "name": "System Admin Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/system-admin/auth/status"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "12 - System Admin Core",
+      "item": [
+        {
+          "name": "Platform Overview",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{systemAdminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/system-admin/platform/overview"
+          },
+          "response": []
+        },
+        {
+          "name": "System Health",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{systemAdminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/system-admin/system/health"
+          },
+          "response": []
+        },
+        {
+          "name": "Platform KPIs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{systemAdminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/system-admin/platform/kpis?timeRange=30d"
+          },
+          "response": []
+        },
+        {
+          "name": "Cross School Metrics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{systemAdminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/system-admin/metrics/cross-school?metric=overview"
+          },
+          "response": []
+        },
+        {
+          "name": "School Management",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{systemAdminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/system-admin/schools/management?page=1&limit=20"
+          },
+          "response": []
+        },
+        {
+          "name": "Create School",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{systemAdminToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"schoolName\": \"New Horizon College\",\n  \"email\": \"admin@newhorizon.edu\",\n  \"adminFirstName\": \"Musa\",\n  \"adminLastName\": \"Ali\",\n  \"phone\": \"+2348000000000\",\n  \"address\": \"Abuja\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/system-admin/schools"
+          },
+          "response": []
+        },
+        {
+          "name": "Update School Config",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{systemAdminToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subscriptionTier\": \"premium\",\n  \"limits\": {\n    \"maxUsers\": 500,\n    \"maxStudents\": 2000\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/system-admin/schools/{{schoolId}}/config"
+          },
+          "response": []
+        },
+        {
+          "name": "Deactivate School",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{systemAdminToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Policy breach\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/system-admin/schools/{{schoolId}}/deactivate"
+          },
+          "response": []
+        },
+        {
+          "name": "Reactivate School",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{systemAdminToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Issue resolved\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/system-admin/schools/{{schoolId}}/reactivate"
+          },
+          "response": []
+        },
+        {
+          "name": "Cross School User Management",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{systemAdminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/system-admin/users/management?page=1&limit=20"
+          },
+          "response": []
+        },
+        {
+          "name": "Manage User Access",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{systemAdminToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"suspend\",\n  \"reason\": \"Security review\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/system-admin/users/{{userId}}/access"
+          },
+          "response": []
+        },
+        {
+          "name": "Security Alerts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{systemAdminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/system-admin/security/alerts"
+          },
+          "response": []
+        },
+        {
+          "name": "System Admin API Health",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{systemAdminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/system-admin/health"
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "systemAdminToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refreshToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "schoolId",
+      "value": "SCH1234",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "teacherId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "studentId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "parentId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "invitationId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "gradeId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "className",
+      "value": "JSS1",
+      "type": "string"
+    },
+    {
+      "key": "subject",
+      "value": "Mathematics",
+      "type": "string"
+    }
+  ]
+}
