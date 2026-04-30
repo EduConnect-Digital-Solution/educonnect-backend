@@ -4,11 +4,27 @@
  * Supports the workflow: Classes → Subjects → Students → Grades
  */
 
-const Grade = require('../models/Grade');
-const User = require('../models/User');
-const Student = require('../models/Student');
+const { prisma } = require('../config/database');
 const CacheService = require('./cacheService');
 const logger = require('../utils/logger');
+
+const mapTermToPrisma = (term) => {
+  const termMap = {
+    'First Term': 'First_Term',
+    'Second Term': 'Second_Term',
+    'Third Term': 'Third_Term'
+  };
+  return termMap[term] || term;
+};
+
+const mapPrismaTermToString = (prismaTerm) => {
+  const termMap = {
+    'First_Term': 'First Term',
+    'Second_Term': 'Second Term',
+    'Third_Term': 'Third Term'
+  };
+  return termMap[prismaTerm] || prismaTerm;
+};
 
 class GradeService {
   /**
@@ -20,7 +36,6 @@ class GradeService {
   static async getTeacherClasses(teacherId, schoolId) {
     const cacheKey = `classes:${teacherId}`;
     
-    // Try cache first
     const cachedData = await CacheService.get('grades', cacheKey);
     if (cachedData) {
       logger.info(`📚 Teacher classes cache HIT for ${teacherId}`);
@@ -29,8 +44,7 @@ class GradeService {
 
     logger.info(`📚 Teacher classes cache MISS for ${teacherId}`);
 
-    // Get teacher information
-    const teacher = await User.findById(teacherId);
+    const teacher = await prisma.user.findUnique({ where: { id: teacherId } });
     if (!teacher || teacher.role !== 'teacher') {
       throw new Error('Access denied. Teacher role required.');
     }
@@ -38,18 +52,17 @@ class GradeService {
     logger.info(`👨‍🏫 Teacher found: ${teacher.firstName} ${teacher.lastName}`);
     logger.info(`📚 Teacher classes from profile: ${JSON.stringify(teacher.classes)}`);
 
-    // Use the SAME logic as the dashboard - simply return teacher.classes
     const teacherClasses = teacher.classes || [];
     
-    // Format classes with student counts (same as dashboard expects)
     const classesWithCounts = await Promise.all(
       teacherClasses.map(async (className) => {
-        const studentCount = await Student.countDocuments({
-          schoolId: schoolId,
-          class: className,
-          isActive: true,
-          isEnrolled: true,
-          excludedTeacherIds: { $ne: teacherId }
+        const studentCount = await prisma.student.count({
+          where: {
+            schoolId: schoolId,
+            class: className,
+            isActive: true,
+            isEnrolled: true
+          }
         });
         
         logger.info(`👥 Class ${className}: ${studentCount} students`);
@@ -69,7 +82,6 @@ class GradeService {
 
     logger.info(`📊 Final result: ${JSON.stringify(result)}`);
 
-    // Cache for 5 minutes (shorter for debugging)
     await CacheService.set('grades', cacheKey, result, 300);
     
     return result;
@@ -85,7 +97,6 @@ class GradeService {
   static async getSubjectsByClass(teacherId, className, schoolId) {
     const cacheKey = `subjects:${teacherId}:${className}`;
     
-    // Try cache first
     const cachedData = await CacheService.get('grades', cacheKey);
     if (cachedData) {
       logger.info(`📖 Teacher subjects cache HIT for ${teacherId}:${className}`);
@@ -94,34 +105,34 @@ class GradeService {
 
     logger.info(`📖 Teacher subjects cache MISS for ${teacherId}:${className}`);
 
-    // Get teacher information
-    const teacher = await User.findById(teacherId);
+    const teacher = await prisma.user.findUnique({ where: { id: teacherId } });
     if (!teacher || teacher.role !== 'teacher') {
       throw new Error('Access denied. Teacher role required.');
     }
 
-    // Verify teacher teaches this class
     if (!teacher.classes || !teacher.classes.includes(className)) {
       throw new Error('Access denied. You do not teach this class.');
     }
 
-    // Get subjects from teacher's profile
     const subjects = teacher.subjects || [];
     
-    // Get grade statistics for each subject in this class
     const subjectsWithStats = await Promise.all(
       subjects.map(async (subject) => {
-        const studentCount = await Student.countDocuments({
-          schoolId: schoolId,
-          class: className,
-          isActive: true,
-          isEnrolled: true
+        const studentCount = await prisma.student.count({
+          where: {
+            schoolId: schoolId,
+            class: className,
+            isActive: true,
+            isEnrolled: true
+          }
         });
         
-        const gradeCount = await Grade.countDocuments({
-          teacherId: teacherId,
-          class: className,
-          subject: subject
+        const gradeCount = await prisma.grade.count({
+          where: {
+            teacherId: teacherId,
+            class: className,
+            subject: subject
+          }
         });
         
         return {
@@ -140,7 +151,6 @@ class GradeService {
       generatedAt: new Date().toISOString()
     };
 
-    // Cache for 5 minutes (shorter due to grading progress updates)
     await CacheService.set('grades', cacheKey, result, 300);
     
     return result;
@@ -160,7 +170,6 @@ class GradeService {
     
     const cacheKey = `students:${teacherId}:${className}:${subject}:${term}:${page}:${limit}`;
     
-    // Try cache first
     const cachedData = await CacheService.get('grades', cacheKey);
     if (cachedData) {
       logger.info(`👥 Students cache HIT for ${cacheKey}`);
@@ -169,8 +178,7 @@ class GradeService {
 
     logger.info(`👥 Students cache MISS for ${cacheKey}`);
 
-    // Verify teacher access
-    const teacher = await User.findById(teacherId);
+    const teacher = await prisma.user.findUnique({ where: { id: teacherId } });
     if (!teacher || teacher.role !== 'teacher') {
       throw new Error('Access denied. Teacher role required.');
     }
@@ -179,57 +187,69 @@ class GradeService {
       throw new Error('Access denied. You do not teach this subject in this class.');
     }
 
-    // Get current academic year if not provided
     const currentAcademicYear = academicYear || (() => {
       const currentYear = new Date().getFullYear();
       return `${currentYear}-${currentYear + 1}`;
     })();
 
-    // Get students in the class
     const skip = (parseInt(page) - 1) * parseInt(limit);
-    const students = await Student.find({
-      schoolId: schoolId,
-      class: className,
-      isActive: true,
-      isEnrolled: true,
-      excludedTeacherIds: { $ne: teacherId }
-    })
-    .sort({ firstName: 1, lastName: 1 })
-    .skip(skip)
-    .limit(parseInt(limit))
-    .populate('parentIds', 'firstName lastName email');
-
-    const totalStudents = await Student.countDocuments({
-      schoolId: schoolId,
-      class: className,
-      isActive: true,
-      isEnrolled: true,
-      excludedTeacherIds: { $ne: teacherId }
+    const students = await prisma.student.findMany({
+      where: {
+        schoolId: schoolId,
+        class: className,
+        isActive: true,
+        isEnrolled: true
+      },
+      orderBy: [
+        { firstName: 'asc' },
+        { lastName: 'asc' }
+      ],
+      skip: skip,
+      take: parseInt(limit),
+      include: {
+        parentOf: {
+          include: {
+            parent: true
+          }
+        }
+      }
     });
 
-    // Get existing grades for these students
-    const studentIds = students.map(s => s._id);
-    const existingGrades = await Grade.find({
-      teacherId: teacherId,
-      studentId: { $in: studentIds },
-      subject: subject,
-      class: className,
-      term: term,
-      academicYear: currentAcademicYear
+    const totalStudents = await prisma.student.count({
+      where: {
+        schoolId: schoolId,
+        class: className,
+        isActive: true,
+        isEnrolled: true
+      }
     });
 
-    // Create a map for quick grade lookup
+    const studentIds = students.map(s => s.id);
+    const prismaTerm = mapTermToPrisma(term);
+    const existingGrades = await prisma.grade.findMany({
+      where: {
+        teacherId: teacherId,
+        studentId: { in: studentIds },
+        subject: subject,
+        class: className,
+        term: prismaTerm,
+        academicYear: currentAcademicYear
+      },
+      include: {
+        assessments: true
+      }
+    });
+
     const gradeMap = {};
     existingGrades.forEach(grade => {
-      gradeMap[grade.studentId.toString()] = grade;
+      gradeMap[grade.studentId] = grade;
     });
 
-    // Format students with grade information
     const studentsWithGrades = students.map(student => {
-      const existingGrade = gradeMap[student._id.toString()];
+      const existingGrade = gradeMap[student.id];
       
       return {
-        id: student._id,
+        id: student.id,
         studentId: student.studentId,
         firstName: student.firstName,
         lastName: student.lastName,
@@ -237,7 +257,7 @@ class GradeService {
         class: student.class,
         section: student.section,
         grade: existingGrade ? {
-          id: existingGrade._id,
+          id: existingGrade.id,
           totalScore: existingGrade.totalScore,
           totalMaxScore: existingGrade.totalMaxScore,
           percentage: existingGrade.percentage,
@@ -250,10 +270,10 @@ class GradeService {
         } : null,
         hasGrade: !!existingGrade,
         hasPublishedGrade: existingGrade ? existingGrade.isPublished : false,
-        parents: student.parentIds.map(parent => ({
-          id: parent._id,
-          name: `${parent.firstName} ${parent.lastName}`,
-          email: parent.email
+        parents: student.parentOf.map(ps => ({
+          id: ps.parent.id,
+          name: `${ps.parent.firstName} ${ps.parent.lastName}`,
+          email: ps.parent.email
         }))
       };
     });
@@ -279,7 +299,6 @@ class GradeService {
       generatedAt: new Date().toISOString()
     };
 
-    // Cache for 2 minutes (short TTL due to frequent updates)
     await CacheService.set('grades', cacheKey, result, 120);
     
     return result;
@@ -303,14 +322,12 @@ class GradeService {
       remarks
     } = gradeData;
 
-    // Verify teacher access
-    const teacher = await User.findById(teacherId);
+    const teacher = await prisma.user.findUnique({ where: { id: teacherId } });
     if (!teacher || teacher.role !== 'teacher') {
       throw new Error('Access denied. Teacher role required.');
     }
 
-    // Verify student exists and is in the right class
-    const student = await Student.findById(studentId);
+    const student = await prisma.student.findUnique({ where: { id: studentId } });
     if (!student || student.schoolId !== teacher.schoolId) {
       throw new Error('Student not found or not in your school.');
     }
@@ -319,63 +336,106 @@ class GradeService {
       throw new Error('Student is not in the specified class.');
     }
 
-    // Verify teacher teaches this subject and class
     if (!teacher.subjects?.includes(subject) || !teacher.classes?.includes(className)) {
       throw new Error('Access denied. You do not teach this subject in this class.');
     }
 
-    // Get current academic year if not provided
     const currentAcademicYear = academicYear || (() => {
       const currentYear = new Date().getFullYear();
       return `${currentYear}-${currentYear + 1}`;
     })();
 
-    // Check if grade already exists
-    let existingGrade = await Grade.findOne({
-      teacherId: teacherId,
-      studentId: studentId,
-      subject: subject,
-      class: className,
-      term: term,
-      academicYear: currentAcademicYear
+    const prismaTerm = mapTermToPrisma(term);
+
+    let existingGrade = await prisma.grade.findUnique({
+      where: {
+        schoolId_teacherId_studentId_subject_term_academicYear: {
+          schoolId: teacher.schoolId,
+          teacherId: teacherId,
+          studentId: studentId,
+          subject: subject,
+          term: prismaTerm,
+          academicYear: currentAcademicYear
+        }
+      },
+      include: { assessments: true }
     });
 
     if (existingGrade) {
-      // Update existing grade
-      existingGrade.assessments = assessments || existingGrade.assessments;
-      existingGrade.remarks = remarks || existingGrade.remarks;
-      existingGrade.section = section || existingGrade.section;
-      existingGrade.updatedBy = teacherId;
-      
-      await existingGrade.save();
-      
-      // Invalidate related caches
-      await this.invalidateGradeCaches(teacher.schoolId, teacherId, className, subject);
-      
-      return existingGrade;
-    } else {
-      // Create new grade
-      const newGrade = new Grade({
-        schoolId: teacher.schoolId,
-        teacherId: teacherId,
-        studentId: studentId,
-        subject: subject,
-        class: className,
-        section: section,
-        term: term,
-        academicYear: currentAcademicYear,
-        assessments: assessments || [],
-        remarks: remarks,
-        createdBy: teacherId,
-        updatedBy: teacherId
+      await prisma.grade.update({
+        where: { id: existingGrade.id },
+        data: {
+          remarks: remarks || existingGrade.remarks,
+          section: section || existingGrade.section,
+          updatedBy: teacherId
+        }
       });
 
-      await newGrade.save();
-      
-      // Invalidate related caches
+      if (assessments) {
+        await prisma.assessment.deleteMany({ where: { gradeId: existingGrade.id } });
+        if (assessments.length > 0) {
+          await prisma.assessment.createMany({
+            data: assessments.map(a => ({
+              gradeId: existingGrade.id,
+              type: a.type,
+              title: a.title,
+              score: a.score,
+              maxScore: a.maxScore,
+              weight: a.weight || 1,
+              date: a.date ? new Date(a.date) : new Date(),
+              remarks: a.remarks
+            }))
+          });
+        }
+      }
+
+      const finalGrade = await prisma.grade.findUnique({
+        where: { id: existingGrade.id },
+        include: { teacher: true, student: true, assessments: true }
+      });
+
       await this.invalidateGradeCaches(teacher.schoolId, teacherId, className, subject);
-      
-      return newGrade;
+      return finalGrade;
+    } else {
+      const newGrade = await prisma.grade.create({
+        data: {
+          schoolId: teacher.schoolId,
+          teacherId: teacherId,
+          studentId: studentId,
+          subject: subject,
+          class: className,
+          section: section,
+          term: prismaTerm,
+          academicYear: currentAcademicYear,
+          remarks: remarks,
+          createdBy: teacherId,
+          updatedBy: teacherId,
+          isPublished: false
+        }
+      });
+
+      if (assessments && assessments.length > 0) {
+        await prisma.assessment.createMany({
+          data: assessments.map(a => ({
+            gradeId: newGrade.id,
+            type: a.type,
+            title: a.title,
+            score: a.score,
+            maxScore: a.maxScore,
+            weight: a.weight || 1,
+            date: a.date ? new Date(a.date) : new Date(),
+            remarks: a.remarks
+          }))
+        });
+      }
+
+      const finalGrade = await prisma.grade.findUnique({
+        where: { id: newGrade.id },
+        include: { teacher: true, student: true, assessments: true }
+      });
+
+      await this.invalidateGradeCaches(teacher.schoolId, teacherId, className, subject);
+      return finalGrade;
     }
   }
 
@@ -391,57 +451,43 @@ class GradeService {
     
     const cacheKey = `student-grades:${teacherId}:${studentId}:${term || 'all'}:${academicYear || 'current'}:${subject || 'all'}:${publishedOnly}`;
     
-    // Try cache first
     const cachedData = await CacheService.get('grades', cacheKey);
     if (cachedData) {
       return cachedData;
     }
 
-    // Verify teacher access
-    const teacher = await User.findById(teacherId);
+    const teacher = await prisma.user.findUnique({ where: { id: teacherId } });
     if (!teacher || teacher.role !== 'teacher') {
       throw new Error('Access denied. Teacher role required.');
     }
 
-    // Verify student exists and is in the same school
-    const student = await Student.findById(studentId);
+    const student = await prisma.student.findUnique({ where: { id: studentId } });
     if (!student || student.schoolId !== teacher.schoolId) {
       throw new Error('Student not found or not in your school.');
     }
 
-    // Get current academic year if not provided
     const currentAcademicYear = academicYear || (() => {
       const currentYear = new Date().getFullYear();
       return `${currentYear}-${currentYear + 1}`;
     })();
 
-    // Build query options
-    const queryOptions = {
-      publishedOnly: publishedOnly
-    };
-    
-    if (term) queryOptions.term = term;
-    if (currentAcademicYear) queryOptions.academicYear = currentAcademicYear;
-    if (subject) queryOptions.subject = subject;
+    const where = { studentId: studentId };
+    if (term) where.term = mapTermToPrisma(term);
+    if (currentAcademicYear) where.academicYear = currentAcademicYear;
+    if (subject) where.subject = subject;
+    if (publishedOnly) where.isPublished = true;
 
-    // Get grades for the student
-    const grades = await Grade.findByStudent(studentId, queryOptions);
-
-    // Filter grades to only include those from teachers in the same school
-    // and optionally filter by teacher's subjects if specified
-    const filteredGrades = grades.filter(grade => {
-      // Basic school check (already done by student validation, but extra safety)
-      if (grade.schoolId !== teacher.schoolId) return false;
-      
-      // If teacher doesn't teach all subjects, only show grades for subjects they teach
-      // This is optional - you might want to show all grades regardless
-      // Uncomment the next two lines if you want to restrict by teacher's subjects
-      // if (teacher.subjects && teacher.subjects.length > 0 && !teacher.subjects.includes(grade.subject)) return false;
-      
-      return true;
+    const grades = await prisma.grade.findMany({
+      where: where,
+      include: {
+        teacher: true,
+        student: true,
+        assessments: true
+      }
     });
 
-    // Group grades by subject for better organization
+    const filteredGrades = grades.filter(grade => grade.schoolId === teacher.schoolId);
+
     const gradesBySubject = {};
     let totalGradePoints = 0;
     let totalCredits = 0;
@@ -451,11 +497,11 @@ class GradeService {
         gradesBySubject[grade.subject] = [];
       }
       gradesBySubject[grade.subject].push({
-        id: grade._id,
+        id: grade.id,
         subject: grade.subject,
         class: grade.class,
         section: grade.section,
-        term: grade.term,
+        term: mapPrismaTermToString(grade.term),
         academicYear: grade.academicYear,
         totalScore: grade.totalScore,
         totalMaxScore: grade.totalMaxScore,
@@ -466,26 +512,24 @@ class GradeService {
         remarks: grade.remarks,
         isPublished: grade.isPublished,
         teacher: {
-          id: grade.teacherId._id,
-          name: `${grade.teacherId.firstName} ${grade.teacherId.lastName}`
+          id: grade.teacher.id,
+          name: `${grade.teacher.firstName} ${grade.teacher.lastName}`
         },
         createdAt: grade.createdAt,
         updatedAt: grade.updatedAt
       });
 
-      // Calculate GPA (only for published grades)
       if (grade.isPublished && grade.gradePoints !== undefined) {
         totalGradePoints += grade.gradePoints;
-        totalCredits += 1; // Assuming each subject has equal weight
+        totalCredits += 1;
       }
     });
 
-    // Calculate GPA
     const gpa = totalCredits > 0 ? Math.round((totalGradePoints / totalCredits) * 100) / 100 : 0;
 
     const result = {
       student: {
-        id: student._id,
+        id: student.id,
         studentId: student.studentId,
         firstName: student.firstName,
         lastName: student.lastName,
@@ -509,7 +553,6 @@ class GradeService {
       generatedAt: new Date().toISOString()
     };
 
-    // Cache for 5 minutes
     await CacheService.set('grades', cacheKey, result, 300);
     
     return result;
@@ -522,16 +565,20 @@ class GradeService {
    * @returns {Object} Grade details
    */
   static async getGradeDetails(teacherId, gradeId) {
-    const grade = await Grade.findById(gradeId)
-      .populate('studentId', 'firstName lastName studentId class section')
-      .populate('teacherId', 'firstName lastName');
+    const grade = await prisma.grade.findUnique({
+      where: { id: gradeId },
+      include: {
+        student: true,
+        teacher: true,
+        assessments: true
+      }
+    });
 
     if (!grade) {
       throw new Error('Grade not found.');
     }
 
-    // Verify teacher owns this grade
-    if (grade.teacherId._id.toString() !== teacherId) {
+    if (grade.teacherId !== teacherId) {
       throw new Error('Access denied. You can only view your own grades.');
     }
 
@@ -545,25 +592,23 @@ class GradeService {
    * @returns {Object} Deletion result
    */
   static async deleteGrade(teacherId, gradeId) {
-    const grade = await Grade.findById(gradeId);
+    const grade = await prisma.grade.findUnique({ where: { id: gradeId } });
 
     if (!grade) {
       throw new Error('Grade not found.');
     }
 
-    // Verify teacher owns this grade
-    if (grade.teacherId.toString() !== teacherId) {
+    if (grade.teacherId !== teacherId) {
       throw new Error('Access denied. You can only delete your own grades.');
     }
 
-    // Don't allow deletion of published grades
     if (grade.isPublished) {
       throw new Error('Cannot delete published grades. Unpublish first.');
     }
 
-    await Grade.findByIdAndDelete(gradeId);
+    await prisma.assessment.deleteMany({ where: { gradeId: gradeId } });
+    await prisma.grade.delete({ where: { id: gradeId } });
     
-    // Invalidate related caches
     await this.invalidateGradeCaches(grade.schoolId, teacherId, grade.class, grade.subject);
     
     return { success: true, message: 'Grade deleted successfully.' };
@@ -582,8 +627,7 @@ class GradeService {
     logger.info(`📋 Publish data:`, { className, subject, term, academicYear });
 
     try {
-      // Verify teacher access
-      const teacher = await User.findById(teacherId);
+      const teacher = await prisma.user.findUnique({ where: { id: teacherId } });
       if (!teacher || teacher.role !== 'teacher') {
         logger.error(`❌ Teacher verification failed for ${teacherId}: ${teacher ? 'Invalid role' : 'Teacher not found'}`);
         throw new Error('Access denied. Teacher role required.');
@@ -591,7 +635,6 @@ class GradeService {
 
       logger.info(`👨‍🏫 Teacher verified: ${teacher.firstName} ${teacher.lastName} (${teacher.email})`);
 
-      // Verify teacher teaches this subject and class
       if (!teacher.subjects?.includes(subject)) {
         logger.error(`❌ Teacher ${teacherId} does not teach subject: ${subject}. Teacher subjects:`, teacher.subjects);
         throw new Error(`Access denied. You do not teach the subject "${subject}". Please contact your administrator if this is incorrect.`);
@@ -604,23 +647,24 @@ class GradeService {
 
       logger.info(`✅ Teacher authorization verified for ${subject} in ${className}`);
 
-      // Get current academic year if not provided
       const currentAcademicYear = academicYear || (() => {
         const currentYear = new Date().getFullYear();
         return `${currentYear}-${currentYear + 1}`;
       })();
 
       const currentTerm = term || 'First Term';
+      const prismaTerm = mapTermToPrisma(currentTerm);
 
       logger.info(`📅 Using academic year: ${currentAcademicYear}, term: ${currentTerm}`);
 
-      // First, check if any grades exist for this class/subject combination
-      const existingGrades = await Grade.find({
-        teacherId: teacherId,
-        class: className,
-        subject: subject,
-        term: currentTerm,
-        academicYear: currentAcademicYear
+      const existingGrades = await prisma.grade.findMany({
+        where: {
+          teacherId: teacherId,
+          class: className,
+          subject: subject,
+          term: prismaTerm,
+          academicYear: currentAcademicYear
+        }
       });
 
       logger.info(`📊 Found ${existingGrades.length} existing grades for ${subject} in ${className}`);
@@ -630,52 +674,47 @@ class GradeService {
         throw new Error(`No grades found to publish for ${subject} in ${className} for ${currentTerm} ${currentAcademicYear}. Please assign grades to students first.`);
       }
 
-      // Log details about existing grades
       const publishedCount = existingGrades.filter(g => g.isPublished).length;
       const unpublishedCount = existingGrades.length - publishedCount;
       logger.info(`📈 Grade status: ${publishedCount} already published, ${unpublishedCount} unpublished`);
 
-      // Update all grades for this class/subject to published
       logger.info(`🔄 Updating grades to published status...`);
-      const result = await Grade.updateMany(
-        {
+      const result = await prisma.grade.updateMany({
+        where: {
           teacherId: teacherId,
           class: className,
           subject: subject,
-          term: currentTerm,
+          term: prismaTerm,
           academicYear: currentAcademicYear
         },
-        {
+        data: {
           isPublished: true,
           publishedAt: new Date(),
           publishedBy: teacherId
         }
-      );
-
-      logger.info(`✅ Grade update result:`, {
-        matched: result.matchedCount,
-        modified: result.modifiedCount,
-        acknowledged: result.acknowledged
       });
 
-      if (result.matchedCount === 0) {
+      logger.info(`✅ Grade update result:`, {
+        modified: result.count,
+        acknowledged: true
+      });
+
+      if (result.count === 0) {
         logger.error(`❌ No grades matched the update criteria`);
         throw new Error(`No grades found matching the specified criteria. Please verify the class, subject, term, and academic year.`);
       }
 
-      // Invalidate related caches
-      logger.info(`🗑️ Invalidating caches for teacher ${teacherId}, class ${className}, subject ${subject}`);
       await this.invalidateGradeCaches(teacher.schoolId, teacherId, className, subject);
 
-      const successMessage = `Published ${result.modifiedCount} grades for ${subject} in ${className} (${currentTerm} ${currentAcademicYear})`;
+      const successMessage = `Published ${result.count} grades for ${subject} in ${className} (${currentTerm} ${currentAcademicYear})`;
       logger.info(`🎉 ${successMessage}`);
 
       return {
         success: true,
         message: successMessage,
-        publishedCount: result.modifiedCount,
-        totalGrades: result.matchedCount,
-        gradeIds: existingGrades.map(grade => grade._id.toString()),
+        publishedCount: result.count,
+        totalGrades: existingGrades.length,
+        gradeIds: existingGrades.map(grade => grade.id),
         details: {
           className: className,
           subject: subject,
@@ -695,7 +734,6 @@ class GradeService {
         stack: error.stack
       });
       
-      // Re-throw the error with additional context if it's not already detailed
       if (!error.message.includes('Access denied') && !error.message.includes('No grades found')) {
         throw new Error(`Failed to publish grades: ${error.message}`);
       }
@@ -716,15 +754,48 @@ class GradeService {
   static async getClassStatistics(teacherId, className, subject, term, academicYear) {
     const cacheKey = `stats:${teacherId}:${className}:${subject}:${term}:${academicYear}`;
     
-    // Try cache first
     const cachedData = await CacheService.get('grades', cacheKey);
     if (cachedData) {
       return cachedData;
     }
 
-    const stats = await Grade.getClassStatistics(teacherId, className, subject, term, academicYear);
-    
-    // Cache for 5 minutes
+    const prismaTerm = mapTermToPrisma(term);
+
+    const grades = await prisma.grade.findMany({
+      where: {
+        teacherId: teacherId,
+        class: className,
+        subject: subject,
+        term: prismaTerm,
+        academicYear: academicYear
+      },
+      include: {
+        assessments: true
+      }
+    });
+
+    const totalGrades = grades.length;
+    const publishedGrades = grades.filter(g => g.isPublished).length;
+    const percentages = grades.map(g => g.percentage).filter(p => p !== null && p !== undefined);
+    const averagePercentage = percentages.length > 0 ? Math.round((percentages.reduce((a, b) => a + b, 0) / percentages.length) * 100) / 100 : 0;
+    const highestPercentage = percentages.length > 0 ? Math.max(...percentages) : 0;
+    const lowestPercentage = percentages.length > 0 ? Math.min(...percentages) : 0;
+
+    const stats = {
+      className: className,
+      subject: subject,
+      term: term,
+      academicYear: academicYear,
+      totalGrades: totalGrades,
+      publishedGrades: publishedGrades,
+      unpublishedGrades: totalGrades - publishedGrades,
+      averagePercentage: averagePercentage,
+      highestPercentage: highestPercentage,
+      lowestPercentage: lowestPercentage,
+      gradingProgress: totalGrades > 0 ? Math.round((publishedGrades / totalGrades) * 100) : 0,
+      generatedAt: new Date().toISOString()
+    };
+
     await CacheService.set('grades', cacheKey, stats, 300);
     
     return stats;
@@ -740,7 +811,6 @@ class GradeService {
   static async invalidateGradeCaches(schoolId, teacherId, className = null, subject = null) {
     logger.info(`🗑️ Invalidating grade caches for teacher ${teacherId}, school ${schoolId}`);
     
-    // Invalidate teacher-specific caches
     await CacheService.del('grades', `classes:${teacherId}`);
     logger.info(`🗑️ Invalidated teacher classes cache`);
     
@@ -749,19 +819,16 @@ class GradeService {
       logger.info(`🗑️ Invalidated subjects cache for ${className}`);
       
       if (subject) {
-        // Invalidate all student lists for this class/subject combination
         const studentPattern = `educonnect:grades:students:${teacherId}:${className}:${subject}*`;
         const deletedStudents = await CacheService.delPattern(studentPattern);
         logger.info(`🗑️ Invalidated ${deletedStudents} student cache entries`);
         
-        // Invalidate statistics
         const statsPattern = `educonnect:grades:stats:${teacherId}:${className}:${subject}*`;
         const deletedStats = await CacheService.delPattern(statsPattern);
         logger.info(`🗑️ Invalidated ${deletedStats} statistics cache entries`);
       }
     }
     
-    // Invalidate student grades caches (since we don't know which students are affected)
     const studentGradesPattern = `educonnect:grades:student-grades:${teacherId}*`;
     const deletedGrades = await CacheService.delPattern(studentGradesPattern);
     logger.info(`🗑️ Invalidated ${deletedGrades} student grades cache entries`);

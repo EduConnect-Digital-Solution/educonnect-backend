@@ -1,6 +1,6 @@
 /**
  * Admin Dashboard Routes Tests
- * Tests for admin dashboard endpoints
+ * Prisma/PostgreSQL-based tests for admin dashboard endpoints
  */
 
 const request = require('supertest');
@@ -8,12 +8,18 @@ const express = require('express');
 const adminDashboardRoutes = require('../adminDashboard');
 const adminDashboardController = require('../../controllers/adminDashboardController');
 
-// Mock all dependencies BEFORE importing anything
+// Mock all dependencies
 jest.mock('../../controllers/adminDashboardController', () => ({
   getDashboardAnalytics: jest.fn(),
+  forceRefreshDashboard: jest.fn(),
+  debugInvitationStatus: jest.fn(),
   getUserManagement: jest.fn(),
   toggleUserStatus: jest.fn(),
-  removeUser: jest.fn()
+  removeUser: jest.fn(),
+  listInvitations: jest.fn(),
+  cancelInvitation: jest.fn(),
+  resendInvitation: jest.fn(),
+  deleteInvitation: jest.fn()
 }));
 
 jest.mock('../../middleware/adminDashboardValidation', () => ({
@@ -21,6 +27,9 @@ jest.mock('../../middleware/adminDashboardValidation', () => ({
   validateUserManagementQuery: jest.fn((req, res, next) => next()),
   validateUserStatusToggle: jest.fn((req, res, next) => next()),
   validateUserRemoval: jest.fn((req, res, next) => next()),
+  validateInvitationQuery: jest.fn((req, res, next) => next()),
+  validateInvitationCancel: jest.fn((req, res, next) => next()),
+  validateInvitationResend: jest.fn((req, res, next) => next()),
   sanitizeAdminData: jest.fn((req, res, next) => next())
 }));
 
@@ -46,12 +55,7 @@ describe('Admin Dashboard Routes', () => {
   beforeEach(() => {
     app = express();
     app.use(express.json());
-    
-    // Middleware is already mocked above
-    
     app.use('/api/admin/dashboard', adminDashboardRoutes);
-    
-    // Clear all mocks
     jest.clearAllMocks();
   });
 
@@ -78,6 +82,20 @@ describe('Admin Dashboard Routes', () => {
 
       expect(response.status).toBe(200);
       expect(adminDashboardController.getDashboardAnalytics).toHaveBeenCalled();
+    });
+  });
+
+  describe('POST /analytics/refresh', () => {
+    it('should call forceRefreshDashboard controller', async () => {
+      adminDashboardController.forceRefreshDashboard.mockImplementation((req, res) => {
+        res.status(200).json({ success: true });
+      });
+
+      const response = await request(app)
+        .post('/api/admin/dashboard/analytics/refresh');
+
+      expect(response.status).toBe(200);
+      expect(adminDashboardController.forceRefreshDashboard).toHaveBeenCalled();
     });
   });
 
@@ -141,6 +159,62 @@ describe('Admin Dashboard Routes', () => {
 
       expect(response.status).toBe(200);
       expect(adminDashboardController.removeUser).toHaveBeenCalled();
+    });
+  });
+
+  describe('GET /invitations', () => {
+    it('should call listInvitations controller', async () => {
+      adminDashboardController.listInvitations.mockImplementation((req, res) => {
+        res.status(200).json({ success: true, data: [] });
+      });
+
+      const response = await request(app)
+        .get('/api/admin/dashboard/invitations');
+
+      expect(response.status).toBe(200);
+      expect(adminDashboardController.listInvitations).toHaveBeenCalled();
+    });
+  });
+
+  describe('DELETE /invitations/:invitationId', () => {
+    it('should call cancelInvitation controller', async () => {
+      adminDashboardController.cancelInvitation.mockImplementation((req, res) => {
+        res.status(200).json({ success: true });
+      });
+
+      const response = await request(app)
+        .delete('/api/admin/dashboard/invitations/inv123');
+
+      expect(response.status).toBe(200);
+      expect(adminDashboardController.cancelInvitation).toHaveBeenCalled();
+    });
+  });
+
+  describe('POST /invitations/:invitationId/resend', () => {
+    it('should call resendInvitation controller', async () => {
+      adminDashboardController.resendInvitation.mockImplementation((req, res) => {
+        res.status(200).json({ success: true });
+      });
+
+      const response = await request(app)
+        .post('/api/admin/dashboard/invitations/inv123/resend');
+
+      expect(response.status).toBe(200);
+      expect(adminDashboardController.resendInvitation).toHaveBeenCalled();
+    });
+  });
+
+  describe('DELETE /invitations/:invitationId/permanent', () => {
+    it('should call deleteInvitation controller', async () => {
+      adminDashboardController.deleteInvitation.mockImplementation((req, res) => {
+        res.status(200).json({ success: true });
+      });
+
+      const response = await request(app)
+        .delete('/api/admin/dashboard/invitations/inv123/permanent');
+
+      expect(response.status).toBe(200);
+      expect(adminDashboardController.deleteInvitation).toHaveBeenCalled();
     });
   });
 

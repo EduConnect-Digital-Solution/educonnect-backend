@@ -3,7 +3,7 @@
  * Handles assigning classes and subjects to teachers
  */
 
-const User = require('../models/User');
+const { prisma } = require('../config/database');
 const TeacherService = require('../services/teacherService');
 const CacheService = require('../services/cacheService');
 const catchAsync = require('../utils/catchAsync');
@@ -36,10 +36,12 @@ const assignClassesToTeacher = catchAsync(async (req, res) => {
   }
 
   // Find the teacher
-  const teacher = await User.findOne({
-    _id: teacherId,
-    schoolId: targetSchoolId,
-    role: 'teacher'
+  const teacher = await prisma.user.findFirst({
+    where: {
+      id: teacherId,
+      schoolId: targetSchoolId,
+      role: 'teacher'
+    }
   });
 
   if (!teacher) {
@@ -54,8 +56,12 @@ const assignClassesToTeacher = catchAsync(async (req, res) => {
   const newClasses = classes.filter(cls => !existingClasses.includes(cls));
 
   if (newClasses.length > 0) {
-    teacher.classes = [...existingClasses, ...newClasses];
-    await teacher.save();
+    const updatedClasses = [...existingClasses, ...newClasses];
+    await prisma.user.update({
+      where: { id: teacherId },
+      data: { classes: updatedClasses }
+    });
+    teacher.classes = updatedClasses;
   }
 
   // Always invalidate caches to ensure fresh data on teacher dashboard
@@ -67,7 +73,7 @@ const assignClassesToTeacher = catchAsync(async (req, res) => {
     message: `Teacher assigned to ${newClasses.length} new class(es) successfully`,
     data: {
       teacher: {
-        id: teacher._id,
+        id: teacher.id,
         name: `${teacher.firstName} ${teacher.lastName}`,
         email: teacher.email,
         employeeId: teacher.employeeId,
@@ -107,10 +113,12 @@ const assignSubjectsToTeacher = catchAsync(async (req, res) => {
   }
 
   // Find the teacher
-  const teacher = await User.findOne({
-    _id: teacherId,
-    schoolId: targetSchoolId,
-    role: 'teacher'
+  const teacher = await prisma.user.findFirst({
+    where: {
+      id: teacherId,
+      schoolId: targetSchoolId,
+      role: 'teacher'
+    }
   });
 
   if (!teacher) {
@@ -125,8 +133,12 @@ const assignSubjectsToTeacher = catchAsync(async (req, res) => {
   const newSubjects = subjects.filter(subj => !existingSubjects.includes(subj));
 
   if (newSubjects.length > 0) {
-    teacher.subjects = [...existingSubjects, ...newSubjects];
-    await teacher.save();
+    const updatedSubjects = [...existingSubjects, ...newSubjects];
+    await prisma.user.update({
+      where: { id: teacherId },
+      data: { subjects: updatedSubjects }
+    });
+    teacher.subjects = updatedSubjects;
   }
 
   res.status(200).json({
@@ -134,7 +146,7 @@ const assignSubjectsToTeacher = catchAsync(async (req, res) => {
     message: `Teacher assigned to ${newSubjects.length} new subject(s) successfully`,
     data: {
       teacher: {
-        id: teacher._id,
+        id: teacher.id,
         name: `${teacher.firstName} ${teacher.lastName}`,
         email: teacher.email,
         employeeId: teacher.employeeId,
@@ -173,10 +185,12 @@ const removeClassesFromTeacher = catchAsync(async (req, res) => {
   }
 
   // Find the teacher
-  const teacher = await User.findOne({
-    _id: teacherId,
-    schoolId: targetSchoolId,
-    role: 'teacher'
+  const teacher = await prisma.user.findFirst({
+    where: {
+      id: teacherId,
+      schoolId: targetSchoolId,
+      role: 'teacher'
+    }
   });
 
   if (!teacher) {
@@ -188,8 +202,13 @@ const removeClassesFromTeacher = catchAsync(async (req, res) => {
 
   // Remove classes
   const originalClasses = teacher.classes || [];
-  teacher.classes = originalClasses.filter(cls => !classes.includes(cls));
-  await teacher.save();
+  const updatedClasses = originalClasses.filter(cls => !classes.includes(cls));
+
+  await prisma.user.update({
+    where: { id: teacherId },
+    data: { classes: updatedClasses }
+  });
+  teacher.classes = updatedClasses;
 
   // Invalidate teacher caches after class removal
   await TeacherService.invalidateTeacherCaches(targetSchoolId, teacherId);
@@ -203,7 +222,7 @@ const removeClassesFromTeacher = catchAsync(async (req, res) => {
     message: `Teacher removed from ${removedClasses.length} class(es) successfully`,
     data: {
       teacher: {
-        id: teacher._id,
+        id: teacher.id,
         name: `${teacher.firstName} ${teacher.lastName}`,
         email: teacher.email,
         employeeId: teacher.employeeId,
@@ -233,11 +252,24 @@ const getTeacherAssignments = catchAsync(async (req, res) => {
   }
 
   // Find the teacher
-  const teacher = await User.findOne({
-    _id: teacherId,
-    schoolId: targetSchoolId,
-    role: 'teacher'
-  }).select('-password');
+  const teacher = await prisma.user.findFirst({
+    where: {
+      id: teacherId,
+      schoolId: targetSchoolId,
+      role: 'teacher'
+    },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      email: true,
+      employeeId: true,
+      phone: true,
+      isActive: true,
+      classes: true,
+      subjects: true
+    }
+  });
 
   if (!teacher) {
     return res.status(404).json({
@@ -251,7 +283,7 @@ const getTeacherAssignments = catchAsync(async (req, res) => {
     message: 'Teacher assignments retrieved successfully',
     data: {
       teacher: {
-        id: teacher._id,
+        id: teacher.id,
         name: `${teacher.firstName} ${teacher.lastName}`,
         email: teacher.email,
         employeeId: teacher.employeeId,

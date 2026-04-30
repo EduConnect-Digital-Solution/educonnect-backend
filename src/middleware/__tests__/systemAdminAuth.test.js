@@ -1,16 +1,24 @@
 /**
  * System Admin Authentication Middleware Tests
- * Simple tests for system admin authentication middleware
+ * Prisma/PostgreSQL-based tests for system admin auth middleware
  */
 
 const {
   requireSystemAdmin,
   validateCrossSchoolAccess,
-  auditSystemOperation
+  auditSystemOperation,
+  completeAuditLog
 } = require('../systemAdminAuth');
 
+const {
+  ROLES
+} = require('../rbac');
+
 // Mock dependencies
-jest.mock('../../services/systemAdminAuthService');
+jest.mock('../../services/systemAdminAuthService', () => ({
+  verifySystemAdminToken: jest.fn()
+}));
+
 jest.mock('../rbac', () => ({
   ROLES: {
     SYSTEM_ADMIN: 'system_admin',
@@ -25,7 +33,6 @@ describe('SystemAdminAuth Middleware', () => {
   let mockVerifySystemAdminToken;
 
   beforeEach(() => {
-    // Mock request, response, and next
     req = {
       headers: {},
       user: null,
@@ -39,13 +46,12 @@ describe('SystemAdminAuth Middleware', () => {
 
     // Get mocked service
     mockVerifySystemAdminToken = require('../../services/systemAdminAuthService').verifySystemAdminToken;
-    
+
     jest.clearAllMocks();
   });
 
   describe('requireSystemAdmin', () => {
     it('should authenticate valid system admin token', () => {
-      // Mock valid token
       req.headers.authorization = 'Bearer valid-token';
       mockVerifySystemAdminToken.mockReturnValue({
         email: 'admin@test.com',
@@ -198,7 +204,7 @@ describe('SystemAdminAuth Middleware', () => {
 
     it('should create audit log for system admin operations', async () => {
       const middleware = auditSystemOperation('test_operation');
-      
+
       await middleware(req, res, next);
 
       expect(next).toHaveBeenCalled();
@@ -212,7 +218,7 @@ describe('SystemAdminAuth Middleware', () => {
     it('should skip audit for non-system-admin users', async () => {
       req.user.role = 'admin';
       const middleware = auditSystemOperation('test_operation');
-      
+
       await middleware(req, res, next);
 
       expect(next).toHaveBeenCalled();
@@ -222,7 +228,7 @@ describe('SystemAdminAuth Middleware', () => {
     it('should handle missing user gracefully', async () => {
       req.user = null;
       const middleware = auditSystemOperation('test_operation');
-      
+
       await middleware(req, res, next);
 
       expect(next).toHaveBeenCalled();
@@ -232,14 +238,37 @@ describe('SystemAdminAuth Middleware', () => {
     it('should continue on audit logging errors', async () => {
       // Mock console.log to avoid test output
       const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
-      
+
       const middleware = auditSystemOperation('test_operation');
-      
+
       await middleware(req, res, next);
 
       expect(next).toHaveBeenCalled();
-      
+
       consoleSpy.mockRestore();
+    });
+  });
+
+  describe('completeAuditLog', () => {
+    it('should log completed operation', () => {
+      req.user = { role: 'system_admin' };
+      req.auditData = {
+        operationType: 'test_operation',
+        systemAdminEmail: 'admin@test.com'
+      };
+      res.statusCode = 200;
+
+      completeAuditLog(req, res, next);
+
+      expect(next).toHaveBeenCalled();
+    });
+
+    it('should handle missing audit data', () => {
+      req.auditData = null;
+
+      completeAuditLog(req, res, next);
+
+      expect(next).toHaveBeenCalled();
     });
   });
 });

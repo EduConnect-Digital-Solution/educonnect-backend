@@ -5,6 +5,7 @@
  */
 
 const schoolService = require('../services/schoolService');
+const { prisma } = require('../config/database');
 const catchAsync = require('../utils/catchAsync');
 const { validationResult } = require('express-validator');
 
@@ -201,11 +202,12 @@ const changeSchoolStatus = catchAsync(async (req, res) => {
     const action = isActive ? 'activate' : 'deactivate';
     
     // Find an actual admin user for this school instead of using hardcoded ID
-    const User = require('../models/User');
-    const adminUser = await User.findOne({ 
-      schoolId, 
-      role: 'admin',
-      isActive: true 
+    const adminUser = await prisma.user.findFirst({ 
+      where: { 
+        schoolId, 
+        role: 'admin',
+        isActive: true 
+      } 
     });
     
     if (!adminUser) {
@@ -215,7 +217,7 @@ const changeSchoolStatus = catchAsync(async (req, res) => {
       });
     }
     
-    const result = await schoolService.changeSchoolStatus(schoolId, action, adminUser._id, reason);
+    const result = await schoolService.changeSchoolStatus(schoolId, action, adminUser.id, reason);
 
     res.status(200).json({
       success: true,

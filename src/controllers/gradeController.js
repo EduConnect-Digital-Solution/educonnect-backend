@@ -105,7 +105,7 @@ const assignGrade = catchAsync(async (req, res) => {
       message: 'Grade assigned successfully',
       data: {
         grade: {
-          id: grade._id,
+          id: grade.id,
           studentId: grade.studentId,
           subject: grade.subject,
           class: grade.class,

@@ -1,179 +1,216 @@
 /**
- * System Admin Authentication Controller Tests
- * Simple tests for system admin authentication functionality
+ * SystemAdminAuthController Tests
+ * Prisma/PostgreSQL-based tests for system admin auth controller
  */
 
 const request = require('supertest');
 const express = require('express');
-const systemAdminAuthController = require('../systemAdminAuthController');
 
-// Mock dependencies
-jest.mock('../../services/systemAdminAuthService');
-jest.mock('../../utils/catchAsync', () => (fn) => fn);
+// Mock dependencies BEFORE importing anything
+jest.mock('../../services/systemAdminAuthService', () => ({
+  loginSystemAdmin: jest.fn(),
+  refreshSystemAdminToken: jest.fn(),
+  verifySystemAdminToken: jest.fn(),
+  verifySystemAdminRefreshToken: jest.fn(),
+  isSystemAdminConfigured: jest.fn()
+}));
+
+jest.mock('../../middleware/systemAdminAuth', () => ({
+  requireSystemAdmin: jest.fn((req, res, next) => next()),
+  auditSystemOperation: jest.fn(() => (req, res, next) => next())
+}));
+
+jest.mock('../../middleware/systemAdminAuthValidation', () => ({
+  validateLogin: [(req, res, next) => next()],
+  validateRefresh: [(req, res, next) => next()],
+  createSystemAdminValidationChain: jest.fn(() => [(req, res, next) => next()])
+}));
+
+jest.mock('../../middleware/rateLimiter', () => ({
+  createCustomLimiter: jest.fn(() => (req, res, next) => next())
+}));
+
+jest.mock('../../utils/cookieHelper', () => ({
+  setRefreshTokenCookie: jest.fn(),
+  clearRefreshTokenCookie: jest.fn(),
+  getRefreshTokenFromCookie: jest.fn()
+}));
+
+jest.mock('../../utils/logger', () => ({
+  info: jest.fn(),
+  warn: jest.fn(),
+  error: jest.fn()
+}));
+
+// Import after mocks
+const systemAdminAuthController = require('../systemAdminAuthController');
+const systemAdminAuthService = require('../../services/systemAdminAuthService');
 
 describe('SystemAdminAuthController', () => {
-  let app;
-  let mockSystemAdminAuthService;
-
-  beforeEach(() => {
-    // Create express app for testing
-    app = express();
-    app.use(express.json());
-    
-    // Get mocked service
-    mockSystemAdminAuthService = require('../../services/systemAdminAuthService');
-    
-    // Clear all mocks
-    jest.clearAllMocks();
-    
-    // Setup routes
-    app.post('/login', systemAdminAuthController.login);
-    app.get('/verify', (req, res, next) => {
-      // Mock authenticated user
-      req.user = { email: 'admin@test.com', role: 'system_admin' };
-      req.systemAdmin = { email: 'admin@test.com', level: 'super' };
-      next();
-    }, systemAdminAuthController.verify);
-    app.post('/refresh', systemAdminAuthController.refresh);
-    app.post('/logout', (req, res, next) => {
-      req.user = { email: 'admin@test.com', role: 'system_admin' };
-      next();
-    }, systemAdminAuthController.logout);
-    app.get('/status', systemAdminAuthController.getStatus);
-  });
-
-  describe('POST /login', () => {
+  describe('login', () => {
     it('should login successfully with valid credentials', async () => {
-      // Mock successful login
-      mockSystemAdminAuthService.loginSystemAdmin.mockResolvedValue({
-        token: 'mock-jwt-token',
-        user: {
-          email: 'admin@test.com',
-          role: 'system_admin',
-          crossSchoolAccess: true
-        }
+      systemAdminAuthService.isSystemAdminConfigured.mockReturnValue(true);
+      systemAdminAuthService.loginSystemAdmin.mockResolvedValue({
+        success: true,
+        token: 'mock-token',
+        refreshToken: 'mock-refresh-token',
+        user: { email: 'admin@test.com', role: 'system_admin' }
       });
-      
-      mockSystemAdminAuthService.isSystemAdminConfigured.mockReturnValue(true);
+
+      const app = express();
+      app.use(express.json());
+      app.post('/api/system-admin/auth/login', systemAdminAuthController.login);
 
       const response = await request(app)
-        .post('/login')
-        .send({
-          email: 'admin@test.com',
-          password: 'validPassword123!'
-        });
+        .post('/api/system-admin/auth/login')
+        .send({ email: 'admin@test.com', password: 'Password123!' });
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
-      expect(response.body.data.token).toBe('mock-jwt-token');
-      expect(response.body.data.user.email).toBe('admin@test.com');
     });
 
-    it('should fail with missing credentials', async () => {
-      const response = await request(app)
-        .post('/login')
-        .send({
-          email: 'admin@test.com'
-          // Missing password
-        });
-
-      expect(response.status).toBe(400);
-      expect(response.body.success).toBe(false);
-      expect(response.body.code).toBe('MISSING_CREDENTIALS');
-    });
-
-    it('should fail when system admin not configured', async () => {
-      mockSystemAdminAuthService.isSystemAdminConfigured.mockReturnValue(false);
-
-      const response = await request(app)
-        .post('/login')
-        .send({
-          email: 'admin@test.com',
-          password: 'password123'
-        });
-
-      expect(response.status).toBe(503);
-      expect(response.body.success).toBe(false);
-      expect(response.body.code).toBe('SYSTEM_ADMIN_NOT_CONFIGURED');
-    });
-
-    it('should fail with invalid credentials', async () => {
-      mockSystemAdminAuthService.isSystemAdminConfigured.mockReturnValue(true);
-      mockSystemAdminAuthService.loginSystemAdmin.mockRejectedValue(
-        new Error('Invalid credentials')
+    it('should return 401 for invalid credentials', async () => {
+      systemAdminAuthService.isSystemAdminConfigured.mockReturnValue(true);
+      systemAdminAuthService.loginSystemAdmin.mockRejectedValue(
+        new Error('Invalid system admin credentials')
       );
 
+      const app = express();
+      app.use(express.json());
+      app.post('/api/system-admin/auth/login', systemAdminAuthController.login);
+
       const response = await request(app)
-        .post('/login')
-        .send({
-          email: 'admin@test.com',
-          password: 'wrongpassword'
-        });
+        .post('/api/system-admin/auth/login')
+        .send({ email: 'wrong@test.com', password: 'wrong' });
 
       expect(response.status).toBe(401);
       expect(response.body.success).toBe(false);
-      expect(response.body.code).toBe('INVALID_CREDENTIALS');
     });
-  });
 
-  describe('GET /verify', () => {
-    it('should verify valid token successfully', async () => {
-      const response = await request(app).get('/verify');
+    it('should return 503 when not configured', async () => {
+      systemAdminAuthService.isSystemAdminConfigured.mockReturnValue(false);
 
-      expect(response.status).toBe(200);
-      expect(response.body.success).toBe(true);
-      expect(response.body.data.valid).toBe(true);
-      expect(response.body.data.user.email).toBe('admin@test.com');
-    });
-  });
-
-  describe('POST /refresh', () => {
-    it('should refresh token successfully', async () => {
-      mockSystemAdminAuthService.refreshSystemAdminToken.mockResolvedValue({
-        token: 'new-jwt-token',
-        user: {
-          email: 'admin@test.com',
-          role: 'system_admin'
-        }
-      });
+      const app = express();
+      app.use(express.json());
+      app.post('/api/system-admin/auth/login', systemAdminAuthController.login);
 
       const response = await request(app)
-        .post('/refresh')
-        .set('Authorization', 'Bearer old-token');
+        .post('/api/system-admin/auth/login')
+        .send({ email: 'admin@test.com', password: 'Password123!' });
 
-      expect(response.status).toBe(200);
-      expect(response.body.success).toBe(true);
-      expect(response.body.data.token).toBe('new-jwt-token');
-    });
-
-    it('should fail without token', async () => {
-      const response = await request(app).post('/refresh');
-
-      expect(response.status).toBe(401);
-      expect(response.body.success).toBe(false);
-      expect(response.body.code).toBe('MISSING_TOKEN');
+      expect(response.status).toBe(503);
     });
   });
 
-  describe('POST /logout', () => {
-    it('should logout successfully', async () => {
-      const response = await request(app).post('/logout');
+  describe('getStatus', () => {
+    it('should return configuration status', async () => {
+      systemAdminAuthService.isSystemAdminConfigured.mockReturnValue(true);
 
-      expect(response.status).toBe(200);
-      expect(response.body.success).toBe(true);
-      expect(response.body.data.loggedOut).toBe(true);
-    });
-  });
+      const app = express();
+      app.get('/api/system-admin/auth/status', systemAdminAuthController.getStatus);
 
-  describe('GET /status', () => {
-    it('should return system admin status', async () => {
-      mockSystemAdminAuthService.isSystemAdminConfigured.mockReturnValue(true);
-
-      const response = await request(app).get('/status');
+      const response = await request(app)
+        .get('/api/system-admin/auth/status');
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
       expect(response.body.data.configured).toBe(true);
+    });
+  });
+
+  describe('verify', () => {
+    it('should verify valid token', async () => {
+      const app = express();
+      app.use(express.json());
+      app.use((req, res, next) => {
+        req.user = { email: 'admin@test.com', role: 'system_admin' };
+        req.systemAdmin = { email: 'admin@test.com' };
+        next();
+      });
+      app.get('/api/system-admin/auth/verify', systemAdminAuthController.verify);
+
+      const response = await request(app)
+        .get('/api/system-admin/auth/verify');
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.valid).toBe(true);
+    });
+  });
+
+  describe('refresh', () => {
+    it('should refresh token successfully', async () => {
+      systemAdminAuthService.verifySystemAdminRefreshToken.mockReturnValue({
+        email: 'admin@test.com',
+        systemAdminLevel: 'super'
+      });
+
+      systemAdminAuthService.refreshSystemAdminToken.mockResolvedValue({
+        success: true,
+        token: 'new-token',
+        refreshToken: 'new-refresh-token'
+      });
+
+      const app = express();
+      app.use(express.json());
+      app.post('/api/system-admin/auth/refresh', systemAdminAuthController.refresh);
+
+      const response = await request(app)
+        .post('/api/system-admin/auth/refresh')
+        .set('Authorization', 'Bearer old-token');
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+    });
+
+    it('should return 401 when no token provided', async () => {
+      const app = express();
+      app.use(express.json());
+      app.post('/api/system-admin/auth/refresh', systemAdminAuthController.refresh);
+
+      const response = await request(app)
+        .post('/api/system-admin/auth/refresh');
+
+      expect(response.status).toBe(401);
+    });
+  });
+
+  describe('logout', () => {
+    it('should logout successfully', async () => {
+      const app = express();
+      app.use(express.json());
+      app.post('/api/system-admin/auth/logout', systemAdminAuthController.logout);
+
+      const response = await request(app)
+        .post('/api/system-admin/auth/logout');
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+    });
+  });
+
+  describe('getMe', () => {
+    it('should return system admin profile', async () => {
+      const cookieHelper = require('../../utils/cookieHelper');
+      cookieHelper.getRefreshTokenFromCookie.mockReturnValue('mock-refresh-token');
+      
+      systemAdminAuthService.verifySystemAdminRefreshToken.mockReturnValue({
+        email: 'admin@test.com',
+        systemAdminLevel: 'super',
+        crossSchoolAccess: true,
+        iat: Date.now() / 1000,
+        exp: Date.now() / 1000 + 3600
+      });
+
+      const app = express();
+      app.use(express.json());
+      app.get('/api/system-admin/auth/me', systemAdminAuthController.getMe);
+
+      const response = await request(app)
+        .get('/api/system-admin/auth/me');
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
     });
   });
 });

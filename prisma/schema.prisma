@@ -1,0 +1,359 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =============== ENUMS ===============
+
+enum UserRole {
+  admin
+  teacher
+  parent
+}
+
+enum Gender {
+  male
+  female
+  other
+}
+
+enum Term {
+  First_Term
+  Second_Term
+  Third_Term
+}
+
+enum LetterGrade {
+  A_plus
+  A
+  A_minus
+  B_plus
+  B
+  B_minus
+  C_plus
+  C
+  C_minus
+  D_plus
+  D
+  F
+}
+
+// =============== MODELS ===============
+
+model User {
+  id                     String        @id @default(uuid())
+  schoolId                String
+  email                   String
+  password                String
+  isTemporaryPassword     Boolean       @default(false)
+  firstName               String
+  lastName                String
+  role                    UserRole
+  phone                   String?
+  address                 String?
+  profileImage            String?
+  occupation              String?
+  emergencyContact        String?
+  emergencyPhone          String?
+  isSchoolAdmin           Boolean       @default(false)
+  subjects                String[]
+  classes                 String[]
+  isActive                Boolean       @default(true)
+  isVerified              Boolean       @default(false)
+  invitationToken         String?
+  invitationExpires       DateTime?
+  invitedBy               String?
+  passwordResetToken      String?
+  passwordResetExpires    DateTime?
+  lastLogin               DateTime?
+  lastLoginAt            DateTime?
+  createdAt               DateTime      @default(now())
+  updatedAt               DateTime      @updatedAt()
+
+  // Relations
+  school        School?   @relation(fields: [schoolId], references: [id])
+  grades        Grade[]  @relation("GradeTeacher")
+  parentStudents  ParentStudent[]  @relation("ParentStudents")
+  teacherStudents TeacherStudent[] @relation("TeacherStudents")
+  
+  @@unique([schoolId, email])
+  @@index([schoolId, role])
+  @@map("users")
+}
+
+model School {
+  id                       String        @id @default(uuid())
+  schoolId                 String        @unique
+  schoolName               String
+  email                    String        @unique
+  password                 String
+  address                  String?
+  phone                    String?
+  website                  String?
+  description              String?
+  schoolType               String?
+  adminUserId              String?
+  isVerified               Boolean       @default(false)
+  verificationOTP          String?
+  otpExpires              DateTime?
+  isActive                 Boolean       @default(true)
+  systemConfig             Json?
+  systemMetadata           Json?
+  passwordResetToken       String?
+  passwordResetExpires     DateTime?
+  createdAt                DateTime      @default(now())
+  updatedAt                DateTime      @updatedAt()
+
+  // Relations
+  users         User[]
+  students      Student[]
+  grades        Grade[]  // Opposite relation for grades
+  auditLogs    PlatformAuditLog[]  // Opposite relation for platform audit logs
+
+  @@index([schoolId])
+  @@index([email])
+  @@map("schools")
+}
+
+model Student {
+  id                       String          @id @default(uuid())
+  schoolId                 String
+  studentId                String?
+  firstName                String
+  lastName                 String
+  email                    String?
+  class                    String?
+  section                  String?
+  rollNumber               String?
+  grade                    String?
+  dateOfBirth              DateTime?
+  gender                   Gender?
+  address                  String?
+  phone                    String?
+  profileImage             String?
+  currentClass             String?
+  academicYear             String?
+  isActive                 Boolean         @default(true)
+  isEnrolled               Boolean         @default(true)
+  deactivatedAt            DateTime?
+  deactivatedBy            String?
+  deactivationReason       String?
+  admissionDate            DateTime?       @default(now())
+  notes                    String?
+  createdBy                String?
+  updatedBy                String?
+  createdAt                DateTime        @default(now())
+  updatedAt                DateTime        @updatedAt()
+
+  // Relations
+  school    School?  @relation(fields: [schoolId], references: [id])
+  grades    Grade[]
+  parentOf  ParentStudent[]  @relation("StudentParents")
+  studentOf TeacherStudent[] @relation("StudentTeachers")
+
+  @@unique([schoolId, studentId])
+  @@index([schoolId, email])
+  @@map("students")
+}
+
+model Grade {
+  id             String        @id @default(uuid())
+  schoolId       String
+  teacherId      String
+  studentId      String
+  subject        String
+  class          String
+  section        String?
+  term           Term
+  academicYear   String
+  totalScore     Float?
+  totalMaxScore  Float?
+  percentage     Float?
+  letterGrade    LetterGrade?
+  gradePoints    Float?
+  remarks        String?
+  isPublished    Boolean       @default(false)
+  publishedAt    DateTime?
+  publishedBy    String?
+  createdBy      String
+  updatedBy      String
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt()
+
+  // Relations
+  school   School?  @relation(fields: [schoolId], references: [id])
+  teacher  User?    @relation("GradeTeacher", fields: [teacherId], references: [id])
+  student  Student? @relation(fields: [studentId], references: [id])
+  assessments  Assessment[]
+
+  @@unique([schoolId, teacherId, studentId, subject, term, academicYear])
+  @@map("grades")
+}
+
+model Assessment {
+  id         String   @id @default(uuid())
+  gradeId    String
+  type       String
+  title      String
+  score      Float
+  maxScore   Float
+  weight     Float    @default(1)
+  date       DateTime @default(now())
+  remarks    String?
+  createdAt  DateTime @default(now())
+
+  grade  Grade   @relation(fields: [gradeId], references: [id])
+
+  @@index([gradeId])
+  @@map("assessments")
+}
+
+// =============== OTP MODEL ===============
+
+model OTP {
+  id             String   @id @default(uuid())
+  email          String
+  otp            String
+  purpose        String
+  schoolId       String?
+  userId         String?
+  expiresAt      DateTime
+  isUsed         Boolean  @default(false)
+  usedAt         DateTime?
+  attemptCount   Int      @default(0)
+  maxAttempts    Int      @default(3)
+  createdFromIP  String?
+  usedFromIP     String?
+  createdAt      DateTime @default(now())
+
+  @@index([email, purpose])
+  @@map("otps")
+}
+
+// =============== INVITATION MODEL ===============
+
+model Invitation {
+  id             String   @id @default(uuid())
+  schoolId       String
+  email          String
+  role           String
+  token          String   @unique
+  status         String   @default("pending") // pending, accepted, expired, revoked
+  invitedBy      String?
+  acceptedBy     String?
+  acceptedAt     DateTime?
+  expiresAt      DateTime
+  firstName      String?
+  lastName       String?
+  phone          String?
+  classes        String[]
+  subjects       String[]
+  message        String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt()
+
+  @@index([schoolId, email])
+  @@map("invitations")
+}
+
+// =============== PARENT-STUDENT JUNCTION TABLE ===============
+
+model ParentStudent {
+  id         String   @id @default(uuid())
+  parentId   String
+  studentId  String
+  relation   String?  // father, mother, guardian, etc.
+  isPrimary  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  parent   User?    @relation("ParentStudents", fields: [parentId], references: [id])
+  student  Student? @relation("StudentParents", fields: [studentId], references: [id])
+
+  @@unique([parentId, studentId])
+  @@index([parentId])
+  @@index([studentId])
+  @@map("parent_students")
+}
+
+// =============== TEACHER-STUDENT JUNCTION TABLE ===============
+
+model TeacherStudent {
+  id         String   @id @default(uuid())
+  teacherId  String
+  studentId  String
+  subject    String?
+  class      String?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  teacher  User?    @relation("TeacherStudents", fields: [teacherId], references: [id])
+  student  Student? @relation("StudentTeachers", fields: [studentId], references: [id])
+
+  @@unique([teacherId, studentId])
+  @@index([teacherId])
+  @@index([studentId])
+  @@map("teacher_students")
+}
+
+// =============== SYSTEM ALERT MODEL ===============
+
+model SystemAlert {
+  id             String   @id @default(uuid())
+  type           String   // info, warning, error, critical
+  title          String
+  message        String
+  schoolId       String?  // null = platform-wide alert
+  isRead         Boolean  @default(false)
+  isGlobal       Boolean  @default(false)
+  relatedEntity  String?  // ID of related entity (user, school, etc.)
+  entityType     String?  // Type of related entity
+  createdBy      String?
+  readBy         String[]
+  readAt         DateTime?
+  metadata       Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt()
+
+  @@index([schoolId])
+  @@index([type])
+  @@map("system_alerts")
+}
+
+// =============== PLATFORM AUDIT LOG MODEL ===============
+
+model PlatformAuditLog {
+  id           String   @id @default(uuid())
+  action       String
+  entityType   String
+  entityId     String?
+  schoolId     String?
+  school       School?   @relation(fields: [schoolId], references: [id])
+  userId       String?
+  ipAddress    String?
+  userAgent    String?
+  details      Json?
+  createdAt    DateTime @default(now())
+  
+  @@index([schoolId])
+  @@index([userId])
+  @@index([action])
+  @@map("platform_audit_logs")
+}
+
+// =============== SYSTEM CONFIGURATION MODEL ===============
+
+model SystemConfiguration {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  value       Json
+  description String?
+  updatedBy   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt()
+
+  @@map("system_configurations")
+}

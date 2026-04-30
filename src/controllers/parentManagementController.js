@@ -6,6 +6,7 @@
 
 const parentService = require('../services/parentService');
 const invitationService = require('../services/invitationService');
+const { prisma } = require('../config/database');
 const catchAsync = require('../utils/catchAsync');
 const { validationResult } = require('express-validator');
 const logger = require('../utils/logger');
@@ -40,10 +41,11 @@ const inviteParent = catchAsync(async (req, res) => {
     }
 
     // Get admin user for invitation tracking
-    const User = require('../models/User');
-    const adminUser = await User.findOne({ 
-      schoolId: targetSchoolId, 
-      role: 'admin' 
+    const adminUser = await prisma.user.findFirst({ 
+      where: { 
+        schoolId: targetSchoolId, 
+        role: 'admin' 
+      } 
     });
 
     if (!adminUser) {
@@ -53,7 +55,7 @@ const inviteParent = catchAsync(async (req, res) => {
       });
     }
 
-    const result = await invitationService.createParentInvitation(req.body, targetSchoolId, adminUser._id);
+    const result = await invitationService.createParentInvitation(req.body, targetSchoolId, adminUser.id);
 
     res.status(201).json({
       success: true,
@@ -168,20 +170,6 @@ const getParents = catchAsync(async (req, res) => {
 const getParentDetails = async (req, res) => {
   try {
     const { parentId } = req.params;
-    const { schoolId } = req.query;
-    
-    // Import required models
-    const User = require('../models/User');
-    const School = require('../models/School');
-    const mongoose = require('mongoose');
-    
-    // Validate ObjectId format
-    if (!mongoose.Types.ObjectId.isValid(parentId)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid parent ID format'
-      });
-    }
     
     // Use authenticated user's schoolId from JWT token
     let targetSchoolId = req.user.schoolId;
@@ -193,15 +181,62 @@ const getParentDetails = async (req, res) => {
       });
     }
 
-    // Find the parent with all relationships
-    const parent = await User.findOne({
-      _id: parentId,
-      schoolId: targetSchoolId,
-      role: 'parent'
-    })
-    .select('-password')
-    .populate('children', 'firstName lastName studentId class section rollNumber grade dateOfBirth gender address phone isActive isEnrolled createdAt')
-    .populate('invitedBy', 'firstName lastName email');
+    // Find the parent with all relationships using Prisma
+    const parent = await prisma.user.findFirst({
+      where: {
+        id: parentId,
+        schoolId: targetSchoolId,
+        role: 'parent'
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        phone: true,
+        address: true,
+        occupation: true,
+        emergencyContact: true,
+        emergencyPhone: true,
+        isActive: true,
+        isVerified: true,
+        isTemporaryPassword: true,
+        lastLoginAt: true,
+        createdAt: true,
+        updatedAt: true,
+        invitedById: true,
+        invitedBy: {
+          select: {
+            firstName: true,
+            lastName: true,
+            email: true
+          }
+        },
+        parentOf: {
+          include: {
+            student: {
+              select: {
+                id: true,
+                studentId: true,
+                firstName: true,
+                lastName: true,
+                class: true,
+                section: true,
+                rollNumber: true,
+                grade: true,
+                dateOfBirth: true,
+                gender: true,
+                address: true,
+                phone: true,
+                isActive: true,
+                isEnrolled: true,
+                createdAt: true
+              }
+            }
+          }
+        }
+      }
+    });
 
     if (!parent) {
       return res.status(404).json({
@@ -215,7 +250,7 @@ const getParentDetails = async (req, res) => {
       message: 'Parent details retrieved successfully',
       data: {
         parent: {
-          id: parent._id,
+          id: parent.id,
           firstName: parent.firstName,
           lastName: parent.lastName,
           fullName: `${parent.firstName} ${parent.lastName}`,
@@ -238,27 +273,30 @@ const getParentDetails = async (req, res) => {
             name: `${parent.invitedBy.firstName} ${parent.invitedBy.lastName}`,
             email: parent.invitedBy.email
           } : null,
-          children: parent.children.map(child => ({
-            id: child._id,
-            studentId: child.studentId,
-            firstName: child.firstName,
-            lastName: child.lastName,
-            fullName: `${child.firstName} ${child.lastName}`,
-            class: child.class,
-            section: child.section,
-            classDisplay: child.class && child.section ? `${child.class}-${child.section}` : child.class || 'Not Assigned',
-            rollNumber: child.rollNumber,
-            grade: child.grade,
-            dateOfBirth: child.dateOfBirth,
-            gender: child.gender,
-            address: child.address,
-            phone: child.phone,
-            isActive: child.isActive,
-            isEnrolled: child.isEnrolled,
-            statusDisplay: child.isActive ? (child.isEnrolled ? 'Active' : 'Not Enrolled') : 'Inactive',
-            createdAt: child.createdAt
-          })),
-          childrenCount: parent.children.length
+          children: parent.parentOf.map(pc => {
+            const child = pc.student;
+            return {
+              id: child.id,
+              studentId: child.studentId,
+              firstName: child.firstName,
+              lastName: child.lastName,
+              fullName: `${child.firstName} ${child.lastName}`,
+              class: child.class,
+              section: child.section,
+              classDisplay: child.class && child.section ? `${child.class}-${child.section}` : child.class || 'Not Assigned',
+              rollNumber: child.rollNumber,
+              grade: child.grade,
+              dateOfBirth: child.dateOfBirth,
+              gender: child.gender,
+              address: child.address,
+              phone: child.phone,
+              isActive: child.isActive,
+              isEnrolled: child.isEnrolled,
+              statusDisplay: child.isActive ? (child.isEnrolled ? 'Active' : 'Not Enrolled') : 'Inactive',
+              createdAt: child.createdAt
+            };
+          }),
+          childrenCount: parent.parentOf.length
         }
       }
     });
@@ -267,7 +305,6 @@ const getParentDetails = async (req, res) => {
     logger.error('Get parent details error:', error);
     logger.error('Error stack:', error.stack);
     logger.error('Parent ID:', req.params.parentId);
-    logger.error('School ID:', req.query.schoolId);
     
     res.status(500).json({
       success: false,
@@ -294,12 +331,7 @@ const linkParentToStudents = async (req, res) => {
     }
 
     const { parentId } = req.params;
-    const { studentIds, schoolId } = req.body;
-    
-    // Import required models
-    const User = require('../models/User');
-    const Student = require('../models/Student');
-    const School = require('../models/School');
+    const { studentIds } = req.body;
     
     // Use authenticated user's schoolId from JWT token
     let targetSchoolId = req.user.schoolId;
@@ -312,10 +344,21 @@ const linkParentToStudents = async (req, res) => {
     }
 
     // Find the parent
-    const parent = await User.findOne({
-      _id: parentId,
-      schoolId: targetSchoolId,
-      role: 'parent'
+    const parent = await prisma.user.findFirst({
+      where: {
+        id: parentId,
+        schoolId: targetSchoolId,
+        role: 'parent'
+      },
+      include: {
+        parentOf: {
+          include: {
+            student: {
+              select: { id: true }
+            }
+          }
+        }
+      }
     });
 
     if (!parent) {
@@ -326,9 +369,11 @@ const linkParentToStudents = async (req, res) => {
     }
 
     // Validate all student IDs exist and belong to the same school
-    const students = await Student.find({
-      _id: { $in: studentIds },
-      schoolId: targetSchoolId
+    const students = await prisma.student.findMany({
+      where: {
+        id: { in: studentIds },
+        schoolId: targetSchoolId
+      }
     });
 
     if (students.length !== studentIds.length) {
@@ -339,62 +384,83 @@ const linkParentToStudents = async (req, res) => {
     }
 
     // Get admin user for tracking
-    const adminUser = await User.findOne({ 
-      schoolId: targetSchoolId, 
-      role: 'admin' 
+    const adminUser = await prisma.user.findFirst({ 
+      where: { 
+        schoolId: targetSchoolId, 
+        role: 'admin' 
+      } 
     });
 
     // Add students to parent's children array (avoid duplicates)
+    const existingStudentIds = parent.parentOf.map(pc => pc.student.id);
     const newStudentIds = studentIds.filter(studentId => 
-      !parent.children.some(childId => childId.toString() === studentId)
+      !existingStudentIds.includes(studentId)
     );
 
     if (newStudentIds.length > 0) {
-      parent.children.push(...newStudentIds);
-      parent.updatedBy = adminUser?._id;
-      await parent.save();
-
-      // Add parent to students' parentIds array (avoid duplicates)
-      await Student.updateMany(
-        { 
-          _id: { $in: newStudentIds },
-          parentIds: { $ne: parentId }
-        },
-        { 
-          $addToSet: { parentIds: parentId },
-          $set: { updatedBy: adminUser?._id }
-        }
-      );
+      // Create parent-child relationships
+      await prisma.parentChild.createMany({
+        data: newStudentIds.map(studentId => ({
+          parentId: parentId,
+          studentId: studentId,
+          relationship: 'parent',
+          isActive: true,
+          createdById: adminUser?.id
+        })),
+        skipDuplicates: true
+      });
     }
 
     // Get updated parent with populated children
-    const updatedParent = await User.findById(parentId)
-      .select('-password')
-      .populate('children', 'firstName lastName studentId class section isActive isEnrolled');
+    const updatedParent = await prisma.user.findUnique({
+      where: { id: parentId },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        parentOf: {
+          include: {
+            student: {
+              select: {
+                id: true,
+                studentId: true,
+                firstName: true,
+                lastName: true,
+                class: true,
+                section: true,
+                isActive: true,
+                isEnrolled: true
+              }
+            }
+          }
+        }
+      }
+    });
 
     res.status(200).json({
       success: true,
       message: `Parent linked to ${newStudentIds.length} new student(s) successfully`,
       data: {
         parent: {
-          id: updatedParent._id,
+          id: updatedParent.id,
           firstName: updatedParent.firstName,
           lastName: updatedParent.lastName,
           email: updatedParent.email,
-          childrenCount: updatedParent.children.length,
-          children: updatedParent.children.map(child => ({
-            id: child._id,
-            studentId: child.studentId,
-            name: `${child.firstName} ${child.lastName}`,
-            class: child.class,
-            section: child.section,
-            classDisplay: child.class && child.section ? `${child.class}-${child.section}` : child.class || 'Not Assigned',
-            isActive: child.isActive,
-            isEnrolled: child.isEnrolled
+          childrenCount: updatedParent.parentOf.length,
+          children: updatedParent.parentOf.map(pc => ({
+            id: pc.student.id,
+            studentId: pc.student.studentId,
+            name: `${pc.student.firstName} ${pc.student.lastName}`,
+            class: pc.student.class,
+            section: pc.student.section,
+            classDisplay: pc.student.class && pc.student.section ? `${pc.student.class}-${pc.student.section}` : pc.student.class || 'Not Assigned',
+            isActive: pc.student.isActive,
+            isEnrolled: pc.student.isEnrolled
           }))
         },
         linkedStudents: newStudentIds.length,
-        totalChildren: updatedParent.children.length
+        totalChildren: updatedParent.parentOf.length
       }
     });
 
@@ -424,12 +490,7 @@ const unlinkParentFromStudents = async (req, res) => {
     }
 
     const { parentId } = req.params;
-    const { studentIds, schoolId } = req.body;
-    
-    // Import required models
-    const User = require('../models/User');
-    const Student = require('../models/Student');
-    const School = require('../models/School');
+    const { studentIds } = req.body;
     
     // Use authenticated user's schoolId from JWT token
     let targetSchoolId = req.user.schoolId;
@@ -442,10 +503,12 @@ const unlinkParentFromStudents = async (req, res) => {
     }
 
     // Find the parent
-    const parent = await User.findOne({
-      _id: parentId,
-      schoolId: targetSchoolId,
-      role: 'parent'
+    const parent = await prisma.user.findFirst({
+      where: {
+        id: parentId,
+        schoolId: targetSchoolId,
+        role: 'parent'
+      }
     });
 
     if (!parent) {
@@ -456,55 +519,71 @@ const unlinkParentFromStudents = async (req, res) => {
     }
 
     // Get admin user for tracking
-    const adminUser = await User.findOne({ 
-      schoolId: targetSchoolId, 
-      role: 'admin' 
+    const adminUser = await prisma.user.findFirst({ 
+      where: { 
+        schoolId: targetSchoolId, 
+        role: 'admin' 
+      } 
     });
 
-    // Remove students from parent's children array
-    parent.children = parent.children.filter(childId => 
-      !studentIds.includes(childId.toString())
-    );
-    parent.updatedBy = adminUser?._id;
-    await parent.save();
-
-    // Remove parent from students' parentIds array
-    await Student.updateMany(
-      { _id: { $in: studentIds } },
-      { 
-        $pull: { parentIds: parentId },
-        $set: { updatedBy: adminUser?._id }
+    // Remove parent-child relationships
+    await prisma.parentChild.deleteMany({
+      where: {
+        parentId: parentId,
+        studentId: { in: studentIds }
       }
-    );
+    });
 
     // Get updated parent with populated children
-    const updatedParent = await User.findById(parentId)
-      .select('-password')
-      .populate('children', 'firstName lastName studentId class section isActive isEnrolled');
+    const updatedParent = await prisma.user.findUnique({
+      where: { id: parentId },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        parentOf: {
+          include: {
+            student: {
+              select: {
+                id: true,
+                studentId: true,
+                firstName: true,
+                lastName: true,
+                class: true,
+                section: true,
+                isActive: true,
+                isEnrolled: true
+              }
+            }
+          }
+        }
+      }
+    });
 
     res.status(200).json({
       success: true,
       message: `Parent unlinked from ${studentIds.length} student(s) successfully`,
       data: {
         parent: {
-          id: updatedParent._id,
+          id: updatedParent.id,
           firstName: updatedParent.firstName,
           lastName: updatedParent.lastName,
           email: updatedParent.email,
-          childrenCount: updatedParent.children.length,
-          children: updatedParent.children.map(child => ({
-            id: child._id,
-            studentId: child.studentId,
-            name: `${child.firstName} ${child.lastName}`,
-            class: child.class,
-            section: child.section,
-            classDisplay: child.class && child.section ? `${child.class}-${child.section}` : child.class || 'Not Assigned',
-            isActive: child.isActive,
-            isEnrolled: child.isEnrolled
+          childrenCount: updatedParent.parentOf.length,
+          children: updatedParent.parentOf.map(pc => ({
+            id: pc.student.id,
+            studentId: pc.student.studentId,
+            name: `${pc.student.firstName} ${pc.student.lastName}`,
+            class: pc.student.class,
+            section: pc.student.section,
+            classDisplay: pc.student.class && pc.student.section ? `${pc.student.class}-${pc.student.section}` : pc.student.class || 'Not Assigned',
+            isActive: pc.student.isActive,
+            isEnrolled: pc.student.isEnrolled
           }))
         },
         unlinkedStudents: studentIds.length,
-        remainingChildren: updatedParent.children.length
+        remainingChildren: updatedParent.parentOf.length
       }
     });
 
@@ -534,12 +613,7 @@ const removeParent = async (req, res) => {
     }
 
     const { parentId } = req.params;
-    const { reason, schoolId } = req.body;
-    
-    // Import required models
-    const User = require('../models/User');
-    const Student = require('../models/Student');
-    const School = require('../models/School');
+    const { reason } = req.body;
     
     // Use authenticated user's schoolId from JWT token
     let targetSchoolId = req.user.schoolId;
@@ -551,12 +625,28 @@ const removeParent = async (req, res) => {
       });
     }
 
-    // Find the parent
-    const parent = await User.findOne({
-      _id: parentId,
-      schoolId: targetSchoolId,
-      role: 'parent'
-    }).populate('children', 'firstName lastName studentId');
+    // Find the parent with children
+    const parent = await prisma.user.findFirst({
+      where: {
+        id: parentId,
+        schoolId: targetSchoolId,
+        role: 'parent'
+      },
+      include: {
+        parentOf: {
+          include: {
+            student: {
+              select: {
+                id: true,
+                studentId: true,
+                firstName: true,
+                lastName: true
+              }
+            }
+          }
+        }
+      }
+    });
 
     if (!parent) {
       return res.status(404).json({
@@ -566,9 +656,11 @@ const removeParent = async (req, res) => {
     }
 
     // Get admin user for tracking
-    const adminUser = await User.findOne({ 
-      schoolId: targetSchoolId, 
-      role: 'admin' 
+    const adminUser = await prisma.user.findFirst({ 
+      where: { 
+        schoolId: targetSchoolId, 
+        role: 'admin' 
+      } 
     });
 
     if (!adminUser) {
@@ -580,47 +672,49 @@ const removeParent = async (req, res) => {
 
     // Store parent info for response before deletion
     const parentInfo = {
-      id: parent._id,
+      id: parent.id,
       firstName: parent.firstName,
       lastName: parent.lastName,
       fullName: `${parent.firstName} ${parent.lastName}`,
       email: parent.email,
       phone: parent.phone,
       isActive: parent.isActive,
-      children: parent.children.map(child => ({
-        id: child._id,
-        studentId: child.studentId,
-        name: `${child.firstName} ${child.lastName}`
+      children: parent.parentOf.map(pc => ({
+        id: pc.student.id,
+        studentId: pc.student.studentId,
+        name: `${pc.student.firstName} ${pc.student.lastName}`
       })),
-      childrenCount: parent.children.length
+      childrenCount: parent.parentOf.length
     };
 
-    // Remove parent from all students' parentIds arrays
-    if (parent.children && parent.children.length > 0) {
-      await Student.updateMany(
-        { _id: { $in: parent.children } },
-        { $pull: { parentIds: parent._id } }
-      );
+    // Remove parent from all students' parentIds arrays (delete parentChild records)
+    if (parent.parentOf && parent.parentOf.length > 0) {
+      await prisma.parentChild.deleteMany({
+        where: {
+          parentId: parentId
+        }
+      });
     }
 
     // Cancel any pending invitations for this parent
-    const Invitation = require('../models/Invitation');
-    await Invitation.updateMany(
-      { 
+    await prisma.invitation.updateMany({
+      where: { 
         email: parent.email,
         schoolId: targetSchoolId,
         status: 'pending'
       },
-      { 
+      data: { 
         status: 'cancelled',
         cancelledAt: new Date(),
-        cancelledBy: adminUser._id,
+        cancelledById: adminUser.id,
         cancellationReason: `Parent removed: ${reason || 'Parent account deleted'}`
       }
-    );
+    });
 
     // Remove the parent
-    await User.findByIdAndDelete(parentId);
+    await prisma.user.delete({
+      where: { id: parentId }
+    });
 
     res.status(200).json({
       success: true,
@@ -629,7 +723,7 @@ const removeParent = async (req, res) => {
         removedParent: parentInfo,
         removedAt: new Date(),
         removedBy: {
-          id: adminUser._id,
+          id: adminUser.id,
           name: `${adminUser.firstName} ${adminUser.lastName}`,
           email: adminUser.email
         },

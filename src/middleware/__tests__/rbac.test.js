@@ -202,7 +202,7 @@ describe('RBAC Middleware', () => {
     });
 
     test('validateParentAccess should set validation flags for parents', () => {
-      req.user = { role: ROLES.PARENT, schoolId: 'school1', id: 'parent1' };
+      req.user = { role: ROLES.PARENT, schoolId: 'school1', userId: 'parent1' };
       req.params.studentId = 'student1';
       
       validateParentAccess(req, res, next);
@@ -246,7 +246,7 @@ describe('RBAC Middleware', () => {
       req.user = { 
         role: ROLES.TEACHER, 
         schoolId: 'school1', 
-        id: 'teacher1',
+        userId: 'teacher1',
         classes: ['class1', 'class2'],
         subjects: ['math', 'science']
       };
@@ -333,7 +333,7 @@ describe('RBAC Middleware', () => {
 
   describe('Audit Logging', () => {
     test('auditLog should set audit information', () => {
-      req.user = { role: ROLES.ADMIN, schoolId: 'school1', id: 'admin1' };
+      req.user = { role: ROLES.ADMIN, schoolId: 'school1', userId: 'admin1' };
       req.method = 'POST';
       req.path = '/api/users';
       req.params = { id: 'user1' };

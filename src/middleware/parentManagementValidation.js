@@ -44,8 +44,8 @@ const validateInviteParent = [
     .withMessage('At least one student ID is required'),
   
   body('studentIds.*')
-    .isMongoId()
-    .withMessage('Each student ID must be a valid MongoDB ObjectId'),
+    .isUUID()
+    .withMessage('Each student ID must be a valid valid UUID'),
   
   body('message')
     .optional()
@@ -92,7 +92,7 @@ const validateGetParents = [
  */
 const validateParentId = [
   param('parentId')
-    .isMongoId()
+    .isUUID()
     .withMessage('Invalid parent ID format'),
   
   handleValidationErrors
@@ -103,7 +103,7 @@ const validateParentId = [
  */
 const validateLinkParentToStudents = [
   param('parentId')
-    .isMongoId()
+    .isUUID()
     .withMessage('Invalid parent ID format'),
   
   body('studentIds')
@@ -111,8 +111,8 @@ const validateLinkParentToStudents = [
     .withMessage('Student IDs must be a non-empty array'),
   
   body('studentIds.*')
-    .isMongoId()
-    .withMessage('Each student ID must be a valid MongoDB ObjectId'),
+    .isUUID()
+    .withMessage('Each student ID must be a valid valid UUID'),
   
   handleValidationErrors
 ];
@@ -122,7 +122,7 @@ const validateLinkParentToStudents = [
  */
 const validateUnlinkParentFromStudents = [
   param('parentId')
-    .isMongoId()
+    .isUUID()
     .withMessage('Invalid parent ID format'),
   
   body('studentIds')
@@ -130,8 +130,8 @@ const validateUnlinkParentFromStudents = [
     .withMessage('Student IDs must be a non-empty array'),
   
   body('studentIds.*')
-    .isMongoId()
-    .withMessage('Each student ID must be a valid MongoDB ObjectId'),
+    .isUUID()
+    .withMessage('Each student ID must be a valid valid UUID'),
   
   handleValidationErrors
 ];
@@ -141,7 +141,7 @@ const validateUnlinkParentFromStudents = [
  */
 const validateRemoveParent = [
   param('parentId')
-    .isMongoId()
+    .isUUID()
     .withMessage('Invalid parent ID format'),
   
   body('reason')

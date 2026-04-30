@@ -5,13 +5,7 @@
  * Requirements: 1.1, 2.1, 3.1
  */
 
-const mongoose = require('mongoose');
-const School = require('../models/School');
-const User = require('../models/User');
-const Student = require('../models/Student');
-const SystemAlert = require('../models/SystemAlert');
-const PlatformAuditLog = require('../models/PlatformAuditLog');
-const SystemConfiguration = require('../models/SystemConfiguration');
+const { prisma } = require('../config/database');
 const CrossSchoolAggregator = require('./crossSchoolAggregator');
 const CacheService = require('./cacheService');
 const logger = require('../utils/logger');
@@ -189,42 +183,47 @@ class SystemAdminService {
     } = pagination;
 
     try {
-      // Build query
-      const query = {};
+      // Build where clause
+      const where = {};
       
-      if (isActive !== undefined) query.isActive = isActive;
-      if (subscriptionTier) query['systemConfig.subscriptionTier'] = subscriptionTier;
-      if (subscriptionStatus) query['systemConfig.subscriptionStatus'] = subscriptionStatus;
-      if (hasFlags) query['systemMetadata.flags.isActive'] = true;
+      if (isActive !== undefined) where.isActive = isActive;
+      if (subscriptionTier) where.systemConfig = { path: ['subscriptionTier'], equals: subscriptionTier };
+      if (hasFlags) where.systemMetadata = { path: ['flags'], array_contains: [{ isActive: true }] };
       
       if (search) {
-        query.$or = [
-          { schoolName: { $regex: search, $options: 'i' } },
-          { email: { $regex: search, $options: 'i' } },
-          { schoolId: { $regex: search, $options: 'i' } }
+        where.OR = [
+          { schoolName: { contains: search, mode: 'insensitive' } },
+          { email: { contains: search, mode: 'insensitive' } },
+          { schoolId: { contains: search, mode: 'insensitive' } }
         ];
+      }
+
+      // Map sortBy to Prisma field
+      const orderBy = {};
+      if (sortBy === 'createdAt') {
+        orderBy.createdAt = sortOrder === 'desc' ? 'desc' : 'asc';
       }
 
       // Execute query with pagination
       const skip = (parseInt(page) - 1) * parseInt(limit);
-      const sort = { [sortBy]: sortOrder === 'desc' ? -1 : 1 };
 
       const [schools, total] = await Promise.all([
-        School.find(query)
-          .sort(sort)
-          .skip(skip)
-          .limit(parseInt(limit))
-          .lean(),
-        School.countDocuments(query)
+        prisma.school.findMany({
+          where,
+          orderBy,
+          skip,
+          take: parseInt(limit)
+        }),
+        prisma.school.count({ where })
       ]);
 
       // Enhance school data with statistics
       const enhancedSchools = await Promise.all(
         schools.map(async (school) => {
           const [userCount, studentCount, activeFlags] = await Promise.all([
-            User.countDocuments({ schoolId: school.schoolId }),
-            Student.countDocuments({ schoolId: school.schoolId, isActive: true }),
-            school.systemMetadata?.flags?.filter(flag => flag.isActive).length || 0
+            prisma.user.count({ where: { schoolId: school.id } }),
+            prisma.student.count({ where: { schoolId: school.id, isActive: true } }),
+            Promise.resolve(school.systemMetadata?.flags?.filter(flag => flag.isActive).length || 0)
           ]);
 
           return {
@@ -276,76 +275,81 @@ class SystemAdminService {
 
     try {
       // Check if school with email already exists
-      const existingSchool = await School.findOne({ email: email.toLowerCase() });
+      const existingSchool = await prisma.school.findFirst({
+        where: { email: email.toLowerCase() }
+      });
       if (existingSchool) {
         throw new Error('A school with this email already exists');
       }
 
       // Create school
-      const school = new School({
-        schoolName: schoolName.trim(),
-        email: email.toLowerCase().trim(),
-        password,
-        phone: phone?.trim(),
-        address: address?.trim(),
-        principalName: principalName?.trim(),
-        schoolType,
-        systemConfig: {
-          subscriptionTier,
-          subscriptionStatus: 'trial',
-          subscriptionStartDate: new Date(),
-          subscriptionEndDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days trial
-          features: [
-            {
-              featureName: 'basic_features',
-              isEnabled: true,
-              enabledBy: systemAdminId,
-              enabledAt: new Date()
-            }
-          ]
-        },
-        systemMetadata: {
-          createdBy: systemAdminId,
-          systemNotes: [
-            {
-              note: 'School created by system administrator',
-              createdBy: systemAdminId,
-              category: 'general',
-              createdAt: new Date()
-            }
-          ]
+      const school = await prisma.school.create({
+        data: {
+          schoolName: schoolName.trim(),
+          email: email.toLowerCase().trim(),
+          password, // Will be hashed by middleware/handler
+          phone: phone?.trim(),
+          address: address?.trim(),
+          principalName: principalName?.trim(),
+          schoolType,
+          systemConfig: {
+            subscriptionTier,
+            subscriptionStatus: 'trial',
+            subscriptionStartDate: new Date(),
+            subscriptionEndDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days trial
+            features: [
+              {
+                featureName: 'basic_features',
+                isEnabled: true,
+                enabledBy: systemAdminId,
+                enabledAt: new Date()
+              }
+            ]
+          },
+          systemMetadata: {
+            createdBy: systemAdminId,
+            systemNotes: [
+              {
+                note: 'School created by system administrator',
+                createdBy: systemAdminId,
+                category: 'general',
+                createdAt: new Date()
+              }
+            ]
+          }
         }
       });
 
-      await school.save();
-
       // Create admin user for the school
-      const adminUser = new User({
-        firstName: adminUserData.firstName || 'Admin',
-        lastName: adminUserData.lastName || 'User',
-        email: email.toLowerCase(),
-        password: password, // Will be hashed by pre-save middleware
-        role: 'admin',
-        schoolId: school.schoolId,
-        isActive: true,
-        isVerified: true,
-        isTemporaryPassword: true // Admin should change password on first login
+      const adminUser = await prisma.user.create({
+        data: {
+          schoolId: school.id,
+          firstName: adminUserData.firstName || 'Admin',
+          lastName: adminUserData.lastName || 'User',
+          email: email.toLowerCase(),
+          password, // Will be hashed by middleware/handler
+          role: 'admin',
+          isActive: true,
+          isVerified: true,
+          isTemporaryPassword: true // Admin should change password on first login
+        }
       });
 
-      await adminUser.save();
-
       // Update school with admin user reference
-      school.adminUserId = adminUser._id;
-      await school.save();
+      await prisma.school.update({
+        where: { id: school.id },
+        data: { adminUserId: adminUser.id }
+      });
 
-      // Log the creation
-      await PlatformAuditLog.createAuditLog({
-        operation: 'Create new school',
-        operationType: 'create',
+      // Log the creation - create audit log entry
+      await prisma.platformAuditLog.create({
+        data: {
+          operation: 'Create new school',
+          operationType: 'create',
         userId: systemAdminId,
         userRole: 'system_admin',
-        userEmail: 'system@educonnect.com',
-        targetSchoolId: school._id,
+        userEmail: systemAdminId,
+        schoolId: school.id,
         resourceType: 'school',
         resourceId: school.schoolId,
         metadata: {
@@ -354,24 +358,25 @@ class SystemAdminService {
         },
         severity: 'high',
         category: 'user_management'
-      });
+      }
+    });
 
-      // Invalidate platform caches
-      await CacheService.invalidateCrossSchoolCaches();
+    // Invalidate platform caches
+    await CacheService.invalidateCrossSchoolCaches();
 
       return {
         school: {
-          id: school._id,
-          schoolId: school.schoolId,
+          id: school.id,
+          schoolId: school.id,
           schoolName: school.schoolName,
           email: school.email,
           isActive: school.isActive,
-          subscriptionTier: school.systemConfig.subscriptionTier,
-          subscriptionStatus: school.systemConfig.subscriptionStatus,
+          subscriptionTier: school.systemConfig?.subscriptionTier,
+          subscriptionStatus: school.systemConfig?.subscriptionStatus,
           createdAt: school.createdAt
         },
         adminUser: {
-          id: adminUser._id,
+          id: adminUser.id,
           firstName: adminUser.firstName,
           lastName: adminUser.lastName,
           email: adminUser.email,
@@ -394,7 +399,9 @@ class SystemAdminService {
    */
   static async updateSchoolConfig(schoolId, configData, systemAdminId) {
     try {
-      const school = await School.findOne({ schoolId });
+      const school = await prisma.school.findFirst({
+        where: { schoolId }
+      });
       
       if (!school) {
         throw new Error('School not found');
@@ -412,75 +419,111 @@ class SystemAdminService {
       // Track changes for audit log
       const changes = { before: {}, after: {} };
 
+      // Build update data
+      const updateData = {};
+      const systemConfig = { ...(school.systemConfig || {}) };
+      const systemMetadata = { ...(school.systemMetadata || {}) };
+
       // Update subscription tier
-      if (subscriptionTier && subscriptionTier !== school.systemConfig.subscriptionTier) {
-        changes.before.subscriptionTier = school.systemConfig.subscriptionTier;
+      if (subscriptionTier && subscriptionTier !== systemConfig.subscriptionTier) {
+        changes.before.subscriptionTier = systemConfig.subscriptionTier;
         changes.after.subscriptionTier = subscriptionTier;
-        await school.updateSubscriptionTier(subscriptionTier, systemAdminId);
+        systemConfig.subscriptionTier = subscriptionTier;
       }
 
       // Update subscription status
-      if (subscriptionStatus && subscriptionStatus !== school.systemConfig.subscriptionStatus) {
-        changes.before.subscriptionStatus = school.systemConfig.subscriptionStatus;
+      if (subscriptionStatus && subscriptionStatus !== systemConfig.subscriptionStatus) {
+        changes.before.subscriptionStatus = systemConfig.subscriptionStatus;
         changes.after.subscriptionStatus = subscriptionStatus;
-        await school.updateSubscriptionStatus(subscriptionStatus, systemAdminId);
+        systemConfig.subscriptionStatus = subscriptionStatus;
       }
 
       // Update features
       if (features && Array.isArray(features)) {
-        for (const feature of features) {
-          const { featureName, isEnabled, expiresAt } = feature;
-          await school.toggleFeature(featureName, isEnabled, systemAdminId, expiresAt);
-        }
+        if (!systemConfig.features) systemConfig.features = [];
+        features.forEach(feature => {
+          const existingFeature = systemConfig.features.find(f => f.featureName === feature.featureName);
+          if (existingFeature) {
+            existingFeature.isEnabled = feature.isEnabled;
+            if (feature.expiresAt) existingFeature.expiresAt = feature.expiresAt;
+          } else {
+            systemConfig.features.push(feature);
+          }
+        });
         changes.after.features = features;
       }
 
       // Update limits
       if (limits) {
-        changes.before.limits = { ...school.systemConfig.limits };
+        changes.before.limits = { ...systemConfig.limits };
         changes.after.limits = limits;
-        await school.updateLimits(limits, systemAdminId);
+        systemConfig.limits = { ...(systemConfig.limits || {}), ...limits };
       }
 
       // Update billing information
       if (billing) {
-        changes.before.billing = { ...school.systemConfig.billing };
+        changes.before.billing = { ...systemConfig.billing };
         changes.after.billing = billing;
-        Object.assign(school.systemConfig.billing, billing);
-        await school.save();
+        systemConfig.billing = { ...(systemConfig.billing || {}), ...billing };
       }
+
+      updateData.systemConfig = systemConfig;
 
       // Add system note if provided
       if (systemNote) {
-        await school.addSystemNote(systemNote, systemAdminId, 'technical');
+        if (!systemMetadata.systemNotes) systemMetadata.systemNotes = [];
+        systemMetadata.systemNotes.push({
+          note: systemNote,
+          createdBy: systemAdminId,
+          category: 'technical',
+          createdAt: new Date()
+        });
+        updateData.systemMetadata = systemMetadata;
       }
 
+      // Update the school
+      await prisma.school.update({
+        where: { id: school.id },
+        data: updateData
+      });
+
       // Log the update
-      await PlatformAuditLog.createAuditLog({
-        operation: 'Update school configuration',
-        operationType: 'update',
-        userId: systemAdminId,
-        userRole: 'system_admin',
-        userEmail: 'system@educonnect.com',
-        targetSchoolId: school._id,
-        resourceType: 'school',
-        resourceId: school.schoolId,
-        changes,
-        metadata: {
-          ip: '127.0.0.1',
-          userAgent: 'System Admin Dashboard'
-        },
-        severity: 'high',
-        category: 'configuration'
+      await prisma.platformAuditLog.create({
+        data: {
+          operation: 'Update school configuration',
+          operationType: 'update',
+          userId: systemAdminId,
+          userRole: 'system_admin',
+          userEmail: systemAdminId,
+          schoolId: school.id,
+          resourceType: 'school',
+          resourceId: school.schoolId,
+          changes,
+          metadata: {
+            ip: '127.0.0.1',
+            userAgent: 'System Admin Dashboard'
+          },
+          severity: 'high',
+          category: 'configuration'
+        }
       });
 
       // Invalidate caches
       await CacheService.invalidatePlatformCachesForSchool(schoolId);
 
       // Return updated school
-      const updatedSchool = await School.findOne({ schoolId });
+      const updatedSchool = await prisma.school.findFirst({
+        where: { schoolId }
+      });
       return {
-        school: updatedSchool.getSystemSummary()
+        school: {
+          id: updatedSchool.id,
+          schoolId: updatedSchool.schoolId,
+          schoolName: updatedSchool.schoolName,
+          isActive: updatedSchool.isActive,
+          subscriptionTier: updatedSchool.systemConfig?.subscriptionTier,
+          subscriptionStatus: updatedSchool.systemConfig?.subscriptionStatus
+        }
       };
 
     } catch (error) {
@@ -498,7 +541,9 @@ class SystemAdminService {
    */
   static async deactivateSchool(schoolId, reason, systemAdminId) {
     try {
-      const school = await School.findOne({ schoolId });
+      const school = await prisma.school.findFirst({
+        where: { schoolId }
+      });
       if (!school) {
         throw new Error('School not found');
       }
@@ -508,44 +553,78 @@ class SystemAdminService {
       }
 
       // Deactivate the school
-      school.isActive = false;
-      school.systemMetadata.lastModifiedBy = systemAdminId;
-      await school.save();
+      const updatedSchool = await prisma.school.update({
+        where: { id: school.id },
+        data: {
+          isActive: false,
+          systemMetadata: {
+            ...(school.systemMetadata || {}),
+            lastModifiedBy: systemAdminId
+          }
+        }
+      });
 
       // Add system note
-      await school.addSystemNote(
-        `School deactivated: ${reason}`,
-        systemAdminId,
-        'general'
-      );
+      await prisma.school.update({
+        where: { id: school.id },
+        data: {
+          systemMetadata: {
+            ...(updatedSchool.systemMetadata || {}),
+            systemNotes: [
+              ...(updatedSchool.systemMetadata?.systemNotes || []),
+              {
+                note: `School deactivated: ${reason}`,
+                createdBy: systemAdminId,
+                category: 'general',
+                createdAt: new Date()
+              }
+            ]
+          }
+        }
+      });
 
       // Add system flag
-      await school.addSystemFlag(
-        'attention',
-        `School deactivated: ${reason}`,
-        systemAdminId
-      );
+      await prisma.school.update({
+        where: { id: school.id },
+        data: {
+          systemMetadata: {
+            ...(updatedSchool.systemMetadata || {}),
+            flags: [
+              ...(updatedSchool.systemMetadata?.flags || []),
+              {
+                flagType: 'attention',
+                description: `School deactivated: ${reason}`,
+                createdBy: systemAdminId,
+                isActive: true,
+                createdAt: new Date()
+              }
+            ]
+          }
+        }
+      });
 
       // Log the deactivation
-      await PlatformAuditLog.createAuditLog({
-        operation: 'Deactivate school',
-        operationType: 'admin_action',
-        userId: systemAdminId,
-        userRole: 'system_admin',
-        userEmail: 'system@educonnect.com',
-        targetSchoolId: school._id,
-        resourceType: 'school',
-        resourceId: school.schoolId,
-        changes: {
-          before: { isActive: true },
-          after: { isActive: false, reason }
-        },
-        metadata: {
-          ip: '127.0.0.1',
-          userAgent: 'System Admin Dashboard'
-        },
-        severity: 'critical',
-        category: 'user_management'
+      await prisma.platformAuditLog.create({
+        data: {
+          operation: 'Deactivate school',
+          operationType: 'admin_action',
+          userId: systemAdminId,
+          userRole: 'system_admin',
+          userEmail: systemAdminId,
+          schoolId: school.id,
+          resourceType: 'school',
+          resourceId: school.schoolId,
+          changes: {
+            before: { isActive: true },
+            after: { isActive: false, reason }
+          },
+          metadata: {
+            ip: '127.0.0.1',
+            userAgent: 'System Admin Dashboard'
+          },
+          severity: 'critical',
+          category: 'user_management'
+        }
       });
 
       // Invalidate caches
@@ -553,9 +632,9 @@ class SystemAdminService {
 
       return {
         school: {
-          schoolId: school.schoolId,
+          schoolId: school.id,
           schoolName: school.schoolName,
-          isActive: school.isActive,
+          isActive: false,
           deactivatedAt: new Date(),
           reason
         }
@@ -577,7 +656,9 @@ class SystemAdminService {
     const { reason, reactivatedBy, reactivatedAt } = options;
     
     try {
-      const school = await School.findOne({ schoolId });
+      const school = await prisma.school.findFirst({
+        where: { schoolId }
+      });
       if (!school) {
         throw new Error('School not found');
       }
@@ -587,45 +668,74 @@ class SystemAdminService {
       }
 
       // Reactivate the school
-      school.isActive = true;
-      school.systemMetadata.lastModifiedBy = reactivatedBy || 'system';
-      await school.save();
+      await prisma.school.update({
+        where: { id: school.id },
+        data: {
+          isActive: true,
+          systemMetadata: {
+            ...(school.systemMetadata || {}),
+            lastModifiedBy: reactivatedBy || 'system'
+          }
+        }
+      });
 
       // Add system note
-      await school.addSystemNote(
-        `School reactivated: ${reason || 'No reason provided'}`,
-        reactivatedBy || 'system',
-        'general'
-      );
+      await prisma.school.update({
+        where: { id: school.id },
+        data: {
+          systemMetadata: {
+            ...(school.systemMetadata || {}),
+            systemNotes: [
+              ...(school.systemMetadata?.systemNotes || []),
+              {
+                note: `School reactivated: ${reason || 'No reason provided'}`,
+                createdBy: reactivatedBy || 'system',
+                category: 'general',
+                createdAt: new Date()
+              }
+            ]
+          }
+        }
+      });
 
       // Remove deactivation flags
-      if (school.systemMetadata.flags) {
-        school.systemMetadata.flags = school.systemMetadata.flags.filter(
-          flag => !flag.flagType.includes('deactivated')
+      if (school.systemMetadata?.flags) {
+        const updatedFlags = school.systemMetadata.flags.filter(
+          flag => !flag.flagType?.includes('deactivated')
         );
-        await school.save();
+        await prisma.school.update({
+          where: { id: school.id },
+          data: {
+            systemMetadata: {
+              ...(school.systemMetadata || {}),
+              flags: updatedFlags
+            }
+          }
+        });
       }
 
       // Log the reactivation
-      await PlatformAuditLog.createAuditLog({
-        operation: 'Reactivate school',
-        operationType: 'admin_action',
-        userId: reactivatedBy || 'system',
-        userRole: 'system_admin',
-        userEmail: 'system@educonnect.com',
-        targetSchoolId: school._id,
-        resourceType: 'school',
-        resourceId: school.schoolId,
-        changes: {
-          before: { isActive: false },
-          after: { isActive: true, reason }
-        },
-        metadata: {
-          ip: '127.0.0.1',
-          userAgent: 'System Admin Dashboard'
-        },
-        severity: 'high',
-        category: 'user_management'
+      await prisma.platformAuditLog.create({
+        data: {
+          operation: 'Reactivate school',
+          operationType: 'admin_action',
+          userId: reactivatedBy || 'system',
+          userRole: 'system_admin',
+          userEmail: reactivatedBy || 'system',
+          schoolId: school.id,
+          resourceType: 'school',
+          resourceId: school.schoolId,
+          changes: {
+            before: { isActive: false },
+            after: { isActive: true, reason }
+          },
+          metadata: {
+            ip: '127.0.0.1',
+            userAgent: 'System Admin Dashboard'
+          },
+          severity: 'high',
+          category: 'user_management'
+        }
       });
 
       // Invalidate caches
@@ -633,9 +743,9 @@ class SystemAdminService {
 
       return {
         school: {
-          schoolId: school.schoolId,
+          schoolId: school.id,
           schoolName: school.schoolName,
-          isActive: school.isActive,
+          isActive: true,
           reactivatedAt: reactivatedAt || new Date(),
           reason
         }
@@ -676,45 +786,67 @@ class SystemAdminService {
     } = pagination;
 
     try {
-      // Build query
-      const query = {};
+      // Build where clause
+      const where = {};
       
-      if (role && role !== 'all') query.role = role;
-      if (isActive !== undefined) query.isActive = isActive;
-      if (isVerified !== undefined) query.isVerified = isVerified;
-      if (schoolIds && schoolIds.length > 0) query.schoolId = { $in: schoolIds };
+      if (role && role !== 'all') where.role = role;
+      if (isActive !== undefined) where.isActive = isActive;
+      if (isVerified !== undefined) where.isVerified = isVerified;
+      if (schoolIds && schoolIds.length > 0) {
+        const schools = await prisma.school.findMany({
+          where: { schoolId: { in: schoolIds } }
+        });
+        where.schoolId = { in: schools.map(s => s.id) };
+      }
       
       if (search) {
-        query.$or = [
-          { firstName: { $regex: search, $options: 'i' } },
-          { lastName: { $regex: search, $options: 'i' } },
-          { email: { $regex: search, $options: 'i' } },
-          { schoolId: { $regex: search, $options: 'i' } }
+        where.OR = [
+          { firstName: { contains: search, mode: 'insensitive' } },
+          { lastName: { contains: search, mode: 'insensitive' } },
+          { email: { contains: search, mode: 'insensitive' } }
         ];
       }
 
       // Execute query with pagination
       const skip = (parseInt(page) - 1) * parseInt(limit);
-      const sort = { [sortBy]: sortOrder === 'desc' ? -1 : 1 };
+      const orderBy = {};
+      if (sortBy === 'createdAt') {
+        orderBy.createdAt = sortOrder === 'desc' ? 'desc' : 'asc';
+      }
 
       const [users, total] = await Promise.all([
-        User.find(query)
-          .populate('schoolId', 'schoolName schoolId')
-          .sort(sort)
-          .skip(skip)
-          .limit(parseInt(limit))
-          .select('-password')
-          .lean(),
-        User.countDocuments(query)
+        prisma.user.findMany({
+          where,
+          include: {
+            school: {
+              select: {
+                schoolId: true,
+                schoolName: true
+              }
+            }
+          },
+          orderBy,
+          skip,
+          take: parseInt(limit)
+        }),
+        prisma.user.count({ where })
       ]);
 
       // Enhance user data
       const enhancedUsers = users.map(user => ({
-        ...user,
+        id: user.id,
+        firstName: user.firstName,
+        lastName: user.lastName,
         fullName: `${user.firstName} ${user.lastName}`,
-        school: user.schoolId ? {
-          schoolId: user.schoolId.schoolId,
-          schoolName: user.schoolId.schoolName
+        email: user.email,
+        role: user.role,
+        subjects: user.subjects,
+        classes: user.classes,
+        isActive: user.isActive,
+        isVerified: user.isVerified,
+        school: user.school ? {
+          schoolId: user.school.schoolId,
+          schoolName: user.school.schoolName
         } : null,
         statusDisplay: this._getUserStatusDisplay(user)
       }));
@@ -730,8 +862,8 @@ class SystemAdminService {
         filters,
         summary: {
           totalUsers: total,
-          byRole: await this._getUserSummaryByRole(query),
-          byStatus: await this._getUserSummaryByStatus(query)
+          byRole: await this._getUserSummaryByRole(where),
+          byStatus: await this._getUserSummaryByStatus(where)
         }
       };
 
@@ -764,7 +896,9 @@ class SystemAdminService {
     logger.info('Extracted values:', { action, reason, newRole, schoolTransfer });
 
     try {
-      const user = await User.findById(userId);
+      const user = await prisma.user.findUnique({
+        where: { id: userId }
+      });
       if (!user) {
         throw new Error('User not found');
       }
@@ -778,9 +912,13 @@ class SystemAdminService {
             throw new Error('User is already active');
           }
           changes.before.isActive = user.isActive;
-          user.isActive = true;
           changes.after.isActive = true;
           operationDescription = 'Activate user';
+          
+          await prisma.user.update({
+            where: { id: userId },
+            data: { isActive: true }
+          });
           break;
 
         case 'deactivate':
@@ -788,9 +926,13 @@ class SystemAdminService {
             throw new Error('User is already inactive');
           }
           changes.before.isActive = user.isActive;
-          user.isActive = false;
           changes.after.isActive = false;
           operationDescription = 'Deactivate user';
+          
+          await prisma.user.update({
+            where: { id: userId },
+            data: { isActive: false }
+          });
           break;
 
         case 'change_role':
@@ -814,97 +956,112 @@ class SystemAdminService {
           changes.before.subjects = user.subjects;
           changes.before.classes = user.classes;
           
-          user.role = newRole;
-          
           // Handle role-specific field changes
+          let updateData = { role: newRole };
+          
           if (newRole === 'teacher') {
             // If changing TO teacher, ensure they have at least one subject
             if (!user.subjects || user.subjects.length === 0) {
-              user.subjects = ['General']; // Default subject
+              updateData.subjects = ['General']; // Default subject
             }
           } else {
             // If changing FROM teacher to admin/parent, clear subjects and classes
-            user.subjects = [];
-            user.classes = [];
+            updateData.subjects = [];
+            updateData.classes = [];
           }
           
           changes.after.role = newRole;
-          changes.after.subjects = user.subjects;
-          changes.after.classes = user.classes;
+          changes.after.subjects = updateData.subjects || user.subjects;
+          changes.after.classes = updateData.classes || user.classes;
           operationDescription = `Change user role from ${changes.before.role} to ${newRole}`;
+          
+          await prisma.user.update({
+            where: { id: userId },
+            data: updateData
+          });
           break;
 
         case 'transfer_school':
-          if (!schoolTransfer || !schoolTransfer.targetSchoolId) {
+          if (!schoolTransfer || !schoolTransfer.schoolId) {
             throw new Error('Target school ID required for transfer');
           }
           
           // Verify target school exists
-          const targetSchool = await School.findOne({ schoolId: schoolTransfer.targetSchoolId });
+          const targetSchool = await prisma.school.findFirst({
+            where: { schoolId: schoolTransfer.schoolId }
+          });
           if (!targetSchool) {
             throw new Error('Target school not found');
           }
           
           changes.before.schoolId = user.schoolId;
-          user.schoolId = schoolTransfer.targetSchoolId;
-          changes.after.schoolId = schoolTransfer.targetSchoolId;
-          operationDescription = `Transfer user to school ${schoolTransfer.targetSchoolId}`;
+          
+          await prisma.user.update({
+            where: { id: userId },
+            data: { schoolId: targetSchool.id }
+          });
+          
+          changes.after.schoolId = targetSchool.id;
+          operationDescription = `Transfer user to school ${schoolTransfer.schoolId}`;
           break;
 
         default:
           throw new Error('Invalid action specified');
       }
 
-      await user.save();
-
-      // Log the action - Create a temporary ObjectId for system admin since they don't have User records
-      const systemAdminObjectId = new mongoose.Types.ObjectId();
-      
+      // Log the action - Create audit log with a generated ID for system admin
       try {
-        await PlatformAuditLog.createAuditLog({
-          operation: operationDescription,
-          operationType: 'admin_action',
-          userId: systemAdminObjectId, // Use temporary ObjectId for system admin
-          userRole: 'system_admin',
-          userEmail: systemAdminId, // Use the actual system admin email
-          targetUserId: user._id,
-          targetSchoolId: user.schoolId,
-          resourceType: 'user',
-          resourceId: user._id.toString(),
-          changes,
-          requestDetails: {
-            method: 'PUT',
-            path: `/api/system-admin/users/${userId}/access`,
-            body: { action, reason, newRole }
-          },
-          metadata: {
-            reason,
-            ip: '127.0.0.1',
-            userAgent: 'System Admin Dashboard',
-            systemAdminEmail: systemAdminId
-          },
-          severity: 'high',
-          category: 'user_management'
+        await prisma.platformAuditLog.create({
+          data: {
+            operation: operationDescription,
+            operationType: 'admin_action',
+            userId: systemAdminId, // Use the actual system admin email/ID
+            userRole: 'system_admin',
+            userEmail: systemAdminId, // Use the actual system admin email
+            targetUserId: userId,
+            schoolId: user.schoolId,
+            resourceType: 'user',
+            resourceId: userId,
+            changes,
+            requestDetails: {
+              method: 'PUT',
+              path: `/api/system-admin/users/${userId}/access`,
+              body: { action, reason, newRole }
+            },
+            metadata: {
+              reason,
+              ip: '127.0.0.1',
+              userAgent: 'System Admin Dashboard',
+              systemAdminEmail: systemAdminId
+            },
+            severity: 'high',
+            category: 'user_management'
+          }
         });
       } catch (auditError) {
         logger.error('Audit log creation failed (non-blocking):', auditError.message);
         // Don't throw - audit logging failure shouldn't break the main operation
       }
 
+      // Get updated user
+      const updatedUser = await prisma.user.findUnique({
+        where: { id: userId }
+      });
+
       // Invalidate caches
-      await CacheService.invalidateUserCache(userId, user.schoolId);
-      await CacheService.invalidatePlatformCachesForSchool(user.schoolId);
+      await CacheService.invalidateUserCache(userId, updatedUser.schoolId);
+      await CacheService.invalidatePlatformCachesForSchool(updatedUser.schoolId);
 
       return {
         user: {
-          id: user._id,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          email: user.email,
-          role: user.role,
-          schoolId: user.schoolId,
-          isActive: user.isActive,
-          updatedAt: user.updatedAt
+          id: updatedUser.id,
+          firstName: updatedUser.firstName,
+          lastName: updatedUser.lastName,
+          email: updatedUser.email,
+          role: updatedUser.role,
+          schoolId: updatedUser.schoolId,
+          isActive: updatedUser.isActive,
+          updatedAt: updatedUser.updatedAt
         },
         action: operationDescription,
         reason
@@ -931,24 +1088,23 @@ class SystemAdminService {
     } = filters;
 
     try {
-      const query = { isActive: true, isResolved };
+      const where = { isRead: isResolved };
       
-      if (severity) query.severity = severity;
-      if (alertType) query.alertType = alertType;
-      if (schoolIds && schoolIds.length > 0) query.affectedSchools = { $in: schoolIds };
+      if (severity) where.type = severity;
+      if (alertType) where.alertType = alertType;
+      if (schoolIds && schoolIds.length > 0) where.schoolId = { in: schoolIds };
       
       if (timeRange && (timeRange.startDate || timeRange.endDate)) {
-        query.createdAt = {};
-        if (timeRange.startDate) query.createdAt.$gte = new Date(timeRange.startDate);
-        if (timeRange.endDate) query.createdAt.$lte = new Date(timeRange.endDate);
+        where.createdAt = {};
+        if (timeRange.startDate) where.createdAt.gte = new Date(timeRange.startDate);
+        if (timeRange.endDate) where.createdAt.lte = new Date(timeRange.endDate);
       }
 
-      const alerts = await SystemAlert.find(query)
-        .populate('affectedSchools', 'schoolName schoolId')
-        .populate('resolvedBy', 'firstName lastName email')
-        .sort({ createdAt: -1 })
-        .limit(100) // Limit to prevent performance issues
-        .lean();
+      const alerts = await prisma.systemAlert.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        take: 100 // Limit to prevent performance issues
+      });
 
       const alertSummary = {
         total: alerts.length,
@@ -959,9 +1115,14 @@ class SystemAdminService {
 
       return {
         alerts: alerts.map(alert => ({
-          ...alert,
-          ageInMinutes: Math.floor((Date.now() - alert.createdAt.getTime()) / (1000 * 60)),
-          affectedSchoolNames: alert.affectedSchools?.map(school => school.schoolName) || []
+          id: alert.id,
+          title: alert.title,
+          description: alert.message,
+          alertType: alert.type,
+          severity: alert.type,
+          schoolId: alert.schoolId,
+          createdAt: alert.createdAt,
+          ageInMinutes: Math.floor((Date.now() - alert.createdAt.getTime()) / (1000 * 60))
         })),
         summary: alertSummary,
         filters
@@ -984,23 +1145,30 @@ class SystemAdminService {
   static async _getRecentPlatformActivity() {
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
     
-    const recentLogs = await PlatformAuditLog.find({
-      timestamp: { $gte: twentyFourHoursAgo }
-    })
-    .sort({ timestamp: -1 })
-    .limit(20)
-    .populate('userId', 'firstName lastName email')
-    .populate('targetSchoolId', 'schoolName schoolId')
-    .lean();
+    const recentLogs = await prisma.platformAuditLog.findMany({
+      where: {
+        createdAt: { gte: twentyFourHoursAgo }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+      include: {
+        school: {
+          select: {
+            schoolName: true,
+            schoolId: true
+          }
+        }
+      }
+    });
 
     return {
       totalOperations: recentLogs.length,
       recentOperations: recentLogs.map(log => ({
         operation: log.operation,
         operationType: log.operationType,
-        user: log.userId ? `${log.userId.firstName} ${log.userId.lastName}` : 'System',
-        school: log.targetSchoolId?.schoolName || 'Platform',
-        timestamp: log.timestamp,
+        user: log.user ? `${log.user.firstName} ${log.user.lastName}` : 'System',
+        school: log.targetSchool?.schoolName || 'Platform',
+        createdAt: log.createdAt,
         severity: log.severity
       }))
     };
@@ -1017,12 +1185,13 @@ class SystemAdminService {
       cacheStats,
       recentErrors
     ] = await Promise.all([
-      SystemAlert.countDocuments({ severity: 'critical', isResolved: false }),
-      SystemAlert.countDocuments({ severity: 'error', isResolved: false }),
+      prisma.systemAlert.count({ where: { type: 'critical', isRead: false } }),
+      prisma.systemAlert.count({ where: { type: 'error', isRead: false } }),
       CacheService.getCachePerformanceMetrics(),
-      PlatformAuditLog.countDocuments({
-        isSuccessful: false,
-        timestamp: { $gte: new Date(Date.now() - 60 * 60 * 1000) } // Last hour
+      prisma.platformAuditLog.count({
+        where: {
+          createdAt: { gte: new Date(Date.now() - 60 * 60 * 1000) } // Last hour
+        }
       })
     ]);
 
@@ -1048,22 +1217,21 @@ class SystemAdminService {
    * @private
    */
   static async _getCriticalAlerts() {
-    const criticalAlerts = await SystemAlert.find({
-      severity: 'critical',
-      isResolved: false,
-      isActive: true
-    })
-    .populate('affectedSchools', 'schoolName schoolId')
-    .sort({ createdAt: -1 })
-    .limit(10)
-    .lean();
+    const criticalAlerts = await prisma.systemAlert.findMany({
+      where: {
+        type: 'critical',
+        isRead: false
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 10
+    });
 
     return criticalAlerts.map(alert => ({
-      id: alert._id,
+      id: alert.id,
       title: alert.title,
-      description: alert.description,
-      alertType: alert.alertType,
-      affectedSchools: alert.affectedSchools?.map(school => school.schoolName) || [],
+      description: alert.message,
+      alertType: alert.type,
+      schoolId: alert.schoolId,
       createdAt: alert.createdAt,
       ageInMinutes: Math.floor((Date.now() - alert.createdAt.getTime()) / (1000 * 60))
     }));
@@ -1074,37 +1242,34 @@ class SystemAdminService {
    * @private
    */
   static async _getSubscriptionOverview() {
-    const subscriptionStats = await School.aggregate([
-      { $match: { isActive: true } },
-      {
-        $group: {
-          _id: '$systemConfig.subscriptionTier',
-          count: { $sum: 1 },
-          revenue: { $sum: { $ifNull: ['$systemConfig.billing.monthlyRevenue', 0] } }
-        }
+    const schools = await prisma.school.findMany({
+      where: { isActive: true },
+      select: {
+        systemConfig: true
       }
-    ]);
+    });
 
-    const statusStats = await School.aggregate([
-      { $match: { isActive: true } },
-      {
-        $group: {
-          _id: '$systemConfig.subscriptionStatus',
-          count: { $sum: 1 }
-        }
+    const byTier = {};
+    const byStatus = {};
+
+    schools.forEach(school => {
+      const tier = school.systemConfig?.subscriptionTier || 'basic';
+      const status = school.systemConfig?.subscriptionStatus || 'trial';
+      const revenue = school.systemConfig?.billing?.monthlyRevenue || 0;
+
+      if (!byTier[tier]) {
+        byTier[tier] = { count: 0, revenue: 0 };
       }
-    ]);
+      byTier[tier].count++;
+      byTier[tier].revenue += revenue;
 
-    return {
-      byTier: subscriptionStats.reduce((acc, stat) => {
-        acc[stat._id || 'basic'] = { count: stat.count, revenue: stat.revenue };
-        return acc;
-      }, {}),
-      byStatus: statusStats.reduce((acc, stat) => {
-        acc[stat._id || 'trial'] = stat.count;
-        return acc;
-      }, {})
-    };
+      if (!byStatus[status]) {
+        byStatus[status] = 0;
+      }
+      byStatus[status]++;
+    });
+
+    return { byTier, byStatus };
   }
 
   /**
@@ -1122,14 +1287,17 @@ class SystemAdminService {
    * Get user summary by role
    * @private
    */
-  static async _getUserSummaryByRole(baseQuery) {
-    const roleStats = await User.aggregate([
-      { $match: baseQuery },
-      { $group: { _id: '$role', count: { $sum: 1 } } }
-    ]);
+  static async _getUserSummaryByRole(baseWhere) {
+    const users = await prisma.user.groupBy({
+      by: ['role'],
+      where: baseWhere,
+      _count: {
+        role: true
+      }
+    });
 
-    return roleStats.reduce((acc, stat) => {
-      acc[stat._id] = stat.count;
+    return users.reduce((acc, stat) => {
+      acc[stat.role] = stat._count.role;
       return acc;
     }, {});
   }
@@ -1138,20 +1306,15 @@ class SystemAdminService {
    * Get user summary by status
    * @private
    */
-  static async _getUserSummaryByStatus(baseQuery) {
-    const statusStats = await User.aggregate([
-      { $match: baseQuery },
-      {
-        $group: {
-          _id: {
-            isActive: '$isActive',
-            isVerified: '$isVerified',
-            isTemporaryPassword: '$isTemporaryPassword'
-          },
-          count: { $sum: 1 }
-        }
+  static async _getUserSummaryByStatus(baseWhere) {
+    const users = await prisma.user.findMany({
+      where: baseWhere,
+      select: {
+        isActive: true,
+        isVerified: true,
+        isTemporaryPassword: true
       }
-    ]);
+    });
 
     const summary = {
       active: 0,
@@ -1161,14 +1324,14 @@ class SystemAdminService {
       pendingRegistration: 0
     };
 
-    statusStats.forEach(stat => {
-      if (stat._id.isActive) summary.active += stat.count;
-      else summary.inactive += stat.count;
+    users.forEach(user => {
+      if (user.isActive) summary.active += 1;
+      else summary.inactive += 1;
       
-      if (stat._id.isVerified) summary.verified += stat.count;
-      else summary.unverified += stat.count;
+      if (user.isVerified) summary.verified += 1;
+      else summary.unverified += 1;
       
-      if (stat._id.isTemporaryPassword) summary.pendingRegistration += stat.count;
+      if (user.isTemporaryPassword) summary.pendingRegistration += 1;
     });
 
     return summary;

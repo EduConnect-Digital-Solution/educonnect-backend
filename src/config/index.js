@@ -4,7 +4,7 @@ const logger = require('../utils/logger');
 const config = {
   port: process.env.PORT || 3000,
   nodeEnv: process.env.NODE_ENV || 'development',
-  mongoUri: process.env.MONGODB_URI || 'mongodb://localhost:27017/educonnect-phase1',
+  databaseUrl: process.env.DATABASE_URL || 'postgresql://educonnect:educonnect_pass@localhost:5432/educonnect',
   
   jwt: {
     secret: process.env.JWT_SECRET,

@@ -4,6 +4,7 @@
  * Requirements: 7.1, 7.2, 7.3
  */
 
+const { prisma } = require('../config/database');
 const DashboardService = require('../services/dashboardService');
 const InvitationService = require('../services/invitationService');
 const catchAsync = require('../utils/catchAsync');
@@ -31,17 +32,18 @@ const debugInvitationStatus = catchAsync(async (req, res) => {
     { page: 1, limit: 100 }
   );
 
-  // Get raw database stats
-  const Invitation = require('../models/Invitation');
-  const rawStats = await Invitation.aggregate([
-    { $match: { schoolId: targetSchoolId } },
-    {
-      $group: {
-        _id: '$status',
-        count: { $sum: 1 }
-      }
-    }
-  ]);
+  // Get raw database stats using Prisma groupBy
+  const rawStats = await prisma.invitation.groupBy({
+    by: ['status'],
+    where: { schoolId: targetSchoolId },
+    _count: { status: true }
+  });
+
+  // Transform to match expected format
+  const formattedStats = rawStats.map(stat => ({
+    _id: stat.status,
+    count: stat._count.status
+  }));
 
   res.status(200).json({
     success: true,

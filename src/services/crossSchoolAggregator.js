@@ -5,11 +5,7 @@
  * Requirements: 1.2, 1.4, 4.1, 4.4
  */
 
-const School = require('../models/School');
-const User = require('../models/User');
-const Student = require('../models/Student');
-const SystemAlert = require('../models/SystemAlert');
-const PlatformAuditLog = require('../models/PlatformAuditLog');
+const { prisma } = require('../config/database');
 const CacheService = require('./cacheService');
 const logger = require('../utils/logger');
 
@@ -62,7 +58,7 @@ class CrossSchoolAggregator {
       metric,
       timeRange,
       schools: targetSchools.map(school => ({
-        schoolId: school.schoolId,
+        schoolId: school.id,
         schoolName: school.schoolName,
         isActive: school.isActive,
         subscriptionTier: school.systemConfig?.subscriptionTier || 'basic'
@@ -98,10 +94,19 @@ class CrossSchoolAggregator {
     logger.info(`📊 School comparison cache MISS - generating comparison`);
 
     // Get school details
-    const schools = await School.find({ 
-      schoolId: { $in: schoolIds },
-      isActive: true 
-    }).select('schoolId schoolName systemConfig createdAt');
+    const schools = await prisma.school.findMany({
+      where: {
+        schoolId: { in: schoolIds },
+        isActive: true
+      },
+      select: {
+        id: true,
+        schoolId: true,
+        schoolName: true,
+        systemConfig: true,
+        createdAt: true
+      }
+    });
 
     if (schools.length === 0) {
       throw new Error('No active schools found for comparison');
@@ -119,7 +124,7 @@ class CrossSchoolAggregator {
 
     const result = {
       schools: schools.map(school => ({
-        schoolId: school.schoolId,
+        schoolId: school.id,
         schoolName: school.schoolName,
         subscriptionTier: school.systemConfig?.subscriptionTier || 'basic',
         createdAt: school.createdAt
@@ -167,7 +172,7 @@ class CrossSchoolAggregator {
       trendData.push({
         period: periodRange,
         data: periodMetrics.data,
-        timestamp: periodRange.endDate
+        createdAt: periodRange.endDate
       });
     }
 
@@ -208,7 +213,9 @@ class CrossSchoolAggregator {
     logger.info(`📊 Platform KPIs cache MISS - calculating KPIs`);
 
     // Get all active schools
-    const activeSchools = await School.find({ isActive: true });
+    const activeSchools = await prisma.school.findMany({
+      where: { isActive: true }
+    });
     const schoolIds = activeSchools.map(school => school.schoolId);
 
     // Calculate core KPIs
@@ -258,21 +265,44 @@ class CrossSchoolAggregator {
    */
   static async _getTargetSchools(schoolIds) {
     if (schoolIds && schoolIds.length > 0) {
-      return await School.find({ 
-        schoolId: { $in: schoolIds },
-        isActive: true 
-      }).select('schoolId schoolName systemConfig isActive');
+      return await prisma.school.findMany({
+        where: {
+          schoolId: { in: schoolIds },
+          isActive: true
+        },
+        select: {
+          id: true,
+          schoolId: true,
+          schoolName: true,
+          systemConfig: true,
+          isActive: true
+        }
+      });
     }
     
-    return await School.find({ isActive: true })
-      .select('schoolId schoolName systemConfig isActive');
+    return await prisma.school.findMany({
+      where: { isActive: true },
+      select: {
+        id: true,
+        schoolId: true,
+        schoolName: true,
+        systemConfig: true,
+        isActive: true
+      }
+    });
   }
 
   /**
    * Aggregate overview metrics
    * @private
    */
-  static async _aggregateOverviewMetrics(schoolIds, timeRange) {
+  static async _aggregateOverviewMetrics(schoolIdList, timeRange) {
+    // Get school IDs from schoolIdList
+    const schools = await prisma.school.findMany({
+      where: { schoolId: { in: schoolIdList } }
+    });
+    const schoolDbIds = schools.map(s => s.id);
+
     const [
       totalUsers,
       totalStudents,
@@ -280,15 +310,15 @@ class CrossSchoolAggregator {
       totalParents,
       totalAdmins
     ] = await Promise.all([
-      User.countDocuments({ schoolId: { $in: schoolIds } }),
-      Student.countDocuments({ schoolId: { $in: schoolIds } }),
-      User.countDocuments({ schoolId: { $in: schoolIds }, role: 'teacher' }),
-      User.countDocuments({ schoolId: { $in: schoolIds }, role: 'parent' }),
-      User.countDocuments({ schoolId: { $in: schoolIds }, role: 'admin' })
+      prisma.user.count({ where: { schoolId: { in: schoolDbIds } } }),
+      prisma.student.count({ where: { schoolId: { in: schoolDbIds } } }),
+      prisma.user.count({ where: { schoolId: { in: schoolDbIds }, role: 'teacher' } }),
+      prisma.user.count({ where: { schoolId: { in: schoolDbIds }, role: 'parent' } }),
+      prisma.user.count({ where: { schoolId: { in: schoolDbIds }, role: 'admin' } })
     ]);
 
     return {
-      totalSchools: schoolIds.length,
+      totalSchools: schoolIdList.length,
       totalUsers,
       totalStudents,
       breakdown: {
@@ -303,28 +333,28 @@ class CrossSchoolAggregator {
    * Aggregate user metrics
    * @private
    */
-  static async _aggregateUserMetrics(schoolIds, timeRange) {
-    const matchStage = { schoolId: { $in: schoolIds } };
+  static async _aggregateUserMetrics(schoolIdList, timeRange) {
+    // Get school IDs from schoolIdList
+    const schools = await prisma.school.findMany({
+      where: { schoolId: { in: schoolIdList } }
+    });
+    const schoolDbIds = schools.map(s => s.id);
+
+    const whereClause = { schoolId: { in: schoolDbIds } };
     
     if (timeRange.startDate || timeRange.endDate) {
-      matchStage.createdAt = {};
-      if (timeRange.startDate) matchStage.createdAt.$gte = new Date(timeRange.startDate);
-      if (timeRange.endDate) matchStage.createdAt.$lte = new Date(timeRange.endDate);
+      whereClause.createdAt = {};
+      if (timeRange.startDate) whereClause.createdAt.gte = new Date(timeRange.startDate);
+      if (timeRange.endDate) whereClause.createdAt.lte = new Date(timeRange.endDate);
     }
 
-    const userStats = await User.aggregate([
-      { $match: matchStage },
-      {
-        $group: {
-          _id: {
-            role: '$role',
-            isActive: '$isActive',
-            isVerified: '$isVerified'
-          },
-          count: { $sum: 1 }
-        }
+    const users = await prisma.user.groupBy({
+      by: ['role', 'isActive', 'isVerified'],
+      where: whereClause,
+      _count: {
+        role: true
       }
-    ]);
+    });
 
     // Format the results
     const formattedStats = {
@@ -338,11 +368,11 @@ class CrossSchoolAggregator {
       total: 0
     };
 
-    userStats.forEach(stat => {
-      const role = stat._id.role;
-      const isActive = stat._id.isActive;
-      const isVerified = stat._id.isVerified;
-      const count = stat.count;
+    users.forEach(stat => {
+      const role = stat.role;
+      const isActive = stat.isActive;
+      const isVerified = stat.isVerified;
+      const count = stat._count.role;
 
       // Initialize role if not exists
       if (!formattedStats.byRole[role]) {
@@ -374,32 +404,43 @@ class CrossSchoolAggregator {
    * Aggregate student metrics
    * @private
    */
-  static async _aggregateStudentMetrics(schoolIds, timeRange) {
-    const matchStage = { schoolId: { $in: schoolIds } };
+  static async _aggregateStudentMetrics(schoolIdList, timeRange) {
+    // Get school IDs from schoolIdList
+    const schools = await prisma.school.findMany({
+      where: { schoolId: { in: schoolIdList } }
+    });
+    const schoolDbIds = schools.map(s => s.id);
+
+    const whereClause = { schoolId: { in: schoolDbIds } };
     
     if (timeRange.startDate || timeRange.endDate) {
-      matchStage.createdAt = {};
-      if (timeRange.startDate) matchStage.createdAt.$gte = new Date(timeRange.startDate);
-      if (timeRange.endDate) matchStage.createdAt.$lte = new Date(timeRange.endDate);
+      whereClause.createdAt = {};
+      if (timeRange.startDate) whereClause.createdAt.gte = new Date(timeRange.startDate);
+      if (timeRange.endDate) whereClause.createdAt.lte = new Date(timeRange.endDate);
     }
 
-    const [totalStudents, activeStudents, studentsByGrade] = await Promise.all([
-      Student.countDocuments(matchStage),
-      Student.countDocuments({ ...matchStage, isActive: true }),
-      Student.aggregate([
-        { $match: { ...matchStage, isActive: true } },
-        { $group: { _id: '$grade', count: { $sum: 1 } } },
-        { $sort: { _id: 1 } }
-      ])
+    const [totalStudents, activeStudents, studentsByGradeRaw] = await Promise.all([
+      prisma.student.count({ where: whereClause }),
+      prisma.student.count({ where: { ...whereClause, isActive: true } }),
+      prisma.student.groupBy({
+        by: ['grade'],
+        where: { schoolId: { in: schoolDbIds }, isActive: true },
+        _count: { grade: true }
+      })
     ]);
+
+    const studentsByGrade = studentsByGradeRaw.map(item => ({
+      grade: item.grade,
+      count: item._count.grade
+    })).sort((a, b) => (a.grade || '').localeCompare(b.grade || ''));
 
     return {
       total: totalStudents,
       active: activeStudents,
       inactive: totalStudents - activeStudents,
       byGrade: studentsByGrade.map(item => ({
-        grade: item._id,
-        count: item.count
+        grade: item.grade,
+        count: parseInt(item.count)
       }))
     };
   }
@@ -408,7 +449,7 @@ class CrossSchoolAggregator {
    * Aggregate activity metrics
    * @private
    */
-  static async _aggregateActivityMetrics(schoolIds, timeRange) {
+  static async _aggregateActivityMetrics(schoolIdList, timeRange) {
     const defaultTimeRange = {
       startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // Last 30 days
       endDate: new Date()
@@ -416,31 +457,48 @@ class CrossSchoolAggregator {
 
     const actualTimeRange = { ...defaultTimeRange, ...timeRange };
 
-    const auditLogs = await PlatformAuditLog.aggregate([
-      {
-        $match: {
-          targetSchoolId: { $in: schoolIds.map(id => id) },
-          timestamp: {
-            $gte: actualTimeRange.startDate,
-            $lte: actualTimeRange.endDate
-          }
+    // Get school IDs from schoolIdList
+    const schools = await prisma.school.findMany({
+      where: { schoolId: { in: schoolIdList } }
+    });
+    const schoolDbIds = schools.map(s => s.id);
+
+    const auditLogs = await prisma.platformAuditLog.groupBy({
+      by: ['operationType', 'createdAt'],
+      where: {
+        schoolId: { in: schoolDbIds },
+        createdAt: {
+          gte: actualTimeRange.startDate,
+          lte: actualTimeRange.endDate
         }
       },
-      {
-        $group: {
-          _id: {
-            operationType: '$operationType',
-            date: { $dateToString: { format: '%Y-%m-%d', date: '$timestamp' } }
-          },
-          count: { $sum: 1 }
-        }
+      _count: {
+        operationType: true
       }
-    ]);
+    });
+
+    // Format the results by date
+    const byDate = {};
+    const byType = {};
+    let totalOperations = 0;
+
+    auditLogs.forEach(log => {
+      const date = log.createdAt.toISOString().split('T')[0];
+      const opType = log.operationType;
+      const count = log._count.operationType;
+
+      if (!byDate[date]) byDate[date] = 0;
+      if (!byType[opType]) byType[opType] = 0;
+
+      byDate[date] += count;
+      byType[opType] += count;
+      totalOperations += count;
+    });
 
     return {
-      totalOperations: auditLogs.reduce((sum, log) => sum + log.count, 0),
-      byType: this._groupByOperationType(auditLogs),
-      byDate: this._groupByDate(auditLogs),
+      totalOperations,
+      byType,
+      byDate,
       timeRange: actualTimeRange
     };
   }
@@ -449,21 +507,29 @@ class CrossSchoolAggregator {
    * Aggregate performance metrics
    * @private
    */
-  static async _aggregatePerformanceMetrics(schoolIds, timeRange) {
+  static async _aggregatePerformanceMetrics(schoolIdList, timeRange) {
+    // Get school IDs from schoolIdList
+    const schools = await prisma.school.findMany({
+      where: { schoolId: { in: schoolIdList } }
+    });
+    const schoolDbIds = schools.map(s => s.id);
+
     // Get system alerts for performance monitoring
-    const alerts = await SystemAlert.find({
-      affectedSchools: { $in: schoolIds },
-      alertType: { $in: ['performance', 'error', 'system_health'] },
-      createdAt: timeRange.startDate ? { 
-        $gte: new Date(timeRange.startDate),
-        $lte: new Date(timeRange.endDate || Date.now())
-      } : { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
+    const alerts = await prisma.systemAlert.findMany({
+      where: {
+        affectedSchools: { hasSome: schoolDbIds.map(id => id) },
+        alertType: { in: ['performance', 'error', 'system_health'] },
+        createdAt: timeRange.startDate ? { 
+          gte: new Date(timeRange.startDate),
+          lte: timeRange.endDate ? new Date(timeRange.endDate) : new Date()
+        } : { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
+      }
     });
 
     const performanceMetrics = {
       totalAlerts: alerts.length,
-      criticalAlerts: alerts.filter(alert => alert.severity === 'critical').length,
-      resolvedAlerts: alerts.filter(alert => alert.isResolved).length,
+      criticalAlerts: alerts.filter(alert => alert.type === 'critical').length,
+      resolvedAlerts: alerts.filter(alert => alert.isRead).length,
       averageResolutionTime: this._calculateAverageResolutionTime(alerts),
       alertsByType: this._groupAlertsByType(alerts),
       alertsBySeverity: this._groupAlertsBySeverity(alerts)
@@ -477,7 +543,6 @@ class CrossSchoolAggregator {
    * @private
    */
   static async _generateSchoolComparison(schools, criterion, timeRange) {
-    const schoolIds = schools.map(school => school.schoolId);
     const comparisonData = {};
 
     for (const school of schools) {
@@ -651,7 +716,9 @@ class CrossSchoolAggregator {
   // Additional helper methods for KPI calculations
 
   static async _calculateSchoolKPIs(schoolIds) {
-    const schools = await School.find({ schoolId: { $in: schoolIds } });
+    const schools = await prisma.school.findMany({
+      where: { schoolId: { in: schoolIds } }
+    });
     
     return {
       total: schools.length,
@@ -669,9 +736,16 @@ class CrossSchoolAggregator {
   }
 
   static async _calculateActiveUserKPIs(schoolIds, timeRange) {
-    const recentActivity = await PlatformAuditLog.countDocuments({
-      targetSchoolId: { $in: schoolIds },
-      timestamp: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+    const schools = await prisma.school.findMany({
+      where: { schoolId: { in: schoolIds } }
+    });
+    const schoolDbIds = schools.map(s => s.id);
+
+    const recentActivity = await prisma.platformAuditLog.count({
+      where: {
+        schoolId: { in: schoolDbIds },
+        createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+      }
     });
 
     return {
@@ -681,10 +755,12 @@ class CrossSchoolAggregator {
   }
 
   static async _calculateSystemHealthKPIs(timeRange) {
-    const criticalAlerts = await SystemAlert.countDocuments({
-      severity: 'critical',
-      isResolved: false,
-      createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+    const criticalAlerts = await prisma.systemAlert.count({
+      where: {
+        type: 'critical',
+        isRead: false,
+        createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+      }
     });
 
     return {
@@ -695,19 +771,30 @@ class CrossSchoolAggregator {
 
   static async _calculateGrowthKPIs(schoolIds, timeRange) {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+    const schools = await prisma.school.findMany({
+      where: { schoolId: { in: schoolIds } }
+    });
+    const schoolDbIds = schools.map(s => s.id);
     
     const [newSchools, newUsers, newStudents] = await Promise.all([
-      School.countDocuments({ 
-        schoolId: { $in: schoolIds },
-        createdAt: { $gte: thirtyDaysAgo }
+      prisma.school.count({
+        where: {
+          schoolId: { in: schoolIds },
+          createdAt: { gte: thirtyDaysAgo }
+        }
       }),
-      User.countDocuments({ 
-        schoolId: { $in: schoolIds },
-        createdAt: { $gte: thirtyDaysAgo }
+      prisma.user.count({
+        where: {
+          schoolId: { in: schoolDbIds },
+          createdAt: { gte: thirtyDaysAgo }
+        }
       }),
-      Student.countDocuments({ 
-        schoolId: { $in: schoolIds },
-        createdAt: { $gte: thirtyDaysAgo }
+      prisma.student.count({
+        where: {
+          schoolId: { in: schoolDbIds },
+          createdAt: { gte: thirtyDaysAgo }
+        }
       })
     ]);
 
@@ -721,10 +808,17 @@ class CrossSchoolAggregator {
 
   static async _calculateEngagementKPIs(schoolIds, timeRange) {
     const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    
-    const weeklyOperations = await PlatformAuditLog.countDocuments({
-      targetSchoolId: { $in: schoolIds },
-      timestamp: { $gte: weekAgo }
+
+    const schools = await prisma.school.findMany({
+      where: { schoolId: { in: schoolIds } }
+    });
+    const schoolDbIds = schools.map(s => s.id);
+
+    const weeklyOperations = await prisma.platformAuditLog.count({
+      where: {
+        schoolId: { in: schoolDbIds },
+        createdAt: { gte: weekAgo }
+      }
     });
 
     return {
@@ -734,26 +828,6 @@ class CrossSchoolAggregator {
   }
 
   // Utility helper methods
-
-  static _groupByOperationType(auditLogs) {
-    const grouped = {};
-    auditLogs.forEach(log => {
-      const type = log._id.operationType;
-      if (!grouped[type]) grouped[type] = 0;
-      grouped[type] += log.count;
-    });
-    return grouped;
-  }
-
-  static _groupByDate(auditLogs) {
-    const grouped = {};
-    auditLogs.forEach(log => {
-      const date = log._id.date;
-      if (!grouped[date]) grouped[date] = 0;
-      grouped[date] += log.count;
-    });
-    return grouped;
-  }
 
   static _groupAlertsByType(alerts) {
     const grouped = {};
@@ -768,9 +842,9 @@ class CrossSchoolAggregator {
   static _groupAlertsBySeverity(alerts) {
     const grouped = {};
     alerts.forEach(alert => {
-      const severity = alert.severity;
-      if (!grouped[severity]) grouped[severity] = 0;
-      grouped[severity]++;
+      const type = alert.type;
+      if (!grouped[type]) grouped[type] = 0;
+      grouped[type]++;
     });
     return grouped;
   }
@@ -786,7 +860,7 @@ class CrossSchoolAggregator {
   }
 
   static _calculateAverageResolutionTime(alerts) {
-    const resolvedAlerts = alerts.filter(alert => alert.isResolved && alert.resolvedAt);
+    const resolvedAlerts = alerts.filter(alert => alert.isRead && alert.resolvedAt);
     
     if (resolvedAlerts.length === 0) return 0;
     
