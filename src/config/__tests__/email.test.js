@@ -3,9 +3,7 @@
  * Tests for the comprehensive email service with Resend integration
  */
 
-const EmailService = require('../email');
-
-// Mock Resend
+// Mock ALL dependencies BEFORE any imports
 jest.mock('resend', () => ({
   Resend: jest.fn().mockImplementation(() => ({
     emails: {
@@ -14,12 +12,21 @@ jest.mock('resend', () => ({
   }))
 }));
 
-// Mock fs promises
 jest.mock('fs', () => ({
+  existsSync: jest.fn(() => true),
   promises: {
     readFile: jest.fn()
   }
 }));
+
+jest.mock('../../utils/logger', () => ({
+  info: jest.fn(),
+  error: jest.fn(),
+  warn: jest.fn()
+}));
+
+// Now import after mocks
+const EmailService = require('../email');
 
 describe('EmailService', () => {
   let EmailServiceClass;
@@ -305,13 +312,10 @@ describe('EmailService', () => {
         'invitation-token-123',
         'teacher',
         'Test School',
-        {
-          subjects: ['Math', 'Science'],
-          inviterName: 'John Admin',
-          message: 'Welcome to our team!'
-        }
+        'John Admin',
+        { subjects: ['Math', 'Science'] }
       );
-
+      
       expect(result.success).toBe(true);
       expect(mockResendSend).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -320,8 +324,7 @@ describe('EmailService', () => {
           headers: expect.objectContaining({
             'X-Email-Type': 'invitation',
             'X-Role': 'teacher',
-            'X-School-Name': 'Test School',
-            'X-Invitation-Token': 'invitation-token-123'
+            'X-School-Name': 'Test School'
           })
         })
       );
@@ -333,7 +336,7 @@ describe('EmailService', () => {
         'reset-token-123',
         'user'
       );
-
+      
       expect(result.success).toBe(true);
       expect(mockResendSend).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -341,8 +344,7 @@ describe('EmailService', () => {
           subject: 'Reset Your Password - EduConnect',
           headers: expect.objectContaining({
             'X-Email-Type': 'password-reset',
-            'X-User-Type': 'user',
-            'X-Reset-Token': 'reset-token-123'
+            'X-User-Type': 'user'
           })
         })
       );

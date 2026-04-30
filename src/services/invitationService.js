@@ -395,8 +395,8 @@ const resendInvitation = async (invitationId, schoolId) => {
     throw new Error('Can only resend pending invitations');
   }
 
-  // Get school details
-  const school = await prisma.school.findFirst({ where: { schoolId } });
+   // Get school details - invitation.schoolId is the school's internal UUID
+   const school = await prisma.school.findFirst({ where: { id: schoolId } });
   if (!school) {
     throw new Error('Associated school not found');
   }

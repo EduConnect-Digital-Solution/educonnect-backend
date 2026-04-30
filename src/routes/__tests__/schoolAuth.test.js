@@ -20,7 +20,8 @@ jest.mock('../../controllers/schoolAuthController', () => ({
   resetPassword: jest.fn(),
   resendInvitation: jest.fn(),
   listInvitations: jest.fn(),
-  cancelInvitation: jest.fn()
+  cancelInvitation: jest.fn(),
+  deleteInvitation: jest.fn()
 }));
 
 jest.mock('../../middleware/schoolAuthValidation', () => ({
@@ -50,6 +51,15 @@ jest.mock('express-validator', () => ({
     isEmpty: () => true,
     array: () => []
   }))
+}));
+
+// Mock auth middleware
+jest.mock('../../middleware/auth', () => ({
+  authenticateToken: jest.fn((req, res, next) => {
+    req.user = { id: 'user-1', role: 'admin', schoolId: 'school-1' };
+    next();
+  }),
+  requireRole: jest.fn(() => (req, res, next) => next())
 }));
 
 const schoolAuthRoutes = require('../schoolAuth');
