@@ -155,3 +155,4 @@ local/
 # Choose one based on your preference:
 # package-lock.json  # Uncomment if using yarn exclusively
 # yarn.lock         # Uncomment if using npm exclusively
+/src/generated/prisma

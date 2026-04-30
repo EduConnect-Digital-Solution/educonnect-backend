@@ -86,8 +86,8 @@ const validateStudentCreation = [
 
   body('parentIds.*')
     .optional()
-    .isMongoId()
-    .withMessage('Each parent ID must be a valid MongoDB ObjectId'),
+    .isUUID()
+    .withMessage('Each parent ID must be a valid UUID'),
 
   body('teacherIds')
     .optional()
@@ -96,8 +96,8 @@ const validateStudentCreation = [
 
   body('teacherIds.*')
     .optional()
-    .isMongoId()
-    .withMessage('Each teacher ID must be a valid MongoDB ObjectId')
+    .isUUID()
+    .withMessage('Each teacher ID must be a valid UUID'),
 ];
 
 /**
@@ -105,7 +105,7 @@ const validateStudentCreation = [
  */
 const validateStudentUpdate = [
   param('studentId')
-    .isMongoId()
+    .isUUID()
     .withMessage('Invalid student ID format'),
 
   body('schoolId')
@@ -229,7 +229,7 @@ const validateStudentQuery = [
  */
 const validateStudentStatusToggle = [
   body('studentId')
-    .isMongoId()
+    .isUUID()
     .withMessage('Invalid student ID format'),
 
   body('action')
@@ -253,7 +253,7 @@ const validateStudentStatusToggle = [
  */
 const validateStudentRemoval = [
   body('studentId')
-    .isMongoId()
+    .isUUID()
     .withMessage('Invalid student ID format'),
 
   body('reason')
@@ -273,7 +273,7 @@ const validateStudentRemoval = [
  */
 const validateStudentDetailsQuery = [
   param('studentId')
-    .isMongoId()
+    .isUUID()
     .withMessage('Invalid student ID format'),
 
   query('schoolId')

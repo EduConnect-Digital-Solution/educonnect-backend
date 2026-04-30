@@ -4,9 +4,7 @@
  * Enhanced with Redis caching for optimal performance
  */
 
-const User = require('../models/User');
-const Student = require('../models/Student');
-const School = require('../models/School');
+const { prisma } = require('../config/database');
 const CacheService = require('./cacheService');
 const logger = require('../utils/logger');
 
@@ -20,7 +18,7 @@ const getParents = async (filters, pagination) => {
 
   // Create cache key based on query parameters
   const cacheKey = `parents:${schoolId}:${isActive || 'all'}:${page}:${limit}:${search || 'none'}`;
-  
+
   // Try cache first
   const cachedData = await CacheService.get('parent', cacheKey);
   if (cachedData) {
@@ -34,35 +32,71 @@ const getParents = async (filters, pagination) => {
 
   logger.info(`👨‍👩‍👧‍👦 Parent list cache MISS for ${cacheKey} - querying database`);
 
-  // Build query
-  const query = { schoolId, role: 'parent' };
-  if (isActive !== undefined) query.isActive = isActive;
+  // Get school
+  // Find school by either UUID (id) or human-readable schoolId
+  let school = await prisma.school.findFirst({
+    where: { id: schoolId }
+  });
+
+  // If not found by UUID, try human-readable schoolId
+  if (!school) {
+    school = await prisma.school.findFirst({
+      where: { schoolId: schoolId }
+    });
+  }
+  if (!school) {
+    throw new Error('School not found');
+  }
+
+  // Build where clause
+  const where = {
+    schoolId: school.id,
+    role: 'parent'
+  };
+  if (isActive !== undefined) where.isActive = isActive;
 
   // Add search functionality
   if (search) {
-    query.$or = [
-      { firstName: { $regex: search, $options: 'i' } },
-      { lastName: { $regex: search, $options: 'i' } },
-      { email: { $regex: search, $options: 'i' } }
+    where.OR = [
+      { firstName: { contains: search, mode: 'insensitive' } },
+      { lastName: { contains: search, mode: 'insensitive' } },
+      { email: { contains: search, mode: 'insensitive' } }
     ];
   }
 
   // Calculate pagination
   const skip = (parseInt(page) - 1) * parseInt(limit);
 
-  // Get parents with populated data
-  const parents = await User.find(query)
-    .populate('studentIds', 'firstName lastName studentId class section')
-    .sort({ createdAt: -1 })
-    .skip(skip)
-    .limit(parseInt(limit));
-
-  // Get total count for pagination
-  const total = await User.countDocuments(query);
+  // Get parents with included data
+  const [parents, total] = await Promise.all([
+    prisma.user.findMany({
+      where,
+      include: {
+        parentStudents: {
+          include: {
+            student: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                studentId: true,
+                class: true,
+                section: true
+              }
+            }
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take: parseInt(limit)
+    }),
+    prisma.user.count({ where })
+  ]);
 
   // Format response
   const formattedParents = parents.map(parent => ({
-    id: parent._id,
+    id: parent.id,
     firstName: parent.firstName,
     lastName: parent.lastName,
     fullName: `${parent.firstName} ${parent.lastName}`,
@@ -76,13 +110,15 @@ const getParents = async (filters, pagination) => {
     isVerified: parent.isVerified,
     createdAt: parent.createdAt,
     updatedAt: parent.updatedAt,
-    children: parent.studentIds ? parent.studentIds.map(student => ({
-      id: student._id,
-      name: `${student.firstName} ${student.lastName}`,
-      studentId: student.studentId,
-      class: student.class,
-      section: student.section
-    })) : []
+    children: parent.parentStudents
+      .filter(ps => ps.student)
+      .map(ps => ({
+        id: ps.student.id,
+        name: `${ps.student.firstName} ${ps.student.lastName}`,
+        studentId: ps.student.studentId,
+        class: ps.student.class,
+        section: ps.student.section
+      }))
   }));
 
   const parentData = {
@@ -95,8 +131,8 @@ const getParents = async (filters, pagination) => {
     },
     summary: {
       total,
-      active: await User.countDocuments({ ...query, isActive: true }),
-      inactive: await User.countDocuments({ ...query, isActive: false })
+      active: await prisma.user.count({ where: { ...where, isActive: true } }),
+      inactive: await prisma.user.count({ where: { ...where, isActive: false } })
     },
     cached: false,
     generatedAt: new Date().toISOString()
@@ -117,7 +153,7 @@ const getParentById = async (parentId, schoolId) => {
   // Try to get cached parent data first
   const cacheKey = `parent:${parentId}`;
   const cachedParent = await CacheService.get('parent', cacheKey);
-  
+
   if (cachedParent) {
     logger.info(`👨‍👩‍👧‍👦 Parent cache HIT for ${parentId}`);
     return {
@@ -129,11 +165,32 @@ const getParentById = async (parentId, schoolId) => {
 
   logger.info(`👨‍👩‍👧‍👦 Parent cache MISS for ${parentId} - fetching from database`);
 
-  const parent = await User.findOne({
-    _id: parentId,
-    schoolId,
-    role: 'parent'
-  }).populate('studentIds', 'firstName lastName studentId class section grade dateOfBirth gender');
+  const parent = await prisma.user.findFirst({
+    where: {
+      id: parentId,
+      schoolId: (await prisma.school.findFirst({ where: { id: schoolId } }) || await prisma.school.findFirst({ where: { schoolId: schoolId } }))?.id,
+      role: 'parent'
+    },
+    include: {
+      parentStudents: {
+        include: {
+          student: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              studentId: true,
+              class: true,
+              section: true,
+              grade: true,
+              dateOfBirth: true,
+              gender: true
+            }
+          }
+        }
+      }
+    }
+  });
 
   if (!parent) {
     throw new Error('Parent not found');
@@ -141,7 +198,7 @@ const getParentById = async (parentId, schoolId) => {
 
   const parentData = {
     parent: {
-      id: parent._id,
+      id: parent.id,
       firstName: parent.firstName,
       lastName: parent.lastName,
       fullName: `${parent.firstName} ${parent.lastName}`,
@@ -156,16 +213,18 @@ const getParentById = async (parentId, schoolId) => {
       isTemporaryPassword: parent.isTemporaryPassword,
       createdAt: parent.createdAt,
       updatedAt: parent.updatedAt,
-      children: parent.studentIds ? parent.studentIds.map(student => ({
-        id: student._id,
-        name: `${student.firstName} ${student.lastName}`,
-        studentId: student.studentId,
-        class: student.class,
-        section: student.section,
-        grade: student.grade,
-        dateOfBirth: student.dateOfBirth,
-        gender: student.gender
-      })) : []
+      children: parent.parentStudents
+        .filter(ps => ps.student)
+        .map(ps => ({
+          id: ps.student.id,
+          name: `${ps.student.firstName} ${ps.student.lastName}`,
+          studentId: ps.student.studentId,
+          class: ps.student.class,
+          section: ps.student.section,
+          grade: ps.student.grade,
+          dateOfBirth: ps.student.dateOfBirth,
+          gender: ps.student.gender
+        }))
     },
     cached: false,
     generatedAt: new Date().toISOString()
@@ -193,18 +252,36 @@ const updateParent = async (parentId, updateData, schoolId) => {
     emergencyPhone
   } = updateData;
 
+  // Get school
+  // Find school by either UUID (id) or human-readable schoolId
+  let school = await prisma.school.findFirst({
+    where: { id: schoolId }
+  });
+
+  // If not found by UUID, try human-readable schoolId
+  if (!school) {
+    school = await prisma.school.findFirst({
+      where: { schoolId: schoolId }
+    });
+  }
+  if (!school) {
+    throw new Error('School not found');
+  }
+
   // Find the parent
-  const parent = await User.findOne({
-    _id: parentId,
-    schoolId,
-    role: 'parent'
+  const parent = await prisma.user.findFirst({
+    where: {
+      id: parentId,
+      schoolId: school.id,
+      role: 'parent'
+    }
   });
 
   if (!parent) {
     throw new Error('Parent not found');
   }
 
-  // Update parent record
+  // Build update data
   const updateFields = {};
   if (firstName !== undefined) updateFields.firstName = firstName;
   if (lastName !== undefined) updateFields.lastName = lastName;
@@ -215,18 +292,34 @@ const updateParent = async (parentId, updateData, schoolId) => {
   if (emergencyPhone !== undefined) updateFields.emergencyPhone = emergencyPhone;
   updateFields.updatedAt = new Date();
 
-  const updatedParent = await User.findByIdAndUpdate(
-    parentId,
-    updateFields,
-    { new: true, runValidators: true }
-  ).populate('studentIds', 'firstName lastName studentId class section');
+  // Update parent record
+  const updatedParent = await prisma.user.update({
+    where: { id: parentId },
+    data: updateFields,
+    include: {
+      parentStudents: {
+        include: {
+          student: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              studentId: true,
+              class: true,
+              section: true
+            }
+          }
+        }
+      }
+    }
+  });
 
   // Invalidate parent-related caches
   await invalidateParentCaches(schoolId, parentId);
 
   return {
     parent: {
-      id: updatedParent._id,
+      id: updatedParent.id,
       firstName: updatedParent.firstName,
       lastName: updatedParent.lastName,
       fullName: `${updatedParent.firstName} ${updatedParent.lastName}`,
@@ -239,13 +332,15 @@ const updateParent = async (parentId, updateData, schoolId) => {
       isActive: updatedParent.isActive,
       isVerified: updatedParent.isVerified,
       updatedAt: updatedParent.updatedAt,
-      children: updatedParent.studentIds ? updatedParent.studentIds.map(student => ({
-        id: student._id,
-        name: `${student.firstName} ${student.lastName}`,
-        studentId: student.studentId,
-        class: student.class,
-        section: student.section
-      })) : []
+      children: updatedParent.parentStudents
+        .filter(ps => ps.student)
+        .map(ps => ({
+          id: ps.student.id,
+          name: `${ps.student.firstName} ${ps.student.lastName}`,
+          studentId: ps.student.studentId,
+          class: ps.student.class,
+          section: ps.student.section
+        }))
     }
   };
 };
@@ -255,12 +350,30 @@ const updateParent = async (parentId, updateData, schoolId) => {
  * Creates a relationship between parent and student
  */
 const linkParentToStudent = async (parentId, studentId, schoolId) => {
+  // Get school
+  // Find school by either UUID (id) or human-readable schoolId
+  let school = await prisma.school.findFirst({
+    where: { id: schoolId }
+  });
+
+  // If not found by UUID, try human-readable schoolId
+  if (!school) {
+    school = await prisma.school.findFirst({
+      where: { schoolId: schoolId }
+    });
+  }
+  if (!school) {
+    throw new Error('School not found');
+  }
+
   // Verify parent exists
-  const parent = await User.findOne({
-    _id: parentId,
-    schoolId,
-    role: 'parent',
-    isActive: true
+  const parent = await prisma.user.findFirst({
+    where: {
+      id: parentId,
+      schoolId: school.id,
+      role: 'parent',
+      isActive: true
+    }
   });
 
   if (!parent) {
@@ -268,10 +381,12 @@ const linkParentToStudent = async (parentId, studentId, schoolId) => {
   }
 
   // Verify student exists
-  const student = await Student.findOne({
-    _id: studentId,
-    schoolId,
-    isActive: true
+  const student = await prisma.student.findFirst({
+    where: {
+      id: studentId,
+      schoolId: school.id,
+      isActive: true
+    }
   });
 
   if (!student) {
@@ -279,33 +394,38 @@ const linkParentToStudent = async (parentId, studentId, schoolId) => {
   }
 
   // Check if relationship already exists
-  if (parent.studentIds && parent.studentIds.includes(studentId)) {
+  const existingRelation = await prisma.parentStudent.findUnique({
+    where: {
+      parentId_studentId: {
+        parentId,
+        studentId
+      }
+    }
+  });
+
+  if (existingRelation) {
     throw new Error('Parent is already linked to this student');
   }
 
-  // Add student to parent's studentIds
-  await User.findByIdAndUpdate(
-    parentId,
-    { $addToSet: { studentIds: studentId } }
-  );
-
-  // Add parent to student's parentIds
-  await Student.findByIdAndUpdate(
-    studentId,
-    { $addToSet: { parentIds: parentId } }
-  );
+  // Create relationship
+  await prisma.parentStudent.create({
+    data: {
+      parentId,
+      studentId
+    }
+  });
 
   // Invalidate parent-related caches
   await invalidateParentCaches(schoolId, parentId);
 
   return {
     parent: {
-      id: parent._id,
+      id: parent.id,
       name: `${parent.firstName} ${parent.lastName}`,
       email: parent.email
     },
     student: {
-      id: student._id,
+      id: student.id,
       name: `${student.firstName} ${student.lastName}`,
       studentId: student.studentId,
       class: student.class,
@@ -320,11 +440,29 @@ const linkParentToStudent = async (parentId, studentId, schoolId) => {
  * Removes the relationship between parent and student
  */
 const unlinkParentFromStudent = async (parentId, studentId, schoolId) => {
+  // Get school
+  // Find school by either UUID (id) or human-readable schoolId
+  let school = await prisma.school.findFirst({
+    where: { id: schoolId }
+  });
+
+  // If not found by UUID, try human-readable schoolId
+  if (!school) {
+    school = await prisma.school.findFirst({
+      where: { schoolId: schoolId }
+    });
+  }
+  if (!school) {
+    throw new Error('School not found');
+  }
+
   // Verify parent exists
-  const parent = await User.findOne({
-    _id: parentId,
-    schoolId,
-    role: 'parent'
+  const parent = await prisma.user.findFirst({
+    where: {
+      id: parentId,
+      schoolId: school.id,
+      role: 'parent'
+    }
   });
 
   if (!parent) {
@@ -332,9 +470,11 @@ const unlinkParentFromStudent = async (parentId, studentId, schoolId) => {
   }
 
   // Verify student exists
-  const student = await Student.findOne({
-    _id: studentId,
-    schoolId
+  const student = await prisma.student.findFirst({
+    where: {
+      id: studentId,
+      schoolId: school.id
+    }
   });
 
   if (!student) {
@@ -342,33 +482,40 @@ const unlinkParentFromStudent = async (parentId, studentId, schoolId) => {
   }
 
   // Check if relationship exists
-  if (!parent.studentIds || !parent.studentIds.includes(studentId)) {
+  const existingRelation = await prisma.parentStudent.findUnique({
+    where: {
+      parentId_studentId: {
+        parentId,
+        studentId
+      }
+    }
+  });
+
+  if (!existingRelation) {
     throw new Error('Parent is not linked to this student');
   }
 
-  // Remove student from parent's studentIds
-  await User.findByIdAndUpdate(
-    parentId,
-    { $pull: { studentIds: studentId } }
-  );
-
-  // Remove parent from student's parentIds
-  await Student.findByIdAndUpdate(
-    studentId,
-    { $pull: { parentIds: parentId } }
-  );
+  // Remove relationship
+  await prisma.parentStudent.delete({
+    where: {
+      parentId_studentId: {
+        parentId,
+        studentId
+      }
+    }
+  });
 
   // Invalidate parent-related caches
   await invalidateParentCaches(schoolId, parentId);
 
   return {
     parent: {
-      id: parent._id,
+      id: parent.id,
       name: `${parent.firstName} ${parent.lastName}`,
       email: parent.email
     },
     student: {
-      id: student._id,
+      id: student.id,
       name: `${student.firstName} ${student.lastName}`,
       studentId: student.studentId,
       class: student.class,
@@ -383,11 +530,29 @@ const unlinkParentFromStudent = async (parentId, studentId, schoolId) => {
  * Deactivates a parent account (soft delete)
  */
 const deactivateParent = async (parentId, schoolId, adminUserId, reason) => {
-  const parent = await User.findOne({
-    _id: parentId,
-    schoolId,
-    role: 'parent',
-    isActive: true
+  // Get school
+  // Find school by either UUID (id) or human-readable schoolId
+  let school = await prisma.school.findFirst({
+    where: { id: schoolId }
+  });
+
+  // If not found by UUID, try human-readable schoolId
+  if (!school) {
+    school = await prisma.school.findFirst({
+      where: { schoolId: schoolId }
+    });
+  }
+  if (!school) {
+    throw new Error('School not found');
+  }
+
+  const parent = await prisma.user.findFirst({
+    where: {
+      id: parentId,
+      schoolId: school.id,
+      role: 'parent',
+      isActive: true
+    }
   });
 
   if (!parent) {
@@ -395,24 +560,24 @@ const deactivateParent = async (parentId, schoolId, adminUserId, reason) => {
   }
 
   // Update parent record
-  parent.isActive = false;
-  parent.deactivatedAt = new Date();
-  parent.deactivatedBy = adminUserId;
-  parent.deactivationReason = reason || 'Deactivated by administrator';
-  await parent.save();
+  const updatedParent = await prisma.user.update({
+    where: { id: parentId },
+    data: {
+      isActive: false,
+      updatedAt: new Date()
+    }
+  });
 
   // Invalidate parent-related caches
   await invalidateParentCaches(schoolId, parentId);
 
   return {
     parent: {
-      id: parent._id,
-      firstName: parent.firstName,
-      lastName: parent.lastName,
-      email: parent.email,
-      isActive: parent.isActive,
-      deactivatedAt: parent.deactivatedAt,
-      deactivationReason: parent.deactivationReason
+      id: updatedParent.id,
+      firstName: updatedParent.firstName,
+      lastName: updatedParent.lastName,
+      email: updatedParent.email,
+      isActive: updatedParent.isActive
     },
     message: 'Parent deactivated successfully'
   };
@@ -423,11 +588,29 @@ const deactivateParent = async (parentId, schoolId, adminUserId, reason) => {
  * Reactivates a deactivated parent account
  */
 const activateParent = async (parentId, schoolId) => {
-  const parent = await User.findOne({
-    _id: parentId,
-    schoolId,
-    role: 'parent',
-    isActive: false
+  // Get school
+  // Find school by either UUID (id) or human-readable schoolId
+  let school = await prisma.school.findFirst({
+    where: { id: schoolId }
+  });
+
+  // If not found by UUID, try human-readable schoolId
+  if (!school) {
+    school = await prisma.school.findFirst({
+      where: { schoolId: schoolId }
+    });
+  }
+  if (!school) {
+    throw new Error('School not found');
+  }
+
+  const parent = await prisma.user.findFirst({
+    where: {
+      id: parentId,
+      schoolId: school.id,
+      role: 'parent',
+      isActive: false
+    }
   });
 
   if (!parent) {
@@ -435,24 +618,25 @@ const activateParent = async (parentId, schoolId) => {
   }
 
   // Update parent record
-  parent.isActive = true;
-  parent.reactivatedAt = new Date();
-  parent.deactivatedAt = undefined;
-  parent.deactivatedBy = undefined;
-  parent.deactivationReason = undefined;
-  await parent.save();
+  const updatedParent = await prisma.user.update({
+    where: { id: parentId },
+    data: {
+      isActive: true,
+      updatedAt: new Date()
+    }
+  });
 
   // Invalidate parent-related caches
   await invalidateParentCaches(schoolId, parentId);
 
   return {
     parent: {
-      id: parent._id,
-      firstName: parent.firstName,
-      lastName: parent.lastName,
-      email: parent.email,
-      isActive: parent.isActive,
-      reactivatedAt: parent.reactivatedAt
+      id: updatedParent.id,
+      firstName: updatedParent.firstName,
+      lastName: updatedParent.lastName,
+      email: updatedParent.email,
+      isActive: updatedParent.isActive,
+      updatedAt: updatedParent.updatedAt
     },
     message: 'Parent activated successfully'
   };
@@ -463,33 +647,50 @@ const activateParent = async (parentId, schoolId) => {
  * Permanently deletes a parent account (hard delete)
  */
 const deleteParent = async (parentId, schoolId, adminUserId) => {
-  const parent = await User.findOne({
-    _id: parentId,
-    schoolId,
-    role: 'parent'
+  // Get school
+  // Find school by either UUID (id) or human-readable schoolId
+  let school = await prisma.school.findFirst({
+    where: { id: schoolId }
+  });
+
+  // If not found by UUID, try human-readable schoolId
+  if (!school) {
+    school = await prisma.school.findFirst({
+      where: { schoolId: schoolId }
+    });
+  }
+  if (!school) {
+    throw new Error('School not found');
+  }
+
+  const parent = await prisma.user.findFirst({
+    where: {
+      id: parentId,
+      schoolId: school.id,
+      role: 'parent'
+    }
   });
 
   if (!parent) {
     throw new Error('Parent not found');
   }
 
-  // Remove parent from all linked students
-  if (parent.studentIds && parent.studentIds.length > 0) {
-    await Student.updateMany(
-      { _id: { $in: parent.studentIds } },
-      { $pull: { parentIds: parentId } }
-    );
-  }
+  // Remove parent from all linked students (delete from junction table)
+  await prisma.parentStudent.deleteMany({
+    where: { parentId }
+  });
 
   // Delete the parent record
-  await User.findByIdAndDelete(parentId);
+  await prisma.user.delete({
+    where: { id: parentId }
+  });
 
   // Invalidate parent-related caches
   await invalidateParentCaches(schoolId, parentId);
 
   return {
     parent: {
-      id: parent._id,
+      id: parent.id,
       firstName: parent.firstName,
       lastName: parent.lastName,
       email: parent.email
@@ -505,20 +706,20 @@ const deleteParent = async (parentId, schoolId, adminUserId) => {
  */
 const invalidateParentCaches = async (schoolId, parentId = null) => {
   logger.info(`🗑️ Invalidating parent caches for school ${schoolId}${parentId ? ` and parent ${parentId}` : ''}`);
-  
+
   // Invalidate specific parent cache if parentId provided
   if (parentId) {
     await CacheService.del('parent', `parent:${parentId}`);
   }
-  
+
   // Invalidate parent list caches (all variations)
   const parentListPattern = `educonnect:parent:parents:${schoolId}*`;
   const deletedCount = await CacheService.delPattern(parentListPattern);
-  
+
   // Invalidate dashboard caches that depend on parent data
   const dashboardPattern = `educonnect:dashboard:analytics:${schoolId}*`;
   const dashboardDeleted = await CacheService.delPattern(dashboardPattern);
-  
+
   logger.info(`🗑️ Invalidated ${deletedCount} parent list entries and ${dashboardDeleted} dashboard entries for school ${schoolId}`);
 };
 
@@ -528,12 +729,12 @@ const invalidateParentCaches = async (schoolId, parentId = null) => {
  */
 const warmUpParentCaches = async (schoolId) => {
   logger.info(`🔥 Warming up parent caches for school ${schoolId}`);
-  
+
   try {
     // Pre-load common parent views
     await getParents({ schoolId, isActive: true }, { page: 1, limit: 20 });
     await getParents({ schoolId }, { page: 1, limit: 20 });
-    
+
     logger.info(`🔥 Parent caches warmed up successfully for school ${schoolId}`);
   } catch (error) {
     logger.error(`❌ Failed to warm up parent caches for school ${schoolId}:`, error.message);

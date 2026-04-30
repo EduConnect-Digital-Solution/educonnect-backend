@@ -5,10 +5,7 @@
  * Enhanced with Redis caching for optimal performance
  */
 
-const User = require('../models/User');
-const School = require('../models/School');
-const Student = require('../models/Student');
-const Invitation = require('../models/Invitation');
+const { prisma } = require('../config/database');
 const CacheService = require('./cacheService');
 const logger = require('../utils/logger');
 
@@ -22,59 +19,109 @@ class DashboardService {
     // TEMPORARILY DISABLE CACHING - Always fetch fresh data
     logger.info(`📊 Dashboard cache DISABLED for school ${schoolId} - fetching fresh data from database`);
 
-    // Get school information
-    const school = await School.findOne({ schoolId });
+    // Find school by either UUID (id) or human-readable schoolId
+    let school = await prisma.school.findFirst({
+      where: { id: schoolId }
+    });
+    
+    // If not found by UUID, try human-readable schoolId
+    if (!school) {
+      school = await prisma.school.findFirst({
+        where: { schoolId: schoolId }
+      });
+    }
+    
     if (!school) {
       throw new Error('School not found');
     }
 
-    // Get user statistics by role
-    const userStats = await User.aggregate([
-      { $match: { schoolId } },
-      {
-        $group: {
-          _id: '$role',
-          total: { $sum: 1 },
-          active: { $sum: { $cond: [{ $eq: ['$isActive', true] }, 1, 0] } },
-          verified: { $sum: { $cond: [{ $eq: ['$isVerified', true] }, 1, 0] } },
-          temporaryPassword: { $sum: { $cond: [{ $eq: ['$isTemporaryPassword', true] }, 1, 0] } }
+    // Get user statistics by role using Prisma (user.schoolId is UUID)
+    const users = await prisma.user.findMany({
+      where: { schoolId: school.id },
+      select: { role: true, isActive: true, isVerified: true, isTemporaryPassword: true }
+    });
+    
+    const userStatsRaw = Object.values(
+      users.reduce((acc, user) => {
+        if (!acc[user.role]) {
+          acc[user.role] = { _id: user.role, total: 0, active: 0, verified: 0, temporaryPassword: 0 };
         }
-      }
-    ]);
+        acc[user.role].total++;
+        if (user.isActive) acc[user.role].active++;
+        if (user.isVerified) acc[user.role].verified++;
+        if (user.isTemporaryPassword) acc[user.role].temporaryPassword++;
+        return acc;
+      }, {})
+    );
 
-    // Get student statistics
-    const studentStats = await Student.getSchoolStatistics(schoolId);
+    // Get student statistics (student.schoolId is UUID)
+    const studentStats = await this._getStudentStatistics(school.id);
 
-    // Get invitation statistics
-    const invitationStats = await Invitation.aggregate([
-      { $match: { schoolId } },
-      {
-        $group: {
-          _id: '$status',
-          count: { $sum: 1 }
-        }
-      }
-    ]);
+    // Get invitation statistics using Prisma (invitation.schoolId is human-readable)
+    const invitationStatsRaw = await prisma.invitation.groupBy({
+      by: ['status'],
+      where: { schoolId: school.schoolId },
+      _count: { status: true }
+    });
 
-    logger.info(`📊 DEBUG: Raw invitation stats for ${schoolId}:`, invitationStats);
+    logger.info(`📊 DEBUG: Raw invitation stats for ${school.schoolId}:`, invitationStatsRaw);
 
     // Get recent activity (last 30 days)
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-    const recentUsers = await User.find({
-      schoolId,
-      createdAt: { $gte: thirtyDaysAgo }
-    }).sort({ createdAt: -1 }).limit(10).select('firstName lastName email role createdAt isActive');
+    // Recent users (user.schoolId is UUID)
+    const recentUsers = await prisma.user.findMany({
+      where: {
+        schoolId: school.id,
+        createdAt: { gte: thirtyDaysAgo }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        role: true,
+        createdAt: true,
+        isActive: true
+      }
+    });
 
-    const recentStudents = await Student.find({
-      schoolId,
-      createdAt: { $gte: thirtyDaysAgo }
-    }).sort({ createdAt: -1 }).limit(10).select('firstName lastName class createdAt isActive');
+    // Recent students (student.schoolId is UUID)
+    const recentStudents = await prisma.student.findMany({
+      where: {
+        schoolId: school.id,
+        createdAt: { gte: thirtyDaysAgo }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        class: true,
+        createdAt: true,
+        isActive: true
+      }
+    });
 
-    const recentInvitations = await Invitation.find({
-      schoolId,
-      createdAt: { $gte: thirtyDaysAgo }
-    }).sort({ createdAt: -1 }).limit(10).select('email role status createdAt');
+    // Recent invitations (invitation.schoolId is human-readable)
+    const recentInvitations = await prisma.invitation.findMany({
+      where: {
+        schoolId: school.schoolId,
+        createdAt: { gte: thirtyDaysAgo }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        status: true,
+        createdAt: true
+      }
+    });
 
     // Format user statistics
     const formattedUserStats = {
@@ -83,13 +130,14 @@ class DashboardService {
       parent: { total: 0, active: 0, verified: 0, temporaryPassword: 0 }
     };
 
-    userStats.forEach(stat => {
-      if (formattedUserStats[stat._id]) {
-        formattedUserStats[stat._id] = {
-          total: stat.total,
-          active: stat.active,
-          verified: stat.verified,
-          temporaryPassword: stat.temporaryPassword
+    userStatsRaw.forEach(stat => {
+      const role = stat._id;
+      if (formattedUserStats[role]) {
+        formattedUserStats[role] = {
+          total: Number(stat.total),
+          active: Number(stat.active),
+          verified: Number(stat.verified),
+          temporaryPassword: Number(stat.temporaryPassword)
         };
       }
     });
@@ -102,9 +150,10 @@ class DashboardService {
       expired: 0
     };
 
-    invitationStats.forEach(stat => {
-      if (formattedInvitationStats[stat._id] !== undefined) {
-        formattedInvitationStats[stat._id] = stat.count;
+    invitationStatsRaw.forEach(stat => {
+      const status = stat._id;
+      if (formattedInvitationStats[status] !== undefined) {
+        formattedInvitationStats[status] = Number(stat.count);
       }
     });
 
@@ -117,7 +166,7 @@ class DashboardService {
 
     const dashboardData = {
       school: {
-        id: school._id,
+        id: school.id,
         schoolId: school.schoolId,
         schoolName: school.schoolName,
         email: school.email,
@@ -155,7 +204,7 @@ class DashboardService {
       },
       recentActivity: {
         users: recentUsers.map(user => ({
-          id: user._id,
+          id: user.id,
           name: `${user.firstName} ${user.lastName}`,
           email: user.email,
           role: user.role,
@@ -163,14 +212,14 @@ class DashboardService {
           isActive: user.isActive
         })),
         students: recentStudents.map(student => ({
-          id: student._id,
+          id: student.id,
           name: `${student.firstName} ${student.lastName}`,
           class: student.class,
           createdAt: student.createdAt,
           isActive: student.isActive
         })),
         invitations: recentInvitations.map(invitation => ({
-          id: invitation._id,
+          id: invitation.id,
           email: invitation.email,
           role: invitation.role,
           status: invitation.status,
@@ -189,49 +238,116 @@ class DashboardService {
   }
 
   /**
+   * Helper: Get student statistics for a school
+   * @param {string} schoolId - School identifier
+   * @returns {Object} Student statistics
+   */
+  static async _getStudentStatistics(schoolId) {
+    // schoolId here is UUID (from school.id) since student.schoolId is UUID
+    const totalStudents = await prisma.student.count({
+      where: { schoolId }
+    });
+
+    const activeStudents = await prisma.student.count({
+      where: {
+        schoolId,
+        isActive: true
+      }
+    });
+
+    return {
+      totalStudents,
+      activeStudents,
+      inactiveStudents: totalStudents - activeStudents
+    };
+  }
+
+  /**
    * Get user management data with filtering and pagination
    * @param {Object} options - Query options
    * @returns {Object} User management data
    */
   static async getUserManagement({ schoolId, role, status, page = 1, limit = 20, search }) {
-    // Build query
-    const query = { schoolId };
-
+    // Build where clause
+    // First, get the school to use UUID for user lookup
+    // Handle both UUID and human-readable schoolId
+    let school = await prisma.school.findFirst({
+      where: { id: schoolId }
+    });
+    
+    if (!school) {
+      school = await prisma.school.findFirst({
+        where: { schoolId: schoolId }
+      });
+    }
+    
+    if (!school) {
+      throw new Error('School not found');
+    }
+    
+    const where = { schoolId: school.id };
+    
     if (role && role !== 'all') {
-      query.role = role;
+      where.role = role;
     }
-
+    
     if (status === 'active') {
-      query.isActive = true;
+      where.isActive = true;
     } else if (status === 'inactive') {
-      query.isActive = false;
+      where.isActive = false;
     } else if (status === 'pending') {
-      query.isTemporaryPassword = true;
+      where.isTemporaryPassword = true;
     }
-
+    
     // Add search functionality
     if (search) {
-      query.$or = [
-        { firstName: { $regex: search, $options: 'i' } },
-        { lastName: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } }
+      where.OR = [
+        { firstName: { contains: search, mode: 'insensitive' } },
+        { lastName: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } }
       ];
     }
-
+    
     // Get users with pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);
-    const users = await User.find(query)
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit))
-      .select('-password')
-      .populate('invitedBy', 'firstName lastName email');
+    const users = await prisma.user.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take: parseInt(limit),
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        role: true,
+        isActive: true,
+        isVerified: true,
+        isTemporaryPassword: true,
+        lastLoginAt: true,
+        createdAt: true,
+        subjects: true,
+        classes: true,
+        invitedBy: true
+      }
+    });
 
-    const total = await User.countDocuments(query);
+    const total = await prisma.user.count({ where });
+
+    // Fetch inviter details for users who have invitedBy
+    const inviterIds = users.filter(u => u.invitedBy).map(u => u.invitedBy);
+    const inviters = inviterIds.length > 0 ? await prisma.user.findMany({
+      where: { id: { in: inviterIds } },
+      select: { id: true, firstName: true, lastName: true, email: true }
+    }) : [];
+    const inviterMap = inviters.reduce((map, inviter) => {
+      map[inviter.id] = inviter;
+      return map;
+    }, {});
 
     // Format response
     const formattedUsers = users.map(user => ({
-      id: user._id,
+      id: user.id,
       firstName: user.firstName,
       lastName: user.lastName,
       email: user.email,
@@ -241,9 +357,9 @@ class DashboardService {
       isTemporaryPassword: user.isTemporaryPassword,
       lastLoginAt: user.lastLoginAt,
       createdAt: user.createdAt,
-      invitedBy: user.invitedBy ? {
-        name: `${user.invitedBy.firstName} ${user.invitedBy.lastName}`,
-        email: user.invitedBy.email
+      invitedBy: user.invitedBy && inviterMap[user.invitedBy] ? {
+        name: `${inviterMap[user.invitedBy].firstName} ${inviterMap[user.invitedBy].lastName}`,
+        email: inviterMap[user.invitedBy].email
       } : null,
       // Role-specific data
       subjects: user.role === 'teacher' ? user.subjects : undefined,
@@ -287,9 +403,11 @@ class DashboardService {
    */
   static async toggleUserStatus(userId, action, schoolId, reason) {
     // Find the user
-    const user = await User.findOne({
-      _id: userId,
-      schoolId
+    const user = await prisma.user.findFirst({
+      where: {
+        id: userId,
+        schoolId
+      }
     });
 
     if (!user) {
@@ -297,9 +415,11 @@ class DashboardService {
     }
 
     // Get admin user for tracking
-    const adminUser = await User.findOne({
-      schoolId,
-      role: 'admin'
+    const adminUser = await prisma.user.findFirst({
+      where: {
+        schoolId,
+        role: 'admin'
+      }
     });
 
     if (!adminUser) {
@@ -307,15 +427,19 @@ class DashboardService {
     }
 
     // Perform the action
+    let updateData = {};
+
     if (action === 'activate') {
       if (user.isActive) {
         throw new Error('User is already active');
       }
 
-      user.isActive = true;
-      user.deactivatedAt = undefined;
-      user.deactivatedBy = undefined;
-      user.deactivationReason = undefined;
+      updateData = {
+        isActive: true,
+        deactivatedAt: null,
+        deactivatedBy: null,
+        deactivationReason: null
+      };
 
     } else if (action === 'deactivate') {
       if (!user.isActive) {
@@ -326,27 +450,32 @@ class DashboardService {
         throw new Error('Cannot deactivate user with pending registration. Cancel their invitation instead.');
       }
 
-      user.isActive = false;
-      user.deactivatedAt = new Date();
-      user.deactivatedBy = adminUser._id;
-      user.deactivationReason = reason || 'Deactivated by administrator';
+      updateData = {
+        isActive: false,
+        deactivatedAt: new Date(),
+        deactivatedBy: adminUser.id,
+        deactivationReason: reason || 'Deactivated by administrator'
+      };
 
     } else {
       throw new Error('Invalid action. Must be "activate" or "deactivate"');
     }
 
-    await user.save();
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: updateData
+    });
 
     return {
       user: {
-        id: user._id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        role: user.role,
-        isActive: user.isActive,
-        deactivatedAt: user.deactivatedAt,
-        deactivationReason: user.deactivationReason
+        id: updatedUser.id,
+        firstName: updatedUser.firstName,
+        lastName: updatedUser.lastName,
+        email: updatedUser.email,
+        role: updatedUser.role,
+        isActive: updatedUser.isActive,
+        deactivatedAt: updatedUser.deactivatedAt,
+        deactivationReason: updatedUser.deactivationReason
       }
     };
   }
@@ -360,9 +489,11 @@ class DashboardService {
    */
   static async removeUser(userId, schoolId, reason) {
     // Find the user
-    const user = await User.findOne({
-      _id: userId,
-      schoolId
+    const user = await prisma.user.findFirst({
+      where: {
+        id: userId,
+        schoolId
+      }
     });
 
     if (!user) {
@@ -375,9 +506,11 @@ class DashboardService {
     }
 
     // Get admin user for tracking
-    const adminUser = await User.findOne({
-      schoolId,
-      role: 'admin'
+    const adminUser = await prisma.user.findFirst({
+      where: {
+        schoolId,
+        role: 'admin'
+      }
     });
 
     if (!adminUser) {
@@ -386,7 +519,7 @@ class DashboardService {
 
     // Store user info for response before deletion
     const userInfo = {
-      id: user._id,
+      id: user.id,
       firstName: user.firstName,
       lastName: user.lastName,
       email: user.email,
@@ -395,28 +528,30 @@ class DashboardService {
     };
 
     // Cancel any pending invitations for this user
-    await Invitation.updateMany(
-      {
+    await prisma.invitation.updateMany({
+      where: {
         email: user.email,
         schoolId,
         status: 'pending'
       },
-      {
+      data: {
         status: 'cancelled',
         cancelledAt: new Date(),
-        cancelledBy: adminUser._id,
+        cancelledBy: adminUser.id,
         cancellationReason: `User removed: ${reason || 'User account deleted'}`
       }
-    );
+    });
 
     // Remove the user
-    await User.findByIdAndDelete(userId);
+    await prisma.user.delete({
+      where: { id: userId }
+    });
 
     return {
       removedUser: userInfo,
       removedAt: new Date(),
       removedBy: {
-        id: adminUser._id,
+        id: adminUser.id,
         name: `${adminUser.firstName} ${adminUser.lastName}`,
         email: adminUser.email
       },
@@ -435,10 +570,13 @@ class DashboardService {
     }
 
     // For testing, get the most recent active school
-    const recentSchool = await School.findOne({
-      isActive: true,
-      isVerified: true
-    }).sort({ createdAt: -1 });
+    const recentSchool = await prisma.school.findFirst({
+      where: {
+        isActive: true,
+        isVerified: true
+      },
+      orderBy: { createdAt: 'desc' }
+    });
 
     if (!recentSchool) {
       throw new Error('No active school found');

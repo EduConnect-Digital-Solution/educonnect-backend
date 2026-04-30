@@ -5,6 +5,7 @@
  */
 
 const authService = require('../services/authService');
+const { prisma } = require('../config/database');
 const catchAsync = require('../utils/catchAsync');
 const { validationResult } = require('express-validator');
 const {
@@ -17,10 +18,6 @@ const {
 } = require('../utils/cookieHelper');
 
 // Legacy imports for non-auth functions (to be refactored in Phase 3)
-const User = require('../models/User');
-const School = require('../models/School');
-const Student = require('../models/Student');
-const Invitation = require('../models/Invitation');
 const EmailService = require('../config/email');
 const logger = require('../utils/logger');
 
@@ -45,8 +42,11 @@ const completeRegistration = catchAsync(async (req, res) => {
   try {
     const result = await authService.completeRegistration(req.body);
 
+    // Generate tokens for the user
+    const tokens = authService.generateTokens(result.user.id, result.user.schoolId, result.user.role);
+
     // Set refresh token as HttpOnly cookie
-    setRefreshTokenCookie(res, result.tokens.refreshToken, req);
+    setRefreshTokenCookie(res, tokens.refreshToken, req);
 
     res.status(200).json({
       success: true,
@@ -54,8 +54,8 @@ const completeRegistration = catchAsync(async (req, res) => {
       data: {
         user: result.user,
         tokens: {
-          accessToken: result.tokens.accessToken,
-          expiresIn: result.tokens.expiresIn
+          accessToken: tokens.accessToken,
+          expiresIn: tokens.expiresIn
           // refreshToken is now in HttpOnly cookie
         }
       }
@@ -289,7 +289,7 @@ const getMe = catchAsync(async (req, res) => {
       return res.status(200).json({
         success: true,
         user: {
-          id: req.user.id,
+          id: req.user.userId,
           email: email,
           firstName: 'System',
           lastName: 'Administrator',
@@ -308,8 +308,17 @@ const getMe = catchAsync(async (req, res) => {
 
     // Handle school admin (has schoolId but no userId)
     if (schoolId && !userId) {
-      const school = await School.findOne({ schoolId })
-        .select('-password');
+      // Find school by either UUID (id) or human-readable schoolId
+      let school = await prisma.school.findFirst({
+        where: { id: schoolId }
+      });
+      
+      // If not found by UUID, try human-readable schoolId
+      if (!school) {
+        school = await prisma.school.findFirst({
+          where: { schoolId: schoolId }
+        });
+      }
 
       if (!school) {
         return res.status(401).json({
@@ -328,7 +337,7 @@ const getMe = catchAsync(async (req, res) => {
       return res.status(200).json({
         success: true,
         user: {
-          id: school._id,
+          id: school.id,
           email: school.email,
           firstName: req.user.firstName || 'School',
           lastName: req.user.lastName || 'Admin',
@@ -336,7 +345,7 @@ const getMe = catchAsync(async (req, res) => {
           role: 'admin',
           schoolId: school.schoolId,
           school: {
-            _id: school._id,
+            id: school.id,
             schoolName: school.schoolName,
             email: school.email,
             address: school.address,
@@ -355,9 +364,15 @@ const getMe = catchAsync(async (req, res) => {
 
     // Handle regular user (teacher/parent)
     if (userId) {
-      const user = await User.findById(userId)
-        .populate('studentIds', 'firstName lastName studentId class grade')
-        .select('-password -invitationToken -passwordResetToken');
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          id: true, email: true, firstName: true, lastName: true,
+          role: true, schoolId: true, isActive: true, isVerified: true,
+          isTemporaryPassword: true, phone: true, subjects: true,
+          createdAt: true, lastLoginAt: true
+        }
+      });
 
       if (!user) {
         return res.status(401).json({
@@ -376,12 +391,14 @@ const getMe = catchAsync(async (req, res) => {
       // Fetch school data (schoolId is a string, not a reference)
       let schoolData = null;
       if (user.schoolId) {
-        const school = await School.findOne({ schoolId: user.schoolId })
-          .select('schoolName email address phone website');
-
+        const school = await prisma.school.findFirst({
+          where: { id: user.schoolId },
+          select: { id: true, schoolName: true, email: true, address: true, phone: true, website: true }
+        });
+        
         if (school) {
           schoolData = {
-            _id: school._id,
+            id: school.id,
             schoolName: school.schoolName,
             email: school.email,
             address: school.address,
@@ -394,11 +411,11 @@ const getMe = catchAsync(async (req, res) => {
       return res.status(200).json({
         success: true,
         user: {
-          id: user._id,
+          id: user.id,
           email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
-          fullName: user.fullName,
+          fullName: `${user.firstName} ${user.lastName}`,
           role: user.role,
           schoolId: user.schoolId,
           school: schoolData,
@@ -407,11 +424,10 @@ const getMe = catchAsync(async (req, res) => {
           isActive: user.isActive,
           isVerified: user.isVerified,
           isSchoolAdmin: user.isSchoolAdmin,
-          lastLogin: user.lastLogin,
+          lastLogin: user.lastLoginAt,
           createdAt: user.createdAt,
           // Role-specific fields
           ...(user.role === 'teacher' && {
-            employeeId: user.employeeId,
             subjects: user.subjects,
             classes: user.classes
           }),

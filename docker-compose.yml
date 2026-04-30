@@ -1,37 +1,48 @@
 version: '3.8'
 
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: educonnect-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: educonnect
+      POSTGRES_PASSWORD: educonnect_pass
+      POSTGRES_DB: educonnect
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U educonnect"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - educonnect-network
+
   redis:
     image: redis:7-alpine
     container_name: educonnect-redis
+    restart: unless-stopped
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
     command: redis-server --appendonly yes
-    restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - educonnect-network
 
-  mongodb:
-    image: mongo:6
-    container_name: educonnect-mongodb
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongodb_data:/data/db
-    environment:
-      MONGO_INITDB_DATABASE: educonnect-phase1
-    restart: unless-stopped
-    healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
-      interval: 30s
-      timeout: 10s
-      retries: 3
+networks:
+  educonnect-network:
+    driver: bridge
 
 volumes:
+  postgres_data:
   redis_data:
-  mongodb_data:
+  postgres_data:

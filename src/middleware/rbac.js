@@ -202,7 +202,7 @@ const validateResourceOwnership = (resourceType, options = {}) => {
         resourceType,
         resourceId,
         userRole: req.user.role,
-        userId: req.user.id,
+        userId: req.user.userId,
         schoolId: req.user.schoolId
       };
 
@@ -210,7 +210,7 @@ const validateResourceOwnership = (resourceType, options = {}) => {
       switch (resourceType) {
         case 'user':
           // Users can access their own profile
-          if (resourceId === req.user.id) {
+          if (resourceId === req.user.userId) {
             return next();
           }
           
@@ -330,12 +330,12 @@ const validateParentAccess = (req, res, next) => {
       // Mark for validation in controller where we have access to models
       req.parentAccessValidationRequired = true;
       req.requestedStudentId = studentId;
-      req.parentUserId = req.user.id;
+      req.parentUserId = req.user.userId;
     }
     
     // Store parent info for any additional validation needed
     req.parentValidation = {
-      parentId: req.user.id,
+      parentId: req.user.userId,
       schoolId: req.user.schoolId,
       requestedStudentId: studentId
     };
@@ -380,7 +380,7 @@ const validateTeacherAccess = (req, res, next) => {
     
     // Store teacher validation info for controller
     req.teacherValidation = {
-      teacherId: req.user.id,
+      teacherId: req.user.userId,
       schoolId: req.user.schoolId,
       requestedClassId: classId,
       requestedStudentId: studentId,
@@ -493,7 +493,7 @@ const validateCrossSchoolAccess = (req, res, next) => {
 
   if (requestedSchoolIds.length > 0) {
     req.crossSchoolAccess = {
-      systemAdminId: req.user.id,
+      systemAdminId: req.user.userId,
       requestedSchools: requestedSchoolIds,
       timestamp: new Date(),
       operation: `${req.method} ${req.path}`
@@ -611,7 +611,7 @@ const auditLog = (operation) => {
     // Store audit info for logging in controller
     req.auditLog = {
       operation,
-      userId: req.user?.id,
+      userId: req.user?.userId,
       userRole: req.user?.role,
       schoolId: req.user?.schoolId,
       timestamp: new Date(),
@@ -635,7 +635,7 @@ const auditSystemOperation = (operation) => {
     // Enhanced audit info for system admin operations
     req.systemAuditLog = {
       operation,
-      systemAdminId: req.user?.id,
+      systemAdminId: req.user?.userId,
       userRole: req.user?.role,
       timestamp: new Date(),
       ip: req.ip || req.connection.remoteAddress,

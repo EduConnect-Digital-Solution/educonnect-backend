@@ -4,9 +4,7 @@
  * Enhanced with Redis caching for optimal performance
  */
 
-const User = require('../models/User');
-const Student = require('../models/Student');
-const School = require('../models/School');
+const { prisma } = require('../config/database');
 const CacheService = require('./cacheService');
 const logger = require('../utils/logger');
 
@@ -33,40 +31,76 @@ class TeacherService {
 
     logger.info(`👨‍🏫 Teacher dashboard cache MISS for ${userId} - generating fresh data`);
 
-    // Get teacher information
-    const teacher = await User.findById(userId).select('-password');
-    if (!teacher || teacher.role !== 'teacher') {
-      throw new Error('Access denied. Teacher role required.');
-    }
+    // Get school
+    // Find school by either UUID (id) or human-readable schoolId
+    let school = await prisma.school.findFirst({
+      where: { id: schoolId }
+    });
 
-    // Get school information
-    const school = await School.findOne({ schoolId });
+    // If not found by UUID, try human-readable schoolId
+    if (!school) {
+      school = await prisma.school.findFirst({
+        where: { schoolId: schoolId }
+      });
+    }
     if (!school) {
       throw new Error('School not found');
     }
 
+    // Get teacher information
+    const teacher = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+    if (!teacher || teacher.role !== 'teacher') {
+      throw new Error('Access denied. Teacher role required.');
+    }
+
     // Get students assigned to this teacher
-    // 1. Students directly assigned to teacher (via teacherIds field)
-    const directlyAssignedStudents = await Student.find({
-      schoolId: schoolId,
-      $or: [
-        { teacherIds: teacher._id },
-        { teachers: teacher._id }
-      ],
-      excludedTeacherIds: { $ne: teacher._id },
-      isActive: true
-    }).select('firstName lastName studentId class section grade');
+    // 1. Students directly assigned to teacher (via teacherStudent junction table)
+    const directlyAssignedStudents = await prisma.student.findMany({
+      where: {
+        schoolId: school.id,
+        studentOf: {
+          some: {
+            teacherId: userId,
+            isActive: true
+          }
+        },
+        isActive: true
+      },
+      select: {
+        id: true,
+        studentId: true,
+        firstName: true,
+        lastName: true,
+        class: true,
+        section: true,
+        grade: true
+      }
+    });
 
     // 2. Students in teacher's assigned classes (only if teacher has classes assigned)
     let studentsInClasses = [];
     if (teacher.classes && teacher.classes.length > 0) {
-      studentsInClasses = await Student.find({
-        schoolId: schoolId,
-        class: { $in: teacher.classes },
-        isActive: true,
-        excludedTeacherIds: { $ne: teacher._id },
-        _id: { $nin: directlyAssignedStudents.map(s => s._id) }
-      }).select('firstName lastName studentId class section grade');
+      studentsInClasses = await prisma.student.findMany({
+        where: {
+          schoolId: school.id,
+          class: { in: teacher.classes },
+          isActive: true,
+          NOT: {
+            id: { in: directlyAssignedStudents.map(s => s.id) }
+          }
+        },
+        select: {
+          id: true,
+          studentId: true,
+          firstName: true,
+          lastName: true,
+          class: true,
+          section: true,
+          grade: true
+        }
+      });
     }
 
     // Combine both lists - directly assigned students + students in assigned classes
@@ -89,12 +123,12 @@ class TeacherService {
         studentsByClass[classKey] = [];
       }
       studentsByClass[classKey].push({
-        id: student._id,
+        id: student.id,
         studentId: student.studentId,
         name: `${student.firstName} ${student.lastName}`,
         section: student.section,
         grade: student.grade,
-        isMyStudent: myStudents.some(ms => ms._id.equals(student._id))
+        isMyStudent: myStudents.some(ms => ms.id === student.id)
       });
     });
 
@@ -131,7 +165,7 @@ class TeacherService {
 
     const dashboardData = {
       teacher: {
-        id: teacher._id,
+        id: teacher.id,
         firstName: teacher.firstName,
         lastName: teacher.lastName,
         fullName: `${teacher.firstName} ${teacher.lastName}`,
@@ -143,21 +177,21 @@ class TeacherService {
         lastLoginAt: teacher.lastLoginAt
       },
       school: {
-        id: school._id,
-        schoolId: school.schoolId,
+        id: school.id,
+        schoolId: school.id,
         schoolName: school.schoolName,
         email: school.email
       },
       statistics: stats,
       myStudents: allStudents.map(student => ({
-        id: student._id,
+        id: student.id,
         studentId: student.studentId,
         name: `${student.firstName} ${student.lastName}`,
         class: student.class,
         section: student.section,
         classDisplay: student.class && student.section ? `${student.class}-${student.section}` : student.class || 'Not Assigned',
         grade: student.grade,
-        isDirectlyAssigned: myStudents.some(ms => ms._id.equals(student._id))
+        isDirectlyAssigned: myStudents.some(ms => ms.id === student.id)
       })),
       studentsByClass: studentsByClass,
       recentActivity: recentActivity,
@@ -204,71 +238,118 @@ class TeacherService {
 
     logger.info(`👨‍🏫 Teacher students cache MISS for ${cacheKey} - querying database`);
 
+    // Get school
+    // Find school by either UUID (id) or human-readable schoolId
+    let school = await prisma.school.findFirst({
+      where: { id: schoolId }
+    });
+
+    // If not found by UUID, try human-readable schoolId
+    if (!school) {
+      school = await prisma.school.findFirst({
+        where: { schoolId: schoolId }
+      });
+    }
+    if (!school) {
+      throw new Error('School not found');
+    }
+
     // Get teacher information
-    const teacher = await User.findById(userId);
+    const teacher = await prisma.user.findUnique({
+      where: { id: userId }
+    });
     if (!teacher || teacher.role !== 'teacher') {
       throw new Error('Access denied. Teacher role required.');
     }
 
-    // Build query for students - both directly assigned AND in teacher's classes
-    let studentQuery = {
-      schoolId: schoolId,
-      isActive: true,
-      excludedTeacherIds: { $ne: teacher._id } // Exclude unassigned students
+    // Build where clause for students - both directly assigned AND in teacher's classes
+    const whereClause = {
+      schoolId: school.id,
+      isActive: true
     };
 
-    // Get directly assigned students
-    const directAssignmentQuery = {
-      ...studentQuery,
-      $or: [
-        { teacherIds: teacher._id }, // Updated to use new field name
-        { teachers: teacher._id }    // Keep legacy field for backward compatibility
-      ]
+    // Get directly assigned students (via teacherStudent junction table)
+    const directAssignmentWhere = {
+      ...whereClause,
+      studentOf: {
+        some: {
+          teacherId: userId,
+          isActive: true
+        }
+      }
     };
 
     // Get students in teacher's classes (if teacher has classes)
-    const classAssignmentQuery = teacher.classes && teacher.classes.length > 0 ? {
-      ...studentQuery,
-      class: { $in: teacher.classes }
+    const classAssignmentWhere = (teacher.classes && teacher.classes.length > 0) ? {
+      ...whereClause,
+      class: { in: teacher.classes }
     } : null;
 
-    // Combine queries using $or to get both directly assigned and class-based students
-    const combinedQuery = {
-      ...studentQuery,
-      $or: [
-        // Directly assigned students
-        ...(directAssignmentQuery.$or || []),
-        // Students in teacher's classes (if teacher has classes)
-        ...(classAssignmentQuery ? [{ class: { $in: teacher.classes } }] : [])
-      ]
+    // Combine queries
+    let studentIds = new Set();
+
+    const [directStudents, classStudents] = await Promise.all([
+      prisma.student.findMany({
+        where: directAssignmentWhere,
+        select: { id: true }
+      }),
+      classAssignmentWhere ? prisma.student.findMany({
+        where: classAssignmentWhere,
+        select: { id: true }
+      }) : Promise.resolve([])
+    ]);
+
+    directStudents.forEach(s => studentIds.add(s.id));
+    classStudents.forEach(s => studentIds.add(s.id));
+
+    // Build final where clause with the combined IDs
+    const combinedWhere = {
+      ...whereClause,
+      id: { in: [...studentIds] }
     };
 
-    // If teacher has no classes and no direct assignments, show empty result
-    if ((!teacher.classes || teacher.classes.length === 0) && !combinedQuery.$or.length) {
-      combinedQuery._id = null; // This will return no results
-    }
-
-    // Add filters to the combined query
+    // Add filters
     if (studentClass && studentClass !== 'all') {
-      combinedQuery.class = studentClass;
+      combinedWhere.class = studentClass;
     }
     if (section && section !== 'all') {
-      combinedQuery.section = section;
+      combinedWhere.section = section;
     }
 
     // Get students with pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);
-    const students = await Student.find(combinedQuery)
-      .sort({ class: 1, section: 1, firstName: 1 })
-      .skip(skip)
-      .limit(parseInt(limit))
-      .populate('parentIds', 'firstName lastName email phone');
-
-    const total = await Student.countDocuments(combinedQuery);
+    const [students, total] = await Promise.all([
+      prisma.student.findMany({
+        where: combinedWhere,
+        orderBy: [
+          { class: 'asc' },
+          { section: 'asc' },
+          { firstName: 'asc' }
+        ],
+        skip,
+        take: parseInt(limit),
+        include: {
+          parentOf: {
+            include: {
+              parent: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  email: true,
+                  phone: true
+                }
+              }
+            }
+          }
+        }
+      }),
+      prisma.student.count({ where: combinedWhere })
+    ]);
 
     // Format response
     const formattedStudents = students.map(student => ({
-      id: student._id,
+      id: student.id,
       studentId: student.studentId,
       firstName: student.firstName,
       lastName: student.lastName,
@@ -283,14 +364,15 @@ class TeacherService {
       gender: student.gender,
       isActive: student.isActive,
       isEnrolled: student.isEnrolled,
-      parents: student.parentIds.map(parent => ({
-        id: parent._id,
-        name: `${parent.firstName} ${parent.lastName}`,
-        email: parent.email,
-        phone: parent.phone
-      })),
-      isDirectlyAssigned: (student.teacherIds && student.teacherIds.includes(teacher._id)) || 
-                       (student.teachers && student.teachers.includes(teacher._id))
+      parents: student.parentOf
+        .filter(p => p.parent)
+        .map(p => ({
+          id: p.parent.id,
+          name: `${p.parent.firstName} ${p.parent.lastName}`,
+          email: p.parent.email,
+          phone: p.parent.phone
+        })),
+      isDirectlyAssigned: student.studentOf.some(ts => ts.teacherId === userId && ts.isActive)
     }));
 
     const studentsData = {
@@ -339,17 +421,29 @@ class TeacherService {
     logger.info(`👨‍🏫 Teacher profile cache MISS for ${userId} - fetching from database`);
 
     // Get teacher information
-    const teacher = await User.findById(userId).select('-password');
+    const teacher = await prisma.user.findUnique({
+      where: { id: userId }
+    });
     if (!teacher || teacher.role !== 'teacher') {
       throw new Error('Access denied. Teacher role required.');
     }
 
     // Get school information
-    const school = await School.findOne({ schoolId });
+    // Find school by either UUID (id) or human-readable schoolId
+    let school = await prisma.school.findFirst({
+      where: { id: schoolId }
+    });
+
+    // If not found by UUID, try human-readable schoolId
+    if (!school) {
+      school = await prisma.school.findFirst({
+        where: { schoolId: schoolId }
+      });
+    }
 
     const profileData = {
       teacher: {
-        id: teacher._id,
+        id: teacher.id,
         firstName: teacher.firstName,
         lastName: teacher.lastName,
         fullName: `${teacher.firstName} ${teacher.lastName}`,
@@ -367,7 +461,8 @@ class TeacherService {
         lastLoginAt: teacher.lastLoginAt
       },
       school: {
-        schoolId: school.schoolId,
+        id: school.id,
+        schoolId: school.id,
         schoolName: school.schoolName,
         email: school.email
       },

@@ -25,8 +25,8 @@ const handleValidationErrors = (req, res, next) => {
  */
 const validateChildId = [
   param('childId')
-    .isMongoId()
-    .withMessage('Invalid child ID format'),
+    .isUUID()
+    .withMessage('Invalid child ID'),
   
   handleValidationErrors
 ];

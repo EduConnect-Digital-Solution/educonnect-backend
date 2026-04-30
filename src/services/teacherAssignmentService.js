@@ -3,9 +3,7 @@
  * Business logic for teacher-student linking operations
  */
 
-const Student = require('../models/Student');
-const User = require('../models/User');
-const School = require('../models/School');
+const { prisma } = require('../config/database');
 const CacheService = require('./cacheService');
 const GradeService = require('./gradeService');
 const TeacherService = require('./teacherService');
@@ -16,18 +14,23 @@ const logger = require('../utils/logger');
  * Links a teacher to one or more students
  */
 const assignTeacherToStudents = async (teacherId, studentIds, schoolId, adminUserId) => {
-  // Validate school exists
-  const school = await School.findOne({ schoolId, isActive: true, isVerified: true });
+  // Validate school exists and get UUID
+  const school = await prisma.school.findFirst({
+    where: { schoolId, isActive: true, isVerified: true }
+  });
+  
   if (!school) {
     throw new Error('School not found or inactive');
   }
 
   // Validate teacher exists and belongs to school
-  const teacher = await User.findOne({
-    _id: teacherId,
-    schoolId,
-    role: 'teacher',
-    isActive: true
+  const teacher = await prisma.user.findFirst({
+    where: {
+      id: teacherId,
+      schoolId: school.id,
+      role: 'teacher',
+      isActive: true
+    }
   });
 
   if (!teacher) {
@@ -35,10 +38,12 @@ const assignTeacherToStudents = async (teacherId, studentIds, schoolId, adminUse
   }
 
   // Validate all students exist and belong to school
-  const students = await Student.find({
-    _id: { $in: studentIds },
-    schoolId,
-    isActive: true
+  const students = await prisma.student.findMany({
+    where: {
+      id: { in: studentIds },
+      schoolId: school.id,
+      isActive: true
+    }
   });
 
   if (students.length !== studentIds.length) {
@@ -57,36 +62,43 @@ const assignTeacherToStudents = async (teacherId, studentIds, schoolId, adminUse
   // Process each student
   for (const student of students) {
     try {
-      // Check if teacher is already assigned
-      if (student.teacherIds && student.teacherIds.includes(teacherId)) {
+      // Check if teacher is already assigned via TeacherStudent table
+      const existingAssignment = await prisma.teacherStudent.findUnique({
+        where: {
+          teacherId_studentId: {
+            teacherId,
+            studentId: student.id
+          }
+        }
+      });
+
+      if (existingAssignment) {
         results.alreadyAssigned.push({
-          studentId: student._id,
+          studentId: student.id,
           studentName: `${student.firstName} ${student.lastName}`,
           message: 'Teacher already assigned to this student'
         });
         continue;
       }
 
-      // Add teacher to student's teacherIds array and remove from exclusion list
-      await Student.findByIdAndUpdate(
-        student._id,
-        { 
-          $addToSet: { teacherIds: teacherId },
-          $pull: { excludedTeacherIds: teacherId }, // Clear exclusion if previously unassigned
-          $set: { updatedAt: new Date() }
-        },
-        { new: true }
-      );
+      // Create teacher-student assignment in junction table
+      await prisma.teacherStudent.create({
+        data: {
+          teacherId,
+          studentId: student.id,
+          isActive: true
+        }
+      });
 
       results.assignments.push({
-        studentId: student._id,
+        studentId: student.id,
         studentName: `${student.firstName} ${student.lastName}`,
         message: 'Teacher assigned successfully'
       });
 
     } catch (error) {
       results.errors.push({
-        studentId: student._id,
+        studentId: student.id,
         studentName: `${student.firstName} ${student.lastName}`,
         error: error.message
       });
@@ -116,7 +128,10 @@ const assignTeacherToStudents = async (teacherId, studentIds, schoolId, adminUse
  */
 const assignTeachersBulk = async (assignments, schoolId, adminUserId) => {
   // Validate school exists
-  const school = await School.findOne({ schoolId, isActive: true, isVerified: true });
+  const school = await prisma.school.findFirst({
+    where: { schoolId, isActive: true, isVerified: true }
+  });
+  
   if (!school) {
     throw new Error('School not found or inactive');
   }
@@ -161,18 +176,23 @@ const assignTeachersBulk = async (assignments, schoolId, adminUserId) => {
  * Removes a teacher from one or more students
  */
 const unassignTeacherFromStudents = async (teacherId, studentIds, schoolId, adminUserId) => {
-  // Validate school exists
-  const school = await School.findOne({ schoolId, isActive: true, isVerified: true });
+  // Validate school exists and get UUID
+  const school = await prisma.school.findFirst({
+    where: { schoolId, isActive: true, isVerified: true }
+  });
+  
   if (!school) {
     throw new Error('School not found or inactive');
   }
 
   // Validate teacher exists and belongs to school
-  const teacher = await User.findOne({
-    _id: teacherId,
-    schoolId,
-    role: 'teacher',
-    isActive: true
+  const teacher = await prisma.user.findFirst({
+    where: {
+      id: teacherId,
+      schoolId: school.id,
+      role: 'teacher',
+      isActive: true
+    }
   });
 
   if (!teacher) {
@@ -180,10 +200,12 @@ const unassignTeacherFromStudents = async (teacherId, studentIds, schoolId, admi
   }
 
   // Validate all students exist and belong to school
-  const students = await Student.find({
-    _id: { $in: studentIds },
-    schoolId,
-    isActive: true
+  const students = await prisma.student.findMany({
+    where: {
+      id: { in: studentIds },
+      schoolId: school.id,
+      isActive: true
+    }
   });
 
   if (students.length !== studentIds.length) {
@@ -202,52 +224,35 @@ const unassignTeacherFromStudents = async (teacherId, studentIds, schoolId, admi
   // Process each student
   for (const student of students) {
     try {
-      const isDirectlyAssigned = student.teacherIds && student.teacherIds.some(id => id.toString() === teacherId.toString());
-      const isInTeacherClass = teacher.classes && teacher.classes.includes(student.class);
-      const isAlreadyExcluded = student.excludedTeacherIds && student.excludedTeacherIds.some(id => id.toString() === teacherId.toString());
+      // Check if teacher is assigned via TeacherStudent table
+      const existingAssignment = await prisma.teacherStudent.findUnique({
+        where: {
+          teacherId_studentId: {
+            teacherId,
+            studentId: student.id
+          }
+        }
+      });
 
-      if (isDirectlyAssigned) {
-        // Remove direct assignment
-        await Student.findByIdAndUpdate(
-          student._id,
-          { 
-            $pull: { teacherIds: teacherId },
-            $addToSet: { excludedTeacherIds: teacherId }, // Also exclude from class-based view
-            $set: { updatedAt: new Date() }
-          },
-          { new: true }
-        );
+      if (existingAssignment) {
+        // Remove assignment from junction table
+        await prisma.teacherStudent.delete({
+          where: {
+            teacherId_studentId: {
+              teacherId,
+              studentId: student.id
+            }
+          }
+        });
 
         results.unassignments.push({
-          studentId: student._id,
+          studentId: student.id,
           studentName: `${student.firstName} ${student.lastName}`,
-          message: 'Teacher unassigned successfully (direct assignment removed)'
-        });
-      } else if (isInTeacherClass && !isAlreadyExcluded) {
-        // Student is visible via class membership — add to exclusion list
-        await Student.findByIdAndUpdate(
-          student._id,
-          { 
-            $addToSet: { excludedTeacherIds: teacherId },
-            $set: { updatedAt: new Date() }
-          },
-          { new: true }
-        );
-
-        results.unassignments.push({
-          studentId: student._id,
-          studentName: `${student.firstName} ${student.lastName}`,
-          message: 'Student excluded from teacher view (class-based assignment)'
-        });
-      } else if (isAlreadyExcluded) {
-        results.notAssigned.push({
-          studentId: student._id,
-          studentName: `${student.firstName} ${student.lastName}`,
-          message: 'Student is already excluded from this teacher'
+          message: 'Teacher unassigned successfully'
         });
       } else {
         results.notAssigned.push({
-          studentId: student._id,
+          studentId: student.id,
           studentName: `${student.firstName} ${student.lastName}`,
           message: 'Teacher was not assigned to this student'
         });
@@ -255,7 +260,7 @@ const unassignTeacherFromStudents = async (teacherId, studentIds, schoolId, admi
 
     } catch (error) {
       results.errors.push({
-        studentId: student._id,
+        studentId: student.id,
         studentName: `${student.firstName} ${student.lastName}`,
         error: error.message
       });
@@ -286,12 +291,23 @@ const unassignTeacherFromStudents = async (teacherId, studentIds, schoolId, admi
 const getTeacherStudents = async (teacherId, schoolId, pagination = {}) => {
   const { page = 1, limit = 20 } = pagination;
 
+  // Validate school exists and get UUID
+  const school = await prisma.school.findFirst({
+    where: { schoolId, isActive: true, isVerified: true }
+  });
+
+  if (!school) {
+    throw new Error('School not found or inactive');
+  }
+
   // Validate teacher exists and belongs to school
-  const teacher = await User.findOne({
-    _id: teacherId,
-    schoolId,
-    role: 'teacher',
-    isActive: true
+  const teacher = await prisma.user.findFirst({
+    where: {
+      id: teacherId,
+      schoolId: school.id,
+      role: 'teacher',
+      isActive: true
+    }
   });
 
   if (!teacher) {
@@ -301,47 +317,71 @@ const getTeacherStudents = async (teacherId, schoolId, pagination = {}) => {
   // Calculate pagination
   const skip = (parseInt(page) - 1) * parseInt(limit);
 
-  // Find students assigned to this teacher
-  const students = await Student.find({
-    schoolId,
-    teacherIds: teacherId,
-    isActive: true
-  })
-    .populate('parentIds', 'firstName lastName email phone')
-    .sort({ firstName: 1, lastName: 1 })
-    .skip(skip)
-    .limit(parseInt(limit));
+  // Find students assigned to this teacher via TeacherStudent table
+  const teacherStudents = await prisma.teacherStudent.findMany({
+    where: {
+      teacherId,
+      student: {
+        schoolId: school.id,
+        isActive: true
+      }
+    },
+    include: {
+      student: {
+        include: {
+          parentOf: {
+            include: {
+              parent: true
+            }
+          }
+        }
+      }
+    },
+    orderBy: [
+      { student: { firstName: 'asc' } },
+      { student: { lastName: 'asc' } }
+    ],
+    skip,
+    take: parseInt(limit)
+  });
 
   // Get total count
-  const total = await Student.countDocuments({
-    schoolId,
-    teacherIds: teacherId,
-    isActive: true
+  const total = await prisma.teacherStudent.count({
+    where: {
+      teacherId,
+      student: {
+        schoolId: school.id,
+        isActive: true
+      }
+    }
   });
 
   // Format response
-  const formattedStudents = students.map(student => ({
-    id: student._id,
-    studentId: student.studentId,
-    firstName: student.firstName,
-    lastName: student.lastName,
-    fullName: `${student.firstName} ${student.lastName}`,
-    email: student.email,
-    class: student.class,
-    section: student.section,
-    rollNumber: student.rollNumber,
-    grade: student.grade,
-    parents: student.parentIds ? student.parentIds.map(parent => ({
-      id: parent._id,
-      name: `${parent.firstName} ${parent.lastName}`,
-      email: parent.email,
-      phone: parent.phone
-    })) : []
-  }));
+  const formattedStudents = teacherStudents.map(ts => {
+    const student = ts.student;
+    return {
+      id: student.id,
+      studentId: student.studentId,
+      firstName: student.firstName,
+      lastName: student.lastName,
+      fullName: `${student.firstName} ${student.lastName}`,
+      email: student.email,
+      class: student.class,
+      section: student.section,
+      rollNumber: student.rollNumber,
+      grade: student.grade,
+      parents: student.parentOf ? student.parentOf.map(ps => ({
+        id: ps.parent.id,
+        name: `${ps.parent.firstName} ${ps.parent.lastName}`,
+        email: ps.parent.email,
+        phone: ps.parent.phone
+      })) : []
+    };
+  });
 
   return {
     teacher: {
-      id: teacher._id,
+      id: teacher.id,
       name: `${teacher.firstName} ${teacher.lastName}`,
       email: teacher.email,
       subjects: teacher.subjects || []
@@ -361,28 +401,53 @@ const getTeacherStudents = async (teacherId, schoolId, pagination = {}) => {
  * Retrieves all teachers assigned to a specific student
  */
 const getStudentTeachers = async (studentId, schoolId) => {
-  // Find student and populate teachers
-  const student = await Student.findOne({
-    _id: studentId,
-    schoolId,
-    isActive: true
-  }).populate('teacherIds', 'firstName lastName email subjects');
+  // Validate school exists and get UUID
+  const school = await prisma.school.findFirst({
+    where: { schoolId, isActive: true, isVerified: true }
+  });
+
+  if (!school) {
+    throw new Error('School not found or inactive');
+  }
+
+  // Find student
+  const student = await prisma.student.findFirst({
+    where: {
+      id: studentId,
+      schoolId: school.id,
+      isActive: true
+    }
+  });
 
   if (!student) {
     throw new Error('Student not found or inactive in this school');
   }
 
+  // Get teachers assigned to this student via TeacherStudent table
+  const teacherStudents = await prisma.teacherStudent.findMany({
+    where: {
+      studentId,
+      teacher: {
+        schoolId: school.id,
+        isActive: true
+      }
+    },
+    include: {
+      teacher: true
+    }
+  });
+
   // Format response
-  const teachers = student.teacherIds ? student.teacherIds.map(teacher => ({
-    id: teacher._id,
-    name: `${teacher.firstName} ${teacher.lastName}`,
-    email: teacher.email,
-    subjects: teacher.subjects || []
-  })) : [];
+  const teachers = teacherStudents.map(ts => ({
+    id: ts.teacher.id,
+    name: `${ts.teacher.firstName} ${ts.teacher.lastName}`,
+    email: ts.teacher.email,
+    subjects: ts.teacher.subjects || []
+  }));
 
   return {
     student: {
-      id: student._id,
+      id: student.id,
       studentId: student.studentId,
       name: `${student.firstName} ${student.lastName}`,
       class: student.class,

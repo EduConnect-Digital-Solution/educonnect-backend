@@ -1,5 +1,5 @@
 const app = require('./app');
-const connectDB = require('./config/database');
+const { connectDB, prisma } = require('./config/database');
 const { initializeRedis, closeRedis } = require('./config/redis');
 const config = require('./config');
 const logger = require('./utils/logger');
@@ -140,6 +140,11 @@ const gracefulShutdown = async () => {
     logger.info('🔴 Closing Redis connection...');
     await closeRedis();
     logger.info('✅ Redis connection closed');
+    
+    // Close Prisma connection
+    logger.info('📊 Closing PostgreSQL connection...');
+    await prisma.$disconnect();
+    logger.info('✅ PostgreSQL connection closed');
     
     // Close server
     server.close(() => {

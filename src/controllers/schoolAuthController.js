@@ -750,8 +750,7 @@ const cancelInvitation = catchAsync(async (req, res) => {
     }
 
     // Use the authenticated user's ID as the admin ID for tracking
-    // This works for both School admins (req.user.id) and User admins (req.user.userId)
-    const adminId = req.user.userId || req.user.id;
+    const adminId = req.user.userId;
 
     const result = await invitationService.cancelInvitation(invitationId, targetSchoolId, adminId, reason);
 
@@ -820,7 +819,6 @@ const getMe = catchAsync(async (req, res) => {
     }
 
     // For school admins, fetch school data instead of user data
-    const School = require('../models/School');
     const school = await School.findOne({ schoolId: decoded.schoolId })
       .select('-password');
 
@@ -846,7 +844,7 @@ const getMe = catchAsync(async (req, res) => {
     res.status(200).json({
       success: true,
       user: {
-        id: school._id,
+        id: school.id,
         email: school.email,
         firstName: decoded.firstName || 'School',
         lastName: decoded.lastName || 'Admin',
@@ -854,7 +852,7 @@ const getMe = catchAsync(async (req, res) => {
         role: 'admin',
         schoolId: school.schoolId,
         school: {
-          _id: school._id,
+          id: school.id,
           schoolName: school.schoolName,
           email: school.email,
           address: school.address,

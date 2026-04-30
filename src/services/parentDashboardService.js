@@ -4,9 +4,7 @@
  * Centralizes parent-specific operations
  */
 
-const User = require('../models/User');
-const Student = require('../models/Student');
-const School = require('../models/School');
+const { prisma } = require('../config/database');
 
 class ParentDashboardService {
   /**
@@ -17,25 +15,46 @@ class ParentDashboardService {
    */
   static async getParentDashboard(userId, schoolId) {
     // Get parent information
-    const parent = await User.findById(userId).select('-password');
+    const parent = await prisma.user.findUnique({
+      where: { id: userId }
+    });
     if (!parent || parent.role !== 'parent') {
       throw new Error('Access denied. Parent role required.');
     }
 
     // Get school information
-    const school = await School.findOne({ schoolId });
+    // Find school by either UUID (id) or human-readable schoolId
+    let school = await prisma.school.findFirst({
+      where: { id: schoolId }
+    });
+
+    // If not found by UUID, try human-readable schoolId
+    if (!school) {
+      school = await prisma.school.findFirst({
+        where: { schoolId: schoolId }
+      });
+    }
     if (!school) {
       throw new Error('School not found');
     }
 
     // Get children (students linked to this parent)
-    const children = await Student.find({
-      schoolId: schoolId,
-      parentIds: parent._id,
-      isActive: true
-    })
-    .populate('teachers', 'firstName lastName email subjects')
-    .select('firstName lastName studentId class section grade dateOfBirth age gender isEnrolled teachers');
+    const children = await prisma.student.findMany({
+      where: {
+        schoolId: school.id,
+        parentOf: {
+          some: { parentId: userId }
+        },
+        isActive: true
+      },
+      include: {
+        studentOf: {
+          include: {
+            teacher: true
+          }
+        }
+      }
+    });
 
     // Calculate statistics
     const stats = {
@@ -53,7 +72,7 @@ class ParentDashboardService {
         childrenByClass[classKey] = [];
       }
       childrenByClass[classKey].push({
-        id: child._id,
+        id: child.id,
         studentId: child.studentId,
         name: `${child.firstName} ${child.lastName}`,
         section: child.section,
@@ -61,8 +80,8 @@ class ParentDashboardService {
         age: child.age,
         gender: child.gender,
         isEnrolled: child.isEnrolled,
-        teachers: child.teachers.map(teacher => ({
-          id: teacher._id,
+        teachers: child.studentOf.map(ts => ts.teacher).filter(Boolean).map(teacher => ({
+          id: teacher.id,
           name: `${teacher.firstName} ${teacher.lastName}`,
           email: teacher.email,
           subjects: teacher.subjects || []
@@ -97,7 +116,7 @@ class ParentDashboardService {
         title: 'Contact Teachers',
         description: 'Communicate with teachers',
         action: 'contact_teachers',
-        count: [...new Set(children.flatMap(child => child.teachers.map(t => t._id.toString())))].length
+        count: [...new Set(children.flatMap(child => child.studentOf.map(ts => ts.teacherId).filter(Boolean)))].length
       },
       {
         title: 'Update Profile',
@@ -120,7 +139,7 @@ class ParentDashboardService {
 
     return {
       parent: {
-        id: parent._id,
+        id: parent.id,
         firstName: parent.firstName,
         lastName: parent.lastName,
         fullName: `${parent.firstName} ${parent.lastName}`,
@@ -133,14 +152,14 @@ class ParentDashboardService {
         lastLoginAt: parent.lastLoginAt
       },
       school: {
-        id: school._id,
-        schoolId: school.schoolId,
+        id: school.id,
+        schoolId: school.id,
         schoolName: school.schoolName,
         email: school.email
       },
       statistics: stats,
       children: children.map(child => ({
-        id: child._id,
+        id: child.id,
         studentId: child.studentId,
         firstName: child.firstName,
         lastName: child.lastName,
@@ -153,8 +172,8 @@ class ParentDashboardService {
         gender: child.gender,
         dateOfBirth: child.dateOfBirth,
         isEnrolled: child.isEnrolled,
-        teachers: child.teachers.map(teacher => ({
-          id: teacher._id,
+        teachers: child.studentOf.map(ts => ts.teacher).filter(Boolean).map(teacher => ({
+          id: teacher.id,
           name: `${teacher.firstName} ${teacher.lastName}`,
           email: teacher.email,
           subjects: teacher.subjects || []
@@ -183,70 +202,112 @@ class ParentDashboardService {
    */
   static async getMyChildren(userId, schoolId, childId = null) {
     // Get parent information
-    const parent = await User.findById(userId);
+    const parent = await prisma.user.findUnique({
+      where: { id: userId }
+    });
     if (!parent || parent.role !== 'parent') {
       throw new Error('Access denied. Parent role required.');
     }
 
+    // Get school
+    // Find school by either UUID (id) or human-readable schoolId
+    let school = await prisma.school.findFirst({
+      where: { id: schoolId }
+    });
+
+    // If not found by UUID, try human-readable schoolId
+    if (!school) {
+      school = await prisma.school.findFirst({
+        where: { schoolId: schoolId }
+      });
+    }
+    if (!school) {
+      throw new Error('School not found');
+    }
+
     // Build query
-    const query = {
-      schoolId: schoolId,
-      parentIds: parent._id,
+    const whereClause = {
+      schoolId: school.id,
+      parentOf: {
+        some: { parentId: userId }
+      },
       isActive: true
     };
 
     // If specific child requested
     if (childId) {
-      query._id = childId;
+      whereClause.id = childId;
     }
 
     // Get children with detailed information
-    const children = await Student.find(query)
-      .populate('teachers', 'firstName lastName email subjects phone')
-      .populate('parentIds', 'firstName lastName email phone')
-      .sort({ class: 1, section: 1, firstName: 1 });
+    const children = await prisma.student.findMany({
+      where: whereClause,
+      include: {
+        studentOf: {
+          include: {
+            teacher: true
+          }
+        },
+        parentOf: {
+          include: {
+            parent: true
+          }
+        }
+      },
+      orderBy: [
+        { class: 'asc' },
+        { section: 'asc' },
+        { firstName: 'asc' }
+      ]
+    });
 
     if (childId && children.length === 0) {
       throw new Error('Child not found or not linked to your account');
     }
 
     // Format response
-    const formattedChildren = children.map(child => ({
-      id: child._id,
-      studentId: child.studentId,
-      firstName: child.firstName,
-      lastName: child.lastName,
-      fullName: `${child.firstName} ${child.lastName}`,
-      email: child.email,
-      class: child.class,
-      section: child.section,
-      classDisplay: child.class && child.section ? `${child.class}-${child.section}` : child.class || 'Not Assigned',
-      rollNumber: child.rollNumber,
-      grade: child.grade,
-      dateOfBirth: child.dateOfBirth,
-      age: child.age,
-      gender: child.gender,
-      address: child.address,
-      phone: child.phone,
-      isActive: child.isActive,
-      isEnrolled: child.isEnrolled,
-      teachers: child.teachers.map(teacher => ({
-        id: teacher._id,
-        name: `${teacher.firstName} ${teacher.lastName}`,
-        email: teacher.email,
-        phone: teacher.phone,
-        subjects: teacher.subjects || []
-      })),
-      otherParents: child.parentIds
-        .filter(p => !p._id.equals(parent._id))
+    const formattedChildren = children.map(child => {
+      const otherParents = child.parentOf
+        .filter(p => p.parentId !== userId)
+        .map(p => p.parent)
+        .filter(Boolean)
         .map(p => ({
-          id: p._id,
+          id: p.id,
           name: `${p.firstName} ${p.lastName}`,
           email: p.email,
           phone: p.phone
+        }));
+
+      return {
+        id: child.id,
+        studentId: child.studentId,
+        firstName: child.firstName,
+        lastName: child.lastName,
+        fullName: `${child.firstName} ${child.lastName}`,
+        email: child.email,
+        class: child.class,
+        section: child.section,
+        classDisplay: child.class && child.section ? `${child.class}-${child.section}` : child.class || 'Not Assigned',
+        rollNumber: child.rollNumber,
+        grade: child.grade,
+        dateOfBirth: child.dateOfBirth,
+        age: child.age,
+        gender: child.gender,
+        address: child.address,
+        phone: child.phone,
+        isActive: child.isActive,
+        isEnrolled: child.isEnrolled,
+        teachers: child.studentOf.map(ts => ts.teacher).filter(Boolean).map(teacher => ({
+          id: teacher.id,
+          name: `${teacher.firstName} ${teacher.lastName}`,
+          email: teacher.email,
+          phone: teacher.phone,
+          subjects: teacher.subjects || []
         })),
-      createdAt: child.createdAt
-    }));
+        otherParents,
+        createdAt: child.createdAt
+      };
+    });
 
     return {
       children: formattedChildren,
@@ -262,24 +323,40 @@ class ParentDashboardService {
    */
   static async getParentProfile(userId, schoolId) {
     // Get parent information
-    const parent = await User.findById(userId).select('-password');
+    const parent = await prisma.user.findUnique({
+      where: { id: userId }
+    });
     if (!parent || parent.role !== 'parent') {
       throw new Error('Access denied. Parent role required.');
     }
 
     // Get school information
-    const school = await School.findOne({ schoolId });
+    // Find school by either UUID (id) or human-readable schoolId
+    let school = await prisma.school.findFirst({
+      where: { id: schoolId }
+    });
+
+    // If not found by UUID, try human-readable schoolId
+    if (!school) {
+      school = await prisma.school.findFirst({
+        where: { schoolId: schoolId }
+      });
+    }
 
     // Get children count
-    const childrenCount = await Student.countDocuments({
-      schoolId: schoolId,
-      parentIds: parent._id,
-      isActive: true
+    const childrenCount = await prisma.student.count({
+      where: {
+        schoolId: school.id,
+        parentOf: {
+          some: { parentId: userId }
+        },
+        isActive: true
+      }
     });
 
     return {
       parent: {
-        id: parent._id,
+        id: parent.id,
         firstName: parent.firstName,
         lastName: parent.lastName,
         fullName: `${parent.firstName} ${parent.lastName}`,
@@ -297,7 +374,7 @@ class ParentDashboardService {
         childrenCount: childrenCount
       },
       school: {
-        schoolId: school.schoolId,
+        schoolId: school.id,
         schoolName: school.schoolName,
         email: school.email
       }
@@ -311,46 +388,53 @@ class ParentDashboardService {
    * @returns {Object} Updated parent profile
    */
   static async updateParentProfile(userId, updateData) {
-    const { 
-      firstName, 
-      lastName, 
-      phone, 
-      address, 
-      occupation, 
-      emergencyContact, 
-      emergencyPhone 
+    const {
+      firstName,
+      lastName,
+      phone,
+      address,
+      occupation,
+      emergencyContact,
+      emergencyPhone
     } = updateData;
 
     // Get parent information
-    const parent = await User.findById(userId);
+    const parent = await prisma.user.findUnique({
+      where: { id: userId }
+    });
     if (!parent || parent.role !== 'parent') {
       throw new Error('Access denied. Parent role required.');
     }
 
-    // Update allowed fields
-    if (firstName) parent.firstName = firstName;
-    if (lastName) parent.lastName = lastName;
-    if (phone) parent.phone = phone;
-    if (address) parent.address = address;
-    if (occupation) parent.occupation = occupation;
-    if (emergencyContact) parent.emergencyContact = emergencyContact;
-    if (emergencyPhone) parent.emergencyPhone = emergencyPhone;
+    // Build update data
+    const updateData_prisma = {};
+    if (firstName !== undefined) updateData_prisma.firstName = firstName;
+    if (lastName !== undefined) updateData_prisma.lastName = lastName;
+    if (phone !== undefined) updateData_prisma.phone = phone;
+    if (address !== undefined) updateData_prisma.address = address;
+    if (occupation !== undefined) updateData_prisma.occupation = occupation;
+    if (emergencyContact !== undefined) updateData_prisma.emergencyContact = emergencyContact;
+    if (emergencyPhone !== undefined) updateData_prisma.emergencyPhone = emergencyPhone;
 
-    await parent.save();
+    // Update parent record
+    const updatedParent = await prisma.user.update({
+      where: { id: userId },
+      data: updateData_prisma
+    });
 
     return {
       parent: {
-        id: parent._id,
-        firstName: parent.firstName,
-        lastName: parent.lastName,
-        fullName: `${parent.firstName} ${parent.lastName}`,
-        email: parent.email,
-        phone: parent.phone,
-        address: parent.address,
-        occupation: parent.occupation,
-        emergencyContact: parent.emergencyContact,
-        emergencyPhone: parent.emergencyPhone,
-        updatedAt: parent.updatedAt
+        id: updatedParent.id,
+        firstName: updatedParent.firstName,
+        lastName: updatedParent.lastName,
+        fullName: `${updatedParent.firstName} ${updatedParent.lastName}`,
+        email: updatedParent.email,
+        phone: updatedParent.phone,
+        address: updatedParent.address,
+        occupation: updatedParent.occupation,
+        emergencyContact: updatedParent.emergencyContact,
+        emergencyPhone: updatedParent.emergencyPhone,
+        updatedAt: updatedParent.updatedAt
       }
     };
   }

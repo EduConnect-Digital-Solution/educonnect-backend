@@ -86,6 +86,16 @@ router.get('/status',
   getStatus
 );
 
+/**
+ * @route   GET /api/system-admin/auth/me
+ * @desc    Get current system admin profile
+ * @access  System Admin Only
+ */
+router.get('/me',
+  requireSystemAdmin,
+  getMe
+);
+
 // Explicitly NO registration, password reset, or user management endpoints
 // System admin credentials are pre-configured via environment variables
 

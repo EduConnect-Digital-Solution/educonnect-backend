@@ -4,11 +4,9 @@
  * Enhanced with Redis caching for user sessions and authentication data
  */
 
-const School = require('../models/School');
-const User = require('../models/User');
-const Student = require('../models/Student');
-const OTP = require('../models/OTP');
-const Invitation = require('../models/Invitation');
+const crypto = require('crypto');
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcrypt');
 const EmailService = require('../config/email');
 const CacheService = require('./cacheService');
 const {
@@ -16,13 +14,100 @@ const {
   generateSystemAdminToken,
   verifySystemAdminToken
 } = require('./systemAdminAuthService');
-const jwt = require('jsonwebtoken');
 const {
   generateTokenPair,
   verifyRefreshToken: verifyRefreshTokenFn
 } = require('../middleware/auth');
 const SessionService = require('./sessionService');
 const logger = require('../utils/logger');
+const { prisma } = require('../config/database');
+
+// Helper function to generate schoolId
+const generateSchoolId = (schoolName) => {
+  const prefix = schoolName
+    .replace(/[^a-zA-Z]/g, '')
+    .substring(0, 3)
+    .toUpperCase()
+    .padEnd(3, 'X');
+  
+  const suffix = Math.floor(1000 + Math.random() * 9000);
+  return `${prefix}${suffix}`;
+};
+
+// Helper function to create OTP
+const createOTP = async (prisma, data) => {
+  const { email, purpose, schoolId, expirationMinutes = 10, createdFromIP } = data;
+  
+  // Generate 6-digit OTP
+  const plainOTP = Math.floor(100000 + Math.random() * 900000).toString();
+  
+  // Hash OTP
+  const hashedOTP = crypto.createHash('sha256').update(plainOTP).digest('hex');
+  
+  // Calculate expiration
+  const expiresAt = new Date(Date.now() + expirationMinutes * 60 * 1000);
+  
+  // Store in database
+  const otp = await prisma.oTP.create({
+    data: {
+      email: email.toLowerCase(),
+      otp: hashedOTP,
+      purpose,
+      schoolId,
+      expiresAt,
+      createdFromIP
+    }
+  });
+  
+  return { otpDocument: otp, plainOTP, expiresAt };
+};
+
+// Helper function to verify OTP
+const verifyOTP = async (prisma, data) => {
+  const { email, otp, purpose, schoolId, requestIP } = data;
+  
+  const otpRecord = await prisma.oTP.findFirst({
+    where: {
+      email: email.toLowerCase(),
+      purpose,
+      schoolId,
+      isUsed: false,
+      expiresAt: { gt: new Date() }
+    }
+  });
+
+  if (!otpRecord) {
+    return { success: false, message: 'No valid OTP found' };
+  }
+
+  // Check attempt count
+  if (otpRecord.attemptCount >= otpRecord.maxAttempts) {
+    return { success: false, message: 'Maximum verification attempts exceeded' };
+  }
+
+  // Increment attempt
+  await prisma.oTP.update({
+    where: { id: otpRecord.id },
+    data: { attemptCount: { increment: 1 } }
+  });
+
+  // Verify OTP
+  const hashedOTP = crypto.createHash('sha256').update(otp).digest('hex');
+  
+  if (hashedOTP === otpRecord.otp) {
+    await prisma.oTP.update({
+      where: { id: otpRecord.id },
+      data: {
+        isUsed: true,
+        usedAt: new Date(),
+        usedFromIP: requestIP
+      }
+    });
+    return { success: true, message: 'OTP verified successfully' };
+  }
+
+  return { success: false, message: 'Invalid OTP' };
+};
 
 /**
  * School Registration Service
@@ -42,46 +127,53 @@ const registerSchool = async (schoolData, requestIP) => {
   } = schoolData;
 
   // Check if school email already exists
-  const existingSchool = await School.findOne({ email: email.toLowerCase() });
+  const existingSchool = await prisma.school.findFirst({
+    where: { email: email.toLowerCase() }
+  });
   if (existingSchool) {
     throw new Error('A school with this email address already exists');
   }
 
-  // Create new school with generated schoolId
-  const school = new School({
-    schoolName,
-    email: email.toLowerCase(),
-    password, // Will be hashed by pre-save middleware
-    phone,
-    address,
-    website,
-    description,
-    isVerified: false,
-    isActive: false
-  });
+  // Hash password
+  const hashedPassword = await bcrypt.hash(password, 12);
 
-  // Save school (this will generate the schoolId)
-  await school.save();
+  // Create new school with generated schoolId
+  const schoolId = generateSchoolId(schoolName);
+  
+  const school = await prisma.school.create({
+    data: {
+      schoolId,
+      schoolName,
+      email: email.toLowerCase(),
+      password: hashedPassword,
+      phone,
+      address,
+      website,
+      description,
+      isVerified: false,
+      isActive: false
+    }
+  });
 
   // Create admin user for the school
-  const adminUser = new User({
-    schoolId: school.schoolId,
-    email: email.toLowerCase(),
-    password, // Will be hashed by pre-save middleware
-    firstName: adminFirstName,
-    lastName: adminLastName,
-    role: 'admin',
-    isActive: true,
-    isVerified: false // Will be verified when school is verified
+  const adminUser = await prisma.user.create({
+    data: {
+      schoolId: school.id,  // Use UUID for foreign key reference
+      email: email.toLowerCase(),
+      password: hashedPassword,
+      firstName: adminFirstName,
+      lastName: adminLastName,
+      role: 'admin',
+      isActive: true,
+      isVerified: false // Will be verified when school is verified
+    }
   });
 
-  await adminUser.save();
-
   // Generate OTP for email verification
-  const otpResult = await OTP.createOTP({
+  const otpResult = await createOTP(prisma, {
     email: email.toLowerCase(),
     purpose: 'school-signup',
-    schoolId: school.schoolId,
+    schoolId: schoolId,
     expirationMinutes: parseInt(process.env.OTP_EXPIRES_IN_MINUTES) || 10,
     createdFromIP: requestIP
   });
@@ -100,12 +192,12 @@ const registerSchool = async (schoolData, requestIP) => {
 
   return {
     school: {
-      schoolId: school.schoolId,
+      schoolId: school.schoolId,  // Return human-readable schoolId, not UUID
       schoolName: school.schoolName,
       email: school.email
     },
     adminUser: {
-      id: adminUser._id,
+      id: adminUser.id,
       email: adminUser.email,
       firstName: adminUser.firstName,
       lastName: adminUser.lastName,
@@ -118,13 +210,16 @@ const registerSchool = async (schoolData, requestIP) => {
 
 /**
  * Email Verification Service
- * Verifies OTP and activates school and admin user
+ * Verifies school email using OTP
  */
 const verifyEmail = async (email, otp, requestIP) => {
   // Find the school by email
-  const school = await School.findOne({
-    email: email.toLowerCase(),
-    isVerified: false
+  const school = await prisma.school.findFirst({
+    where: {
+      email: email.toLowerCase(),
+      isVerified: false
+    },
+    select: { id: true, schoolId: true, schoolName: true }
   });
 
   if (!school) {
@@ -132,61 +227,51 @@ const verifyEmail = async (email, otp, requestIP) => {
   }
 
   // Verify OTP
-  const verificationResult = await OTP.verifyAndConsumeOTP(
-    email.toLowerCase(),
+  const verificationResult = await verifyOTP(prisma, {
+    email: email.toLowerCase(),
     otp,
-    'school-signup',
-    school.schoolId,
+    purpose: 'school-signup',
+    schoolId: school.id,
     requestIP
-  );
+  });
 
   if (!verificationResult.success) {
     throw new Error(verificationResult.message);
   }
 
   // Update school verification status
-  school.isVerified = true;
-  school.isActive = true;
-  school.verifiedAt = new Date();
-  await school.save();
-
-  // Update admin user verification status
-  const adminUser = await User.findOne({
-    schoolId: school.schoolId,
-    role: 'admin',
-    email: school.email
+  await prisma.school.update({
+    where: { id: school.id },
+    data: {
+      isVerified: true,
+      isActive: true
+    }
   });
 
-  if (adminUser) {
-    adminUser.isVerified = true;
-    adminUser.verifiedAt = new Date();
-    await adminUser.save();
-  }
+  // Update admin user verification status
+  await prisma.user.updateMany({
+    where: {
+      schoolId: school.id,
+      role: 'admin',
+      email: school.email
+    },
+    data: {
+      isVerified: true
+    }
+  });
 
-  // Send school ID email
-  const emailResult = await EmailService.sendSchoolIdEmail(
-    school.email,
-    school.schoolId,
-    school.schoolName
-  );
+  // Invalidate OTP caches
+  await invalidateOTPData(email, 'school-signup');
 
   return {
+    success: true,
+    message: 'Email verified successfully. Your school account is now active.',
     school: {
-      schoolId: school.schoolId,
+      schoolId: school.schoolId,  // Return human-readable schoolId
       schoolName: school.schoolName,
-      email: school.email,
-      isVerified: school.isVerified,
-      isActive: school.isActive
-    },
-    adminUser: adminUser ? {
-      id: adminUser._id,
-      email: adminUser.email,
-      firstName: adminUser.firstName,
-      lastName: adminUser.lastName,
-      role: adminUser.role,
-      isVerified: adminUser.isVerified
-    } : null,
-    emailSent: emailResult.success
+      isVerified: true,
+      isActive: true
+    }
   };
 };
 
@@ -196,10 +281,13 @@ const verifyEmail = async (email, otp, requestIP) => {
  */
 const loginSchool = async (schoolId, email, password) => {
   // Find school by schoolId and email
-  const school = await School.findOne({
-    schoolId,
-    email: email.toLowerCase()
-  }).select('+password');
+  const school = await prisma.school.findFirst({
+    where: { 
+      schoolId,
+      email: email.toLowerCase()
+    },
+    select: { id: true, schoolId: true, email: true, password: true, isVerified: true, isActive: true, schoolName: true }
+  });
 
   if (!school) {
     throw new Error('Invalid credentials');
@@ -215,30 +303,32 @@ const loginSchool = async (schoolId, email, password) => {
   }
 
   // Verify password
-  const isPasswordValid = await school.comparePassword(password);
+  const isPasswordValid = await bcrypt.compare(password, school.password);
   if (!isPasswordValid) {
     throw new Error('Invalid credentials');
   }
 
   // Find admin user
-  const adminUser = await User.findOne({
-    schoolId: school.schoolId,
-    role: 'admin',
-    email: school.email,
-    isActive: true
+  const adminUser = await prisma.user.findFirst({
+    where: {
+      schoolId: school.id,  // Use UUID for foreign key lookup
+      role: 'admin',
+      email: school.email,
+      isActive: true
+    }
   });
 
   if (!adminUser) {
     throw new Error('Admin user not found');
   }
 
-  // Generate tokens
-  const tokens = generateTokens(adminUser._id, school.schoolId, adminUser.role);
+  // Generate tokens with school UUID (not human-readable schoolId)
+  const tokens = generateTokens(adminUser.id, school.id, adminUser.role);
 
   // Cache user session data
-  await cacheUserSession(adminUser._id, {
+  await cacheUserSession(adminUser.id, {
     user: {
-      id: adminUser._id,
+      id: adminUser.id,
       schoolId: adminUser.schoolId,
       email: adminUser.email,
       firstName: adminUser.firstName,
@@ -248,7 +338,7 @@ const loginSchool = async (schoolId, email, password) => {
       isActive: adminUser.isActive
     },
     school: {
-      schoolId: school.schoolId,
+      schoolId: school.schoolId,  // Return human-readable schoolId in cache as well
       schoolName: school.schoolName,
       email: school.email,
       isVerified: school.isVerified,
@@ -257,18 +347,18 @@ const loginSchool = async (schoolId, email, password) => {
     loginAt: new Date().toISOString()
   });
 
-  // Create tracked session in Redis (stores tokens server-side)
+  // Create tracked session in Redis
   const sessionId = await SessionService.createSession({
-    userId: String(adminUser._id),
+    userId: String(adminUser.id),
     role: adminUser.role,
-    schoolId: school.schoolId,
+    schoolId: school.id,
     email: adminUser.email,
     tokens
   });
 
   return {
     user: {
-      id: adminUser._id,
+      id: adminUser.id,
       schoolId: adminUser.schoolId,
       email: adminUser.email,
       firstName: adminUser.firstName,
@@ -294,11 +384,24 @@ const loginSchool = async (schoolId, email, password) => {
  * Authenticates regular users (teachers, parents)
  */
 const loginUser = async (email, password, schoolId) => {
-  // Find user
-  const user = await User.findOne({
-    email: email.toLowerCase(),
-    schoolId
-  }).select('+password');
+  // First, find the school by human-readable schoolId to get its UUID
+  const school = await prisma.school.findFirst({
+    where: { schoolId: schoolId },
+    select: { id: true, schoolId: true, isVerified: true, isActive: true }
+  });
+
+  if (!school) {
+    throw new Error('Invalid credentials');
+  }
+
+  // Find user by email and school UUID
+  const user = await prisma.user.findFirst({
+    where: {
+      email: email.toLowerCase(),
+      schoolId: school.id
+    },
+    select: { id: true, schoolId: true, email: true, password: true, firstName: true, lastName: true, role: true, isVerified: true, isActive: true, isTemporaryPassword: true }
+  });
 
   if (!user) {
     throw new Error('Invalid credentials');
@@ -315,19 +418,25 @@ const loginUser = async (email, password, schoolId) => {
   }
 
   // Verify password
-  const isPasswordValid = await user.comparePassword(password);
+  const isPasswordValid = await bcrypt.compare(password, user.password);
   if (!isPasswordValid) {
     throw new Error('Invalid credentials');
   }
 
-  // Find school to include in response
-  const school = await School.findOne({ schoolId: user.schoolId });
+  // Re-fetch school with full details for response
+  const schoolDetails = await prisma.school.findFirst({
+    where: { id: school.id },
+    select: { schoolId: true, schoolName: true }
+  });
+  
+  // Use schoolDetails for response, fallback to original school if not found
+  const schoolForResponse = schoolDetails || school;
 
   // Check if user has temporary password (needs to complete registration)
   if (user.isTemporaryPassword) {
     return {
       user: {
-        id: user._id,
+        id: user.id,
         firstName: user.firstName,
         lastName: user.lastName,
         email: user.email,
@@ -342,13 +451,13 @@ const loginUser = async (email, password, schoolId) => {
     };
   }
 
-  // Generate tokens
-  const tokens = generateTokens(user._id, user.schoolId, user.role);
+  // Generate tokens with school UUID (not human-readable schoolId)
+  const tokens = generateTokens(user.id, user.schoolId, user.role);
 
   // Cache user session data
-  await cacheUserSession(user._id, {
+  await cacheUserSession(user.id, {
     user: {
-      id: user._id,
+      id: user.id,
       schoolId: user.schoolId,
       email: user.email,
       firstName: user.firstName,
@@ -364,9 +473,9 @@ const loginUser = async (email, password, schoolId) => {
     loginAt: new Date().toISOString()
   });
 
-  // Create tracked session in Redis (stores tokens server-side)
+  // Create tracked session in Redis
   const sessionId = await SessionService.createSession({
-    userId: String(user._id),
+    userId: String(user.id),
     role: user.role,
     schoolId: user.schoolId,
     email: user.email,
@@ -375,7 +484,7 @@ const loginUser = async (email, password, schoolId) => {
 
   return {
     user: {
-      id: user._id,
+      id: user.id,
       schoolId: user.schoolId,
       email: user.email,
       firstName: user.firstName,
@@ -384,9 +493,9 @@ const loginUser = async (email, password, schoolId) => {
       isVerified: user.isVerified,
       isActive: user.isActive
     },
-    school: school ? {
-      schoolId: school.schoolId,
-      schoolName: school.schoolName
+    school: schoolForResponse ? {
+      schoolId: schoolForResponse.schoolId,
+      schoolName: schoolForResponse.schoolName
     } : null,
     tokens,
     sessionId
@@ -399,10 +508,13 @@ const loginUser = async (email, password, schoolId) => {
  */
 const forgotPassword = async (email, requestIP) => {
   // Find the school by email
-  const school = await School.findOne({
-    email: email.toLowerCase(),
-    isVerified: true,
-    isActive: true
+  const school = await prisma.school.findFirst({
+    where: {
+      email: email.toLowerCase(),
+      isVerified: true,
+      isActive: true
+    },
+    select: { schoolId: true, schoolName: true, email: true }
   });
 
   if (!school) {
@@ -414,10 +526,16 @@ const forgotPassword = async (email, requestIP) => {
   }
 
   // Invalidate existing password reset OTPs
-  await OTP.invalidateOTPs(email.toLowerCase(), 'password-reset', school.schoolId);
+  await prisma.oTP.deleteMany({
+    where: {
+      email: email.toLowerCase(),
+      purpose: 'password-reset',
+      schoolId: school.schoolId
+    }
+  });
 
   // Generate new OTP for password reset
-  const otpResult = await OTP.createOTP({
+  const otpResult = await createOTP(prisma, {
     email: email.toLowerCase(),
     purpose: 'password-reset',
     schoolId: school.schoolId,
@@ -456,10 +574,12 @@ const forgotPassword = async (email, requestIP) => {
  */
 const resetPassword = async (email, otp, newPassword, requestIP) => {
   // Find the school by email
-  const school = await School.findOne({
-    email: email.toLowerCase(),
-    isVerified: true,
-    isActive: true
+  const school = await prisma.school.findFirst({
+    where: {
+      email: email.toLowerCase(),
+      isVerified: true,
+      isActive: true
+    }
   });
 
   if (!school) {
@@ -467,34 +587,47 @@ const resetPassword = async (email, otp, newPassword, requestIP) => {
   }
 
   // Verify OTP
-  const verificationResult = await OTP.verifyAndConsumeOTP(
-    email.toLowerCase(),
+  const verificationResult = await verifyOTP(prisma, {
+    email: email.toLowerCase(),
     otp,
-    'password-reset',
-    school.schoolId,
+    purpose: 'password-reset',
+    schoolId: school.schoolId,
     requestIP
-  );
+  });
 
   if (!verificationResult.success) {
     throw new Error(verificationResult.message);
   }
 
-  // Update password
-  school.password = newPassword; // Will be hashed by pre-save middleware
-  school.passwordChangedAt = new Date();
-  await school.save();
+  // Hash new password
+  const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+  // Update school password
+  await prisma.school.update({
+    where: { id: school.id },
+    data: {
+      password: hashedPassword,
+      passwordChangedAt: new Date()
+    }
+  });
 
   // Update admin user password as well (they share the same password)
-  const adminUser = await User.findOne({
-    schoolId: school.schoolId,
-    role: 'admin',
-    email: school.email
+  const adminUser = await prisma.user.findFirst({
+    where: {
+      schoolId: school.id,
+      role: 'admin',
+      email: school.email
+    }
   });
 
   if (adminUser) {
-    adminUser.password = newPassword; // Will be hashed by pre-save middleware
-    adminUser.passwordChangedAt = new Date();
-    await adminUser.save();
+    await prisma.user.update({
+      where: { id: adminUser.id },
+      data: {
+        password: hashedPassword,
+        passwordChangedAt: new Date()
+      }
+    });
   }
 
   return {
@@ -518,73 +651,87 @@ const completeRegistration = async (userData) => {
     firstName,
     lastName,
     phone,
-    subjects,
-    qualifications,
-    experience,
-    address,
-    occupation,
-    emergencyContact,
-    emergencyPhone
+    subjects
   } = userData;
 
   // Find user with temporary password
-  const user = await User.findOne({
-    email: email.toLowerCase(),
-    schoolId,
-    isTemporaryPassword: true,
-    isActive: false
-  }).select('+password');
+  // First, find the school to get the UUID for user lookup
+  const school = await prisma.school.findFirst({
+    where: { schoolId }
+  });
+  
+  if (!school) {
+    throw new Error('School not found');
+  }
+  
+  const user = await prisma.user.findFirst({
+    where: {
+      email: email.toLowerCase(),
+      schoolId: school.id,  // Use UUID for foreign key lookup
+      isTemporaryPassword: true,
+      isActive: false
+    },
+    select: { id: true, password: true, role: true, subjects: true, firstName: true, lastName: true }
+  });
 
   if (!user) {
     throw new Error('User not found or registration already completed');
   }
 
   // Verify current (temporary) password
-  const isCurrentPasswordValid = await user.comparePassword(currentPassword);
+  const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
   if (!isCurrentPasswordValid) {
     throw new Error('Invalid current password');
   }
 
-  // Update user information
-  user.firstName = firstName || user.firstName;
-  user.lastName = lastName || user.lastName;
-  user.phone = phone || user.phone;
-  user.password = newPassword; // Will be hashed by pre-save middleware
-  user.isTemporaryPassword = false;
-  user.isActive = true;
-  user.passwordChangedAt = new Date();
+  // Hash new password
+  const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+  // Prepare update data
+  const updateData = {
+    firstName: firstName || user.firstName,
+    lastName: lastName || user.lastName,
+    phone: phone || user.phone,
+    password: hashedPassword,
+    isTemporaryPassword: false,
+    isActive: true
+  };
 
   // Role-specific updates
   if (user.role === 'teacher') {
-    user.subjects = subjects || user.subjects;
-    user.qualifications = qualifications || user.qualifications;
-    user.experience = experience || user.experience;
+    updateData.subjects = subjects || user.subjects;
   } else if (user.role === 'parent') {
-    user.address = address || user.address;
-    user.occupation = occupation || user.occupation;
-    user.emergencyContact = emergencyContact || user.emergencyContact;
-    user.emergencyPhone = emergencyPhone || user.emergencyPhone;
+    // Parent-specific updates if needed
   }
 
-  await user.save();
+  // Update user
+  const updatedUser = await prisma.user.update({
+    where: { id: user.id },
+    data: updateData
+  });
 
   // Update invitation status to 'accepted' when user completes registration
   try {
     // First try to find by exact match
-    let invitation = await Invitation.findOne({
-      email: email.toLowerCase(),
-      schoolId,
-      role: user.role,
-      status: 'pending'
-    });
-
-    // If not found, try to find any invitation for this email and school (might be expired or different status)
-    if (!invitation) {
-      invitation = await Invitation.findOne({
+    let invitation = await prisma.invitation.findFirst({
+      where: {
         email: email.toLowerCase(),
         schoolId,
-        role: user.role
-      }).sort({ createdAt: -1 }); // Get the most recent one
+        role: user.role,
+        status: 'pending'
+      }
+    });
+
+    // If not found, try to find any invitation for this email and school
+    if (!invitation) {
+      invitation = await prisma.invitation.findFirst({
+        where: {
+          email: email.toLowerCase(),
+          schoolId,
+          role: user.role
+        },
+        orderBy: { createdAt: 'desc' }
+      });
     }
 
     if (invitation) {
@@ -592,11 +739,15 @@ const completeRegistration = async (userData) => {
       if (invitation.status === 'accepted') {
         logger.info(`ℹ️ Invitation already marked as accepted for ${email}`);
       } else {
-        // Update invitation status regardless of current status (pending, expired, etc.)
-        invitation.status = 'accepted';
-        invitation.acceptedAt = new Date();
-        invitation.acceptedBy = user._id;
-        await invitation.save();
+        // Update invitation status
+        await prisma.invitation.update({
+          where: { id: invitation.id },
+          data: {
+            status: 'accepted',
+            acceptedAt: new Date(),
+            acceptedBy: updatedUser.id
+          }
+        });
         logger.info(`✅ Invitation status updated to 'accepted' for ${email} (was: ${invitation.status})`);
       }
 
@@ -611,7 +762,9 @@ const completeRegistration = async (userData) => {
       logger.info(`⚠️ No invitation found for ${email} in school ${schoolId} with role ${user.role}`);
 
       // Log all invitations for this email to help debug
-      const allInvitations = await Invitation.find({ email: email.toLowerCase() });
+      const allInvitations = await prisma.invitation.findMany({
+        where: { email: email.toLowerCase() }
+      });
       logger.info(`📊 Found ${allInvitations.length} total invitations for ${email}:`,
         allInvitations.map(inv => ({
           schoolId: inv.schoolId,
@@ -622,51 +775,23 @@ const completeRegistration = async (userData) => {
       );
     }
   } catch (invitationError) {
-    // Don't fail the registration if invitation update fails
-    logger.error(`❌ Failed to update invitation status for ${email}:`, invitationError.message);
+    logger.error('Error updating invitation status:', invitationError);
+    // Don't fail registration if invitation update fails
   }
 
-  // Generate tokens for immediate login
-  const tokens = generateTokens(user._id, user.schoolId, user.role);
-
-  // Cache user session data
-  await cacheUserSession(user._id, {
-    user: {
-      id: user._id,
-      schoolId: user.schoolId,
-      email: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      role: user.role,
-      phone: user.phone,
-      isVerified: user.isVerified,
-      isActive: user.isActive,
-      isTemporaryPassword: user.isTemporaryPassword
-    },
-    loginAt: new Date().toISOString(),
-    registrationCompleted: true
-  });
-
   return {
+    success: true,
+    message: 'Registration completed successfully. You can now log in with your new password.',
     user: {
-      id: user._id,
-      schoolId: user.schoolId,
-      email: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      role: user.role,
-      phone: user.phone,
-      isVerified: user.isVerified,
-      isActive: user.isActive,
-      isTemporaryPassword: user.isTemporaryPassword,
-      subjects: user.role === 'teacher' ? user.subjects : undefined,
-      qualifications: user.role === 'teacher' ? user.qualifications : undefined,
-      experience: user.role === 'teacher' ? user.experience : undefined,
-      address: user.role === 'parent' ? user.address : undefined,
-      occupation: user.role === 'parent' ? user.occupation : undefined
-    },
-    tokens,
-    message: 'Registration completed successfully'
+      id: updatedUser.id,
+      email: updatedUser.email,
+      firstName: updatedUser.firstName,
+      lastName: updatedUser.lastName,
+      role: updatedUser.role,
+      schoolId: updatedUser.schoolId,
+      isActive: updatedUser.isActive,
+      isTemporaryPassword: updatedUser.isTemporaryPassword
+    }
   };
 };
 
@@ -693,24 +818,32 @@ const refreshToken = async (refreshTokenValue, source = 'body') => {
   const decoded = verifyRefreshTokenFn(refreshTokenValue);
 
   // Find the user
-  const user = await User.findById(decoded.userId);
+  const user = await prisma.user.findUnique({
+    where: { id: decoded.userId },
+    select: { id: true, schoolId: true, email: true, firstName: true, lastName: true, role: true, isActive: true }
+  });
+  
   if (!user || !user.isActive) {
     throw new Error('Invalid refresh token');
   }
 
   // Find the school
-  const school = await School.findOne({ schoolId: decoded.schoolId });
+  const school = await prisma.school.findFirst({
+    where: { schoolId: decoded.schoolId },
+    select: { schoolId: true, isActive: true }
+  });
+  
   if (!school || !school.isActive) {
     throw new Error('Invalid refresh token');
   }
 
   // Generate new tokens
-  const tokens = generateTokens(user._id, user.schoolId, user.role);
+  const tokens = generateTokens(user.id, user.schoolId, user.role);
 
   // Update cached session data
-  await cacheUserSession(user._id, {
+  await cacheUserSession(user.id, {
     user: {
-      id: user._id,
+      id: user.id,
       schoolId: user.schoolId,
       email: user.email,
       firstName: user.firstName,
@@ -721,11 +854,11 @@ const refreshToken = async (refreshTokenValue, source = 'body') => {
     refreshSource: source // Track if refresh came from cookie or body
   });
 
-  logger.info(`🔄 Token refreshed for user ${user._id} via ${source}`);
+  logger.info(`🔄 Token refreshed for user ${user.id} via ${source}`);
 
   return {
     user: {
-      id: user._id,
+      id: user.id,
       schoolId: user.schoolId,
       email: user.email,
       firstName: user.firstName,
@@ -742,9 +875,11 @@ const refreshToken = async (refreshTokenValue, source = 'body') => {
  */
 const resendOTP = async (email, requestIP) => {
   // Find the school by email only
-  const school = await School.findOne({
-    email: email.toLowerCase(),
-    isVerified: false // Only find unverified schools
+  const school = await prisma.school.findFirst({
+    where: {
+      email: email.toLowerCase(),
+      isVerified: false // Only find unverified schools
+    }
   });
 
   if (!school) {
@@ -752,14 +887,20 @@ const resendOTP = async (email, requestIP) => {
   }
 
   // Invalidate existing OTPs
-  await OTP.invalidateOTPs(email.toLowerCase(), 'school-signup', school.schoolId);
+  await prisma.oTP.deleteMany({
+    where: {
+      email: email.toLowerCase(),
+      purpose: 'school-signup',
+      schoolId: school.id
+    }
+  });
 
   // Generate new OTP
-  const otpResult = await OTP.createOTP({
+  const otpResult = await createOTP(prisma, {
     email: email.toLowerCase(),
     purpose: 'school-signup',
-    schoolId: school.schoolId,
-    expirationMinutes: parseInt(process.env.OTP_EXPIRES_IN_MINUTES) || 10,
+    schoolId: school.id,
+      expirationMinutes: parseInt(process.env.OTP_EXPIRES_IN_MINUTES) || 10,
     createdFromIP: requestIP
   });
 
@@ -901,6 +1042,23 @@ const getCachedOTPData = async (email, purpose) => {
 };
 
 /**
+ * Invalidate OTP Data
+ * Removes OTP data from cache
+ * @param {string} email - Email address
+ * @param {string} purpose - OTP purpose
+ */
+const invalidateOTPData = async (email, purpose) => {
+  const cacheKey = `otp:${email}:${purpose}`;
+
+  try {
+    await CacheService.del('auth', cacheKey);
+    logger.info(`📧 OTP data invalidated for ${email}:${purpose}`);
+  } catch (error) {
+    logger.error(`❌ Failed to invalidate OTP data for ${email}:`, error.message);
+  }
+};
+
+/**
  * Invalidate Authentication Caches
  * Clears all auth-related caches for a user
  * @param {string} userId - User identifier
@@ -947,7 +1105,7 @@ const validateSystemAdminCredentialsEnhanced = async (email, password, requestCo
     }
 
     // Additional security checks
-    const securityChecks = await performSystemAdminSecurityChecks(email, requestContext);
+    const securityChecks = await checkSystemAdminSecurity(email, requestContext);
 
     if (!securityChecks.passed) {
       logger.warn(`🚫 System admin security check failed: ${email} - ${securityChecks.reason}`);
@@ -974,7 +1132,7 @@ const validateSystemAdminCredentialsEnhanced = async (email, password, requestCo
  * System Admin Security Checks
  * Additional security validations for system admin access
  */
-const performSystemAdminSecurityChecks = async (email, requestContext) => {
+const checkSystemAdminSecurity = async (email, requestContext) => {
   try {
     // Check for suspicious IP patterns (basic implementation)
     if (requestContext.ip) {
@@ -1023,14 +1181,20 @@ const impersonateUser = async (systemAdminEmail, targetUserId, reason = 'support
     }
 
     // Find target user
-    const targetUser = await User.findById(targetUserId).populate('schoolId');
+    const targetUser = await prisma.user.findUnique({
+      where: { id: targetUserId },
+      select: { id: true, email: true, firstName: true, lastName: true, role: true, schoolId: true }
+    });
 
     if (!targetUser) {
       throw new Error('Target user not found');
     }
 
     // Find target user's school
-    const school = await School.findOne({ schoolId: targetUser.schoolId });
+    const school = await prisma.school.findFirst({
+      where: { schoolId: targetUser.schoolId },
+      select: { schoolId: true, schoolName: true }
+    });
 
     if (!school) {
       throw new Error('Target user school not found');
@@ -1039,7 +1203,7 @@ const impersonateUser = async (systemAdminEmail, targetUserId, reason = 'support
     // Generate impersonation token with special claims
     const impersonationToken = jwt.sign(
       {
-        userId: targetUser._id,
+        userId: targetUser.id,
         schoolId: targetUser.schoolId,
         role: targetUser.role,
         type: 'impersonation',
@@ -1055,9 +1219,9 @@ const impersonateUser = async (systemAdminEmail, targetUserId, reason = 'support
     // Log impersonation for audit
     const impersonationLog = {
       systemAdminEmail,
-      targetUserId: targetUser._id,
+      targetUserId: targetUser.id,
       targetUserEmail: targetUser.email,
-      targetSchoolId: targetUser.schoolId,
+      schoolId: targetUser.schoolId,
       reason,
       timestamp: new Date(),
       ipAddress: null, // Will be filled by middleware
@@ -1065,7 +1229,7 @@ const impersonateUser = async (systemAdminEmail, targetUserId, reason = 'support
     };
 
     // Cache impersonation session
-    await CacheService.set('auth', `impersonation:${targetUser._id}`, impersonationLog, 7200); // 2 hours
+    await CacheService.set('auth', `impersonation:${targetUser.id}`, impersonationLog, 7200); // 2 hours
 
     logger.info(`🎭 System admin impersonation started: ${systemAdminEmail} -> ${targetUser.email}`);
 
@@ -1073,7 +1237,7 @@ const impersonateUser = async (systemAdminEmail, targetUserId, reason = 'support
       success: true,
       impersonationToken,
       targetUser: {
-        id: targetUser._id,
+        id: targetUser.id,
         email: targetUser.email,
         firstName: targetUser.firstName,
         lastName: targetUser.lastName,
@@ -1279,11 +1443,12 @@ module.exports = {
   // OTP caching functions
   cacheOTPData,
   getCachedOTPData,
+  invalidateOTPData,
   // Cache invalidation
   invalidateAuthCaches,
   // System admin enhancements
   validateSystemAdminCredentialsEnhanced,
-  performSystemAdminSecurityChecks,
+  checkSystemAdminSecurity,
   impersonateUser,
   endImpersonation,
   manageSystemAdminSession,

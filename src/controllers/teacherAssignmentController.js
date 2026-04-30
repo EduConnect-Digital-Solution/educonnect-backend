@@ -36,7 +36,7 @@ const assignTeacher = catchAsync(async (req, res) => {
     teacherId,
     studentIds,
     targetSchoolId,
-    req.user.id
+    req.user.userId
   );
 
   // Invalidate teacher caches after assignment
@@ -76,7 +76,7 @@ const assignTeachersBulk = catchAsync(async (req, res) => {
   const result = await teacherAssignmentService.assignTeachersBulk(
     assignments,
     targetSchoolId,
-    req.user.id
+    req.user.userId
   );
 
   // Invalidate caches for all affected teachers
@@ -119,7 +119,7 @@ const unassignTeacher = catchAsync(async (req, res) => {
     teacherId,
     studentIds,
     targetSchoolId,
-    req.user.id
+    req.user.userId
   );
 
   // Invalidate teacher caches after unassignment
@@ -152,7 +152,7 @@ const assignTeacherToStudent = catchAsync(async (req, res) => {
     teacherId,
     [studentId],
     targetSchoolId,
-    req.user.id
+    req.user.userId
   );
 
   // Invalidate teacher caches after assignment
@@ -185,7 +185,7 @@ const unassignTeacherFromStudent = catchAsync(async (req, res) => {
     teacherId,
     [studentId],
     targetSchoolId,
-    req.user.id
+    req.user.userId
   );
 
   // Invalidate teacher caches after unassignment
@@ -215,7 +215,7 @@ const getTeacherStudents = catchAsync(async (req, res) => {
   }
 
   // Check if user is the teacher themselves or an admin
-  if (req.user.role === 'teacher' && req.user.id !== teacherId) {
+  if (req.user.role === 'teacher' && req.user.userId !== teacherId) {
     return res.status(403).json({
       success: false,
       message: 'Teachers can only view their own students'

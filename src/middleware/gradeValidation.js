@@ -4,6 +4,7 @@
  */
 
 const { body, param, query } = require('express-validator');
+const { prisma } = require('../config/database');
 const logger = require('../utils/logger');
 
 /**
@@ -13,8 +14,8 @@ const validateGradeAssignment = [
   body('studentId')
     .notEmpty()
     .withMessage('Student ID is required')
-    .isMongoId()
-    .withMessage('Student ID must be a valid MongoDB ObjectId'),
+    .isUUID()
+    .withMessage('Student ID must be a valid UUID'),
     
   body('subject')
     .notEmpty()
@@ -289,8 +290,10 @@ const validateTeacherAccess = async (req, res, next) => {
     const { className, subject } = req.params;
     
     // Get teacher information
-    const User = require('../models/User');
-    const teacher = await User.findById(teacherId);
+    const teacher = await prisma.user.findUnique({
+      where: { id: teacherId },
+      select: { id: true, role: true, classes: true, subjects: true }
+    });
     
     if (!teacher || teacher.role !== 'teacher') {
       return res.status(403).json({

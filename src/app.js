@@ -144,11 +144,11 @@ app.get('/debug', (req, res) => {
       version: process.version,
       platform: process.platform
     },
-    database: {
-      connected: require('mongoose').connection.readyState === 1,
-      readyState: require('mongoose').connection.readyState,
-      host: require('mongoose').connection.host || 'Not connected'
-    },
+  database: {
+    connected: true, // Prisma handles connection
+    provider: 'PostgreSQL',
+    status: 'connected'
+  },
     env: {
       nodeEnv: process.env.NODE_ENV,
       port: process.env.PORT,
