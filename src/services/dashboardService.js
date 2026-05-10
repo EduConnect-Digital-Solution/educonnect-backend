@@ -100,7 +100,8 @@ class DashboardService {
         id: true,
         firstName: true,
         lastName: true,
-        class: true,
+        classId: true,
+        armId: true,
         createdAt: true,
         isActive: true
       }
@@ -214,7 +215,8 @@ class DashboardService {
         students: recentStudents.map(student => ({
           id: student.id,
           name: `${student.firstName} ${student.lastName}`,
-          class: student.class,
+          classId: student.classId,
+      armId: student.armId,
           createdAt: student.createdAt,
           isActive: student.isActive
         })),

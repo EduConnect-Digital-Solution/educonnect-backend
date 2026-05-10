@@ -34,17 +34,15 @@ const validateStudentCreation = [
     .normalizeEmail()
     .withMessage('Please provide a valid email address'),
 
-  body('class')
+  body('classId')
     .optional()
-    .trim()
-    .isLength({ max: 20 })
-    .withMessage('Class cannot exceed 20 characters'),
+    .isUUID()
+    .withMessage('Class ID must be a valid UUID'),
 
-  body('section')
+  body('armId')
     .optional()
-    .trim()
-    .isLength({ max: 10 })
-    .withMessage('Section cannot exceed 10 characters'),
+    .isUUID()
+    .withMessage('Arm ID must be a valid UUID'),
 
   body('rollNumber')
     .optional()
@@ -135,17 +133,15 @@ const validateStudentUpdate = [
     .normalizeEmail()
     .withMessage('Please provide a valid email address'),
 
-  body('class')
+  body('classId')
     .optional()
-    .trim()
-    .isLength({ max: 20 })
-    .withMessage('Class cannot exceed 20 characters'),
+    .isUUID()
+    .withMessage('Class ID must be a valid UUID'),
 
-  body('section')
+  body('armId')
     .optional()
-    .trim()
-    .isLength({ max: 10 })
-    .withMessage('Section cannot exceed 10 characters'),
+    .isUUID()
+    .withMessage('Arm ID must be a valid UUID'),
 
   body('rollNumber')
     .optional()
@@ -190,17 +186,15 @@ const validateStudentQuery = [
     .matches(/^[A-Z]{3}[0-9]{4}$/)
     .withMessage('Invalid school ID format'),
 
-  query('class')
+  query('classId')
     .optional()
-    .trim()
-    .isLength({ max: 20 })
-    .withMessage('Class filter cannot exceed 20 characters'),
+    .isUUID()
+    .withMessage('Class ID filter must be a valid UUID'),
 
-  query('section')
+  query('armId')
     .optional()
-    .trim()
-    .isLength({ max: 10 })
-    .withMessage('Section filter cannot exceed 10 characters'),
+    .isUUID()
+    .withMessage('Arm ID filter must be a valid UUID'),
 
   query('status')
     .optional()
@@ -292,11 +286,11 @@ const sanitizeStudentData = (req, res, next) => {
   if (req.body.lastName) {
     req.body.lastName = req.body.lastName.trim();
   }
-  if (req.body.class) {
-    req.body.class = req.body.class.trim();
+  if (req.body.classId) {
+    req.body.classId = req.body.classId.trim();
   }
-  if (req.body.section) {
-    req.body.section = req.body.section.trim();
+  if (req.body.armId) {
+    req.body.armId = req.body.armId.trim();
   }
   if (req.body.rollNumber) {
     req.body.rollNumber = req.body.rollNumber.trim();

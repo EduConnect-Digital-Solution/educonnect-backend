@@ -164,9 +164,9 @@ class ParentDashboardService {
         firstName: child.firstName,
         lastName: child.lastName,
         fullName: `${child.firstName} ${child.lastName}`,
-        class: child.class,
+        classId: child.classId,
         section: child.section,
-        classDisplay: child.class && child.section ? `${child.class}-${child.section}` : child.class || 'Not Assigned',
+        classDisplay: child.classId && child.section ? `Class ID: ${child.classId}-${child.section}` : child.classId ? `Class ID: ${child.classId}` : 'Not Assigned',
         grade: child.grade,
         age: child.age,
         gender: child.gender,
@@ -255,7 +255,7 @@ class ParentDashboardService {
         }
       },
       orderBy: [
-        { class: 'asc' },
+        { classId: 'asc' },
         { section: 'asc' },
         { firstName: 'asc' }
       ]
@@ -285,9 +285,9 @@ class ParentDashboardService {
         lastName: child.lastName,
         fullName: `${child.firstName} ${child.lastName}`,
         email: child.email,
-        class: child.class,
+        classId: child.classId,
         section: child.section,
-        classDisplay: child.class && child.section ? `${child.class}-${child.section}` : child.class || 'Not Assigned',
+        classDisplay: child.classId && child.section ? `Class ID: ${child.classId}-${child.section}` : child.classId ? `Class ID: ${child.classId}` : 'Not Assigned',
         rollNumber: child.rollNumber,
         grade: child.grade,
         dateOfBirth: child.dateOfBirth,

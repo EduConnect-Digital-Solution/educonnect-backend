@@ -93,10 +93,6 @@ const validateAdminProfileUpdate = [
  * Validation for school status change
  */
 const validateSchoolStatusChange = [
-  body('schoolId')
-    .matches(/^[A-Z]{3}[0-9]{4}$/)
-    .withMessage('Invalid school ID format'),
-
   body('isActive')
     .isBoolean()
     .withMessage('isActive must be a boolean value'),

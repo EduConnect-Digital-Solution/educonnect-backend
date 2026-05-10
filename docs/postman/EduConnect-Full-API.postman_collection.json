@@ -665,6 +665,395 @@
       ]
     },
     {
+      "name": "03.5 - Class Management",
+      "item": [
+        {
+          "name": "Get All Classes",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/classes"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Class by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/classes/{{classId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Bulk Create Classes",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"classes\": [\n    {\n      \"baseLevel\": \"SS 1\",\n      \"arm\": \"Science\",\n      \"name\": \"SS 1 Science\"\n    },\n    {\n      \"baseLevel\": \"SS 1\",\n      \"arm\": \"Arts\",\n      \"name\": \"SS 1 Arts\"\n    },\n    {\n      \"baseLevel\": \"SS 2\",\n      \"arm\": \"Science\",\n      \"name\": \"SS 2 Science\"\n    },\n    {\n      \"baseLevel\": \"SS 2\",\n      \"arm\": \"Arts\",\n      \"name\": \"SS 2 Arts\"\n    },\n    {\n      \"baseLevel\": \"SS 3\",\n      \"arm\": \"Science\",\n      \"name\": \"SS 3 Science\"\n    },\n    {\n      \"baseLevel\": \"SS 3\",\n      \"arm\": \"Arts\",\n      \"name\": \"SS 3 Arts\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/admin/classes/bulk"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Class",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/classes/{{classId}}"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "03.6 - Academic Structure",
+      "item": [
+        {
+          "name": "Create Subjects",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subjects\": [\n    {\n      \"name\": \"Mathematics\",\n      \"code\": \"MTH\",\n      \"description\": \"Core mathematics subject\",\n      \"category\": \"core\"\n    },\n    {\n      \"name\": \"English Language\",\n      \"code\": \"ENG\",\n      \"description\": \"Core English subject\",\n      \"category\": \"core\"\n    },\n    {\n      \"name\": \"Physics\",\n      \"code\": \"PHY\",\n      \"description\": \"Science subject\",\n      \"category\": \"core\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/academic/subjects"
+          },
+          "response": []
+        },
+        {
+          "name": "List Subjects",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/academic/subjects"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Subjects by Class",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/academic/classes/{{classId}}/subjects"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Subject",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Mathematics Updated\",\n  \"category\": \"elective\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/academic/subjects/{{subjectId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Subjects",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subjectIds\": [\"{{subjectId1}}\", \"{{subjectId2}}\"]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/academic/subjects"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Arms",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"arms\": [\n    {\n      \"classId\": \"{{classId}}\",\n      \"name\": \"A\"\n    },\n    {\n      \"classId\": \"{{classId}}\",\n      \"name\": \"B\"\n    },\n    {\n      \"classId\": \"{{classId}}\",\n      \"name\": \"Science\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/academic/arms"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Arms by Class",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/academic/classes/{{classId}}/arms"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Arm",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Science Updated\",\n  \"classTeacherId\": \"{{teacherId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/academic/arms/{{armId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Arms",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"armIds\": [\"{{armId1}}\", \"{{armId2}}\"]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/academic/arms"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Arm Subjects",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/academic/arms/{{armId}}/subjects"
+          },
+          "response": []
+        },
+        {
+          "name": "Add Subjects to Arm",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subjectIds\": [\"{{subjectId1}}\", \"{{subjectId2}}\", \"{{subjectId3}}\"]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/academic/arms/{{armId}}/subjects"
+          },
+          "response": []
+        },
+        {
+          "name": "Add Subjects to Class",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subjectIds\": [\"{{subjectId1}}\", \"{{subjectId2}}\", \"{{subjectId3}}\"]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/academic/classes/{{classId}}/subjects"
+          },
+          "response": []
+        },
+        {
+          "name": "Remove Subjects from Class",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subjectIds\": [\"{{subjectId1}}\", \"{{subjectId2}}\"]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/academic/classes/{{classId}}/subjects"
+          },
+          "response": []
+        },
+        {
+          "name": "Remove Subjects from Arm",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subjectIds\": [\"{{subjectId1}}\", \"{{subjectId2}}\"]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/academic/arms/{{armId}}/subjects"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
       "name": "04 - Teacher Dashboard & Grades",
       "item": [
         {

@@ -5,6 +5,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // =============== ENUMS ===============
@@ -79,6 +80,7 @@ model User {
   grades        Grade[]  @relation("GradeTeacher")
   parentStudents  ParentStudent[]  @relation("ParentStudents")
   teacherStudents TeacherStudent[] @relation("TeacherStudents")
+  armClasses    Arm[]     @relation("ArmClassTeacher") // Arms where user is class teacher
   
   @@unique([schoolId, email])
   @@index([schoolId, role])
@@ -111,6 +113,9 @@ model School {
   // Relations
   users         User[]
   students      Student[]
+  classes       Class[]
+  subjects      Subject[]
+  arms          Arm[]
   grades        Grade[]  // Opposite relation for grades
   auditLogs    PlatformAuditLog[]  // Opposite relation for platform audit logs
 
@@ -126,7 +131,8 @@ model Student {
   firstName                String
   lastName                 String
   email                    String?
-  class                    String?
+  classId                  String?
+  armId                    String?  // New field for arm assignment
   section                  String?
   rollNumber               String?
   grade                    String?
@@ -151,6 +157,8 @@ model Student {
 
   // Relations
   school    School?  @relation(fields: [schoolId], references: [id])
+  classRef  Class?   @relation("StudentClass", fields: [classId], references: [id])
+  arm       Arm?     @relation("ArmStudents", fields: [armId], references: [id])
   grades    Grade[]
   parentOf  ParentStudent[]  @relation("StudentParents")
   studentOf TeacherStudent[] @relation("StudentTeachers")
@@ -166,7 +174,7 @@ model Grade {
   teacherId      String
   studentId      String
   subject        String
-  class          String
+  classId         String?
   section        String?
   term           Term
   academicYear   String
@@ -186,6 +194,7 @@ model Grade {
 
   // Relations
   school   School?  @relation(fields: [schoolId], references: [id])
+  classRef  Class?   @relation("GradeClass", fields: [classId], references: [id])
   teacher  User?    @relation("GradeTeacher", fields: [teacherId], references: [id])
   student  Student? @relation(fields: [studentId], references: [id])
   assessments  Assessment[]
@@ -297,6 +306,117 @@ model TeacherStudent {
   @@index([teacherId])
   @@index([studentId])
   @@map("teacher_students")
+}
+
+// =============== CLASS MODEL ===============
+
+model Class {
+  id         String   @id @default(uuid())
+  schoolId   String
+  name       String   // Full display name (e.g., "SS 1 Science")
+  baseLevel  String   // Base level (e.g., "SS 1", "JSS 2")
+  arm        String?  // Class arm (e.g., "Science", "Arts")
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt()
+
+  // Relations
+  school     School   @relation(fields: [schoolId], references: [id])
+  students   Student[] @relation("StudentClass") // Students assigned to this class
+  arms       Arm[]     @relation("ClassArms") // Arms under this class
+  grades     Grade[]  @relation("GradeClass")  // Grades for this class
+  subjects   ClassSubject[] // Subjects assigned to this class
+
+  @@unique([schoolId, name])
+  @@index([schoolId])
+  @@index([baseLevel])
+  @@map("classes")
+}
+
+// =============== SUBJECT MODEL ===============
+
+model Subject {
+  id          String   @id @default(uuid())
+  schoolId    String
+  name        String
+  code        String   // e.g., "MTH", "ENG"
+  description String?
+  category    String   @default("core") // core | elective | optional | religious
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt()
+
+  // Relations
+  school      School        @relation(fields: [schoolId], references: [id])
+  classSubjects ClassSubject[]
+  armSubjects  ArmSubject[]
+
+  @@unique([schoolId, code])
+  @@unique([schoolId, name])
+  @@index([schoolId])
+  @@index([category])
+  @@map("subjects")
+}
+
+// =============== ARM MODEL ===============
+
+model Arm {
+  id            String   @id @default(uuid())
+  schoolId      String
+  classId       String
+  name          String   // e.g., "A", "B", "Science", "Arts"
+  classTeacherId String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt()
+
+  // Relations
+  school        School   @relation(fields: [schoolId], references: [id])
+  class         Class    @relation("ClassArms", fields: [classId], references: [id])
+  classTeacher  User?    @relation("ArmClassTeacher", fields: [classTeacherId], references: [id])
+  armSubjects   ArmSubject[]
+  students      Student[] @relation("ArmStudents")
+
+  @@unique([schoolId, classId, name])
+  @@index([schoolId])
+  @@index([classId])
+  @@map("arms")
+}
+
+// =============== ARM-SUBJECT JUNCTION MODEL ===============
+
+model ArmSubject {
+  id        String   @id @default(uuid())
+  armId      String
+  subjectId  String
+  createdAt  DateTime @default(now())
+
+  // Relations
+  arm       Arm     @relation(fields: [armId], references: [id], onDelete: Cascade)
+  subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@unique([armId, subjectId])
+  @@index([armId])
+  @@index([subjectId])
+  @@map("arm_subjects")
+}
+
+// =============== CLASS-SUBJECT JUNCTION MODEL ===============
+
+model ClassSubject {
+  id        String   @id @default(uuid())
+  classId    String
+  subjectId  String
+  createdAt  DateTime @default(now())
+
+  // Relations
+  class     Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
+  subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@unique([classId, subjectId])
+  @@index([classId])
+  @@index([subjectId])
+  @@map("class_subjects")
 }
 
 // =============== SYSTEM ALERT MODEL ===============

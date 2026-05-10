@@ -393,12 +393,13 @@ const getMe = catchAsync(async (req, res) => {
       if (user.schoolId) {
         const school = await prisma.school.findFirst({
           where: { id: user.schoolId },
-          select: { id: true, schoolName: true, email: true, address: true, phone: true, website: true }
+          select: { id: true, schoolId: true, schoolName: true, email: true, address: true, phone: true, website: true }
         });
         
         if (school) {
           schoolData = {
             id: school.id,
+            schoolId: school.schoolId, // Include human-readable schoolId
             schoolName: school.schoolName,
             email: school.email,
             address: school.address,
@@ -417,7 +418,7 @@ const getMe = catchAsync(async (req, res) => {
           lastName: user.lastName,
           fullName: `${user.firstName} ${user.lastName}`,
           role: user.role,
-          schoolId: user.schoolId,
+          schoolId: schoolData ? schoolData.schoolId : user.schoolId, // Return human-readable schoolId when available
           school: schoolData,
           phone: user.phone,
           profileImage: user.profileImage,
