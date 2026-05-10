@@ -355,7 +355,8 @@ const createParentInvitation = async (invitationData, schoolId, adminUserId) => 
       id: student.id,
       name: `${student.firstName} ${student.lastName}`,
       studentId: student.studentId,
-      class: student.class
+      classId: student.classId,
+      armId: student.armId
     })),
     temporaryPassword: tempPassword,
     emailSent: emailResult.success

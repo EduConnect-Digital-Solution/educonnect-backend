@@ -56,10 +56,19 @@ class GradeService {
     
     const classesWithCounts = await Promise.all(
       teacherClasses.map(async (className) => {
+        // Get class record by name
+        const classRecord = await prisma.class.findFirst({
+          where: {
+            schoolId: schoolId,
+            name: className,
+            isActive: true
+          }
+        });
+        
         const studentCount = await prisma.student.count({
           where: {
             schoolId: schoolId,
-            class: className,
+            classId: classRecord?.id,
             isActive: true,
             isEnrolled: true
           }
@@ -118,10 +127,19 @@ class GradeService {
     
     const subjectsWithStats = await Promise.all(
       subjects.map(async (subject) => {
+        // Get class record by name
+        const classRecord = await prisma.class.findFirst({
+          where: {
+            schoolId: schoolId,
+            name: className,
+            isActive: true
+          }
+        });
+        
         const studentCount = await prisma.student.count({
           where: {
             schoolId: schoolId,
-            class: className,
+            classId: classRecord?.id,
             isActive: true,
             isEnrolled: true
           }
@@ -130,7 +148,7 @@ class GradeService {
         const gradeCount = await prisma.grade.count({
           where: {
             teacherId: teacherId,
-            class: className,
+            classId: classRecord?.id,
             subject: subject
           }
         });
@@ -192,11 +210,24 @@ class GradeService {
       return `${currentYear}-${currentYear + 1}`;
     })();
 
+    // Get class record by name
+    const classRecord = await prisma.class.findFirst({
+      where: {
+        schoolId: schoolId,
+        name: className,
+        isActive: true
+      }
+    });
+
+    if (!classRecord) {
+      throw new Error(`Class ${className} not found`);
+    }
+
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const students = await prisma.student.findMany({
       where: {
         schoolId: schoolId,
-        class: className,
+        classId: classRecord.id,
         isActive: true,
         isEnrolled: true
       },
@@ -218,7 +249,7 @@ class GradeService {
     const totalStudents = await prisma.student.count({
       where: {
         schoolId: schoolId,
-        class: className,
+        classId: classRecord.id,
         isActive: true,
         isEnrolled: true
       }
@@ -231,7 +262,7 @@ class GradeService {
         teacherId: teacherId,
         studentId: { in: studentIds },
         subject: subject,
-        class: className,
+        classId: classRecord.id,
         term: prismaTerm,
         academicYear: currentAcademicYear
       },
@@ -254,7 +285,8 @@ class GradeService {
         firstName: student.firstName,
         lastName: student.lastName,
         fullName: `${student.firstName} ${student.lastName}`,
-        class: student.class,
+        classId: student.classId,
+      armId: student.armId,
         section: student.section,
         grade: existingGrade ? {
           id: existingGrade.id,
@@ -314,7 +346,7 @@ class GradeService {
     const {
       studentId,
       subject,
-      class: className,
+      className,
       section,
       term = 'First Term',
       academicYear,
@@ -332,7 +364,12 @@ class GradeService {
       throw new Error('Student not found or not in your school.');
     }
 
-    if (student.class !== className) {
+    // Get student's class to verify
+    const studentClass = await prisma.class.findFirst({
+      where: { id: student.classId, schoolId: teacher.schoolId }
+    });
+    
+    if (!studentClass || studentClass.name !== className) {
       throw new Error('Student is not in the specified class.');
     }
 
@@ -403,7 +440,7 @@ class GradeService {
           teacherId: teacherId,
           studentId: studentId,
           subject: subject,
-          class: className,
+          classId: studentClass.id,
           section: section,
           term: prismaTerm,
           academicYear: currentAcademicYear,
@@ -499,7 +536,7 @@ class GradeService {
       gradesBySubject[grade.subject].push({
         id: grade.id,
         subject: grade.subject,
-        class: grade.class,
+        classId: grade.classId,
         section: grade.section,
         term: mapPrismaTermToString(grade.term),
         academicYear: grade.academicYear,
@@ -534,7 +571,8 @@ class GradeService {
         firstName: student.firstName,
         lastName: student.lastName,
         fullName: `${student.firstName} ${student.lastName}`,
-        class: student.class,
+        classId: student.classId,
+      armId: student.armId,
         section: student.section
       },
       academicYear: currentAcademicYear,
@@ -609,7 +647,11 @@ class GradeService {
     await prisma.assessment.deleteMany({ where: { gradeId: gradeId } });
     await prisma.grade.delete({ where: { id: gradeId } });
     
-    await this.invalidateGradeCaches(grade.schoolId, teacherId, grade.class, grade.subject);
+    // Get class name for cache invalidation
+    const gradeClass = await prisma.class.findUnique({
+      where: { id: grade.classId }
+    });
+    await this.invalidateGradeCaches(grade.schoolId, teacherId, gradeClass?.name, grade.subject);
     
     return { success: true, message: 'Grade deleted successfully.' };
   }
@@ -621,7 +663,7 @@ class GradeService {
    * @returns {Object} Publish result
    */
   static async publishGrades(teacherId, publishData) {
-    const { class: className, subject, term, academicYear } = publishData;
+    const { className, subject, term, academicYear } = publishData;
 
     logger.info(`📚 Starting grade publishing process for teacher ${teacherId}`);
     logger.info(`📋 Publish data:`, { className, subject, term, academicYear });
@@ -633,19 +675,23 @@ class GradeService {
         throw new Error('Access denied. Teacher role required.');
       }
 
-      logger.info(`👨‍🏫 Teacher verified: ${teacher.firstName} ${teacher.lastName} (${teacher.email})`);
-
-      if (!teacher.subjects?.includes(subject)) {
-        logger.error(`❌ Teacher ${teacherId} does not teach subject: ${subject}. Teacher subjects:`, teacher.subjects);
-        throw new Error(`Access denied. You do not teach the subject "${subject}". Please contact your administrator if this is incorrect.`);
+      if (!teacher.classes?.includes(className) || !teacher.subjects?.includes(subject)) {
+        logger.error(`❌ Teacher ${teacherId} does not teach ${subject} in ${className}`);
+        throw new Error('Access denied. You do not teach this subject in this class.');
       }
 
-      if (!teacher.classes?.includes(className)) {
-        logger.error(`❌ Teacher ${teacherId} does not teach class: ${className}. Teacher classes:`, teacher.classes);
-        throw new Error(`Access denied. You do not teach the class "${className}". Please contact your administrator if this is incorrect.`);
-      }
+      // Get class record by name
+      const classRecord = await prisma.class.findFirst({
+        where: {
+          schoolId: teacher.schoolId,
+          name: className,
+          isActive: true
+        }
+      });
 
-      logger.info(`✅ Teacher authorization verified for ${subject} in ${className}`);
+      if (!classRecord) {
+        throw new Error(`Class ${className} not found`);
+      }
 
       const currentAcademicYear = academicYear || (() => {
         const currentYear = new Date().getFullYear();
@@ -660,7 +706,7 @@ class GradeService {
       const existingGrades = await prisma.grade.findMany({
         where: {
           teacherId: teacherId,
-          class: className,
+          classId: classRecord.id,
           subject: subject,
           term: prismaTerm,
           academicYear: currentAcademicYear
@@ -671,7 +717,7 @@ class GradeService {
 
       if (existingGrades.length === 0) {
         logger.error(`❌ No grades found for publishing: ${subject} in ${className} for ${currentTerm} ${currentAcademicYear}`);
-        throw new Error(`No grades found to publish for ${subject} in ${className} for ${currentTerm} ${currentAcademicYear}. Please assign grades to students first.`);
+        throw new Error(`No grades found for ${subject} in ${className} for ${currentTerm} ${currentAcademicYear}`);
       }
 
       const publishedCount = existingGrades.filter(g => g.isPublished).length;
@@ -682,7 +728,7 @@ class GradeService {
       const result = await prisma.grade.updateMany({
         where: {
           teacherId: teacherId,
-          class: className,
+          classId: classRecord.id,
           subject: subject,
           term: prismaTerm,
           academicYear: currentAcademicYear
@@ -759,12 +805,30 @@ class GradeService {
       return cachedData;
     }
 
+    const teacher = await prisma.user.findUnique({ where: { id: teacherId } });
+    if (!teacher || teacher.role !== 'teacher') {
+      throw new Error('Access denied. Teacher role required.');
+    }
+
     const prismaTerm = mapTermToPrisma(term);
+
+    // Get class record by name
+    const classRecord = await prisma.class.findFirst({
+      where: {
+        schoolId: teacher.schoolId,
+        name: className,
+        isActive: true
+      }
+    });
+
+    if (!classRecord) {
+      throw new Error(`Class ${className} not found`);
+    }
 
     const grades = await prisma.grade.findMany({
       where: {
         teacherId: teacherId,
-        class: className,
+        classId: classRecord.id,
         subject: subject,
         term: prismaTerm,
         academicYear: academicYear

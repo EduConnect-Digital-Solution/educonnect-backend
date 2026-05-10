@@ -108,7 +108,7 @@ const assignGrade = catchAsync(async (req, res) => {
           id: grade.id,
           studentId: grade.studentId,
           subject: grade.subject,
-          class: grade.class,
+          classId: grade.classId,
           term: grade.term,
           academicYear: grade.academicYear,
           totalScore: grade.totalScore,
@@ -315,7 +315,7 @@ const publishGrades = catchAsync(async (req, res) => {
   }
 
   const { userId: teacherId, schoolId } = req.user;
-  const { class: className, subject, term, academicYear } = req.body;
+  const { className, subject, term, academicYear } = req.body;
 
   // Enhanced input validation
   if (!className || typeof className !== 'string' || className.trim().length === 0) {
@@ -350,12 +350,12 @@ const publishGrades = catchAsync(async (req, res) => {
         details: {
           teacherId: teacherId,
           schoolId: schoolId,
-          class: className,
+          className: className,
           subject: subject,
           term: term || 'First Term',
           academicYear: academicYear || `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`,
-          publishedAt: new Date().toISOString()
-        }
+        },
+        publishedAt: new Date().toISOString()
       }
     });
   } catch (error) {
@@ -369,7 +369,7 @@ const publishGrades = catchAsync(async (req, res) => {
         details: error.message,
         context: {
           teacherId: teacherId,
-          class: className,
+          className: className,
           subject: subject
         }
       });
@@ -381,7 +381,7 @@ const publishGrades = catchAsync(async (req, res) => {
         message: 'No grades found to publish',
         details: error.message,
         context: {
-          class: className,
+          className: className,
           subject: subject,
           term: term || 'First Term',
           academicYear: academicYear || `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`
@@ -435,7 +435,7 @@ const publishGrades = catchAsync(async (req, res) => {
       context: {
         teacherId: teacherId,
         schoolId: schoolId,
-        class: className,
+        className: className,
         subject: subject,
         term: term,
         academicYear: academicYear

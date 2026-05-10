@@ -198,8 +198,18 @@ const changeSchoolStatus = catchAsync(async (req, res) => {
   }
 
   try {
-    const { schoolId, isActive, reason } = req.body;
+    const { isActive, reason } = req.body;
     const action = isActive ? 'activate' : 'deactivate';
+    
+    // Use authenticated user's schoolId from JWT token
+    const schoolId = req.user.schoolId;
+    
+    if (!schoolId) {
+      return res.status(400).json({
+        success: false,
+        message: 'School ID not found in authentication token'
+      });
+    }
     
     // Find an actual admin user for this school instead of using hardcoded ID
     const adminUser = await prisma.user.findFirst({ 

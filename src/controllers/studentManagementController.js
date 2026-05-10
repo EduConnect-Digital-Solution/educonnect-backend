@@ -28,6 +28,7 @@ const createStudent = catchAsync(async (req, res) => {
     // Use authenticated user's schoolId from JWT token
     const targetSchoolId = req.user.schoolId;
     
+        
     if (!targetSchoolId) {
       return res.status(400).json({
         success: false,
@@ -79,7 +80,7 @@ const createStudent = catchAsync(async (req, res) => {
  */
 const getStudents = catchAsync(async (req, res) => {
   try {
-    const { class: studentClass, section, status, page = 1, limit = 20, search } = req.query;
+    const { classId, armId, status, page = 1, limit = 20, search } = req.query;
     
     // Use authenticated user's schoolId from JWT token
     const targetSchoolId = req.user.schoolId;
@@ -101,8 +102,8 @@ const getStudents = catchAsync(async (req, res) => {
 
     const filters = { 
       schoolId: targetSchoolId, 
-      class: studentClass !== 'all' ? studentClass : undefined,
-      section: section !== 'all' ? section : undefined,
+      classId: classId !== 'all' ? classId : undefined,
+      armId: armId !== 'all' ? armId : undefined,
       isActive,
       search 
     };
@@ -116,8 +117,8 @@ const getStudents = catchAsync(async (req, res) => {
       data: {
         ...result,
         filters: {
-          class: studentClass || 'all',
-          section: section || 'all',
+          classId: classId || 'all',
+          armId: armId || 'all',
           status: status || 'all',
           search: search || ''
         }

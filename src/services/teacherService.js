@@ -73,34 +73,47 @@ class TeacherService {
         studentId: true,
         firstName: true,
         lastName: true,
-        class: true,
         section: true,
-        grade: true
+        grade: true,
+        classId: true,
+        armId: true
       }
     });
 
     // 2. Students in teacher's assigned classes (only if teacher has classes assigned)
     let studentsInClasses = [];
     if (teacher.classes && teacher.classes.length > 0) {
-      studentsInClasses = await prisma.student.findMany({
+      // Get class records for teacher's assigned classes
+      const assignedClassRecords = await prisma.class.findMany({
         where: {
           schoolId: school.id,
-          class: { in: teacher.classes },
-          isActive: true,
-          NOT: {
-            id: { in: directlyAssignedStudents.map(s => s.id) }
-          }
-        },
-        select: {
-          id: true,
-          studentId: true,
-          firstName: true,
-          lastName: true,
-          class: true,
-          section: true,
-          grade: true
+          name: { in: teacher.classes },
+          isActive: true
         }
       });
+      
+      if (assignedClassRecords.length > 0) {
+        studentsInClasses = await prisma.student.findMany({
+          where: {
+            schoolId: school.id,
+            classId: { in: assignedClassRecords.map(c => c.id) },
+            isActive: true,
+            NOT: {
+              id: { in: directlyAssignedStudents.map(s => s.id) }
+            }
+          },
+          select: {
+            id: true,
+            studentId: true,
+            firstName: true,
+            lastName: true,
+            section: true,
+            grade: true,
+            classId: true,
+            armId: true
+          }
+        });
+      }
     }
 
     // Combine both lists - directly assigned students + students in assigned classes
@@ -118,18 +131,11 @@ class TeacherService {
     // Group students by class for better organization
     const studentsByClass = {};
     allStudents.forEach(student => {
-      const classKey = student.class || 'Unassigned';
+      const classKey = student.classId || 'Unassigned';
       if (!studentsByClass[classKey]) {
         studentsByClass[classKey] = [];
       }
-      studentsByClass[classKey].push({
-        id: student.id,
-        studentId: student.studentId,
-        name: `${student.firstName} ${student.lastName}`,
-        section: student.section,
-        grade: student.grade,
-        isMyStudent: myStudents.some(ms => ms.id === student.id)
-      });
+      studentsByClass[classKey].push(student);
     });
 
     // Recent activity (placeholder for future implementation)
@@ -187,9 +193,10 @@ class TeacherService {
         id: student.id,
         studentId: student.studentId,
         name: `${student.firstName} ${student.lastName}`,
-        class: student.class,
+        classId: student.classId,
+      armId: student.armId,
         section: student.section,
-        classDisplay: student.class && student.section ? `${student.class}-${student.section}` : student.class || 'Not Assigned',
+        classDisplay: student.classId ? `Class ID: ${student.classId}` : 'Not Assigned',
         grade: student.grade,
         isDirectlyAssigned: myStudents.some(ms => ms.id === student.id)
       })),
@@ -280,10 +287,24 @@ class TeacherService {
     };
 
     // Get students in teacher's classes (if teacher has classes)
-    const classAssignmentWhere = (teacher.classes && teacher.classes.length > 0) ? {
-      ...whereClause,
-      class: { in: teacher.classes }
-    } : null;
+    let classAssignmentWhere = null;
+    if (teacher.classes && teacher.classes.length > 0) {
+      // Get class records for teacher's assigned classes
+      const assignedClassRecords = await prisma.class.findMany({
+        where: {
+          schoolId: school.id,
+          name: { in: teacher.classes },
+          isActive: true
+        }
+      });
+      
+      if (assignedClassRecords.length > 0) {
+        classAssignmentWhere = {
+          ...whereClause,
+          classId: { in: assignedClassRecords.map(c => c.id) }
+        };
+      }
+    }
 
     // Combine queries
     let studentIds = new Set();
@@ -310,7 +331,17 @@ class TeacherService {
 
     // Add filters
     if (studentClass && studentClass !== 'all') {
-      combinedWhere.class = studentClass;
+      // Convert class name to classId
+      const classRecord = await prisma.class.findFirst({
+        where: {
+          schoolId: school.id,
+          name: studentClass,
+          isActive: true
+        }
+      });
+      if (classRecord) {
+        combinedWhere.classId = classRecord.id;
+      }
     }
     if (section && section !== 'all') {
       combinedWhere.section = section;
@@ -322,7 +353,7 @@ class TeacherService {
       prisma.student.findMany({
         where: combinedWhere,
         orderBy: [
-          { class: 'asc' },
+          { classId: 'asc' },
           { section: 'asc' },
           { firstName: 'asc' }
         ],
@@ -355,9 +386,10 @@ class TeacherService {
       lastName: student.lastName,
       fullName: `${student.firstName} ${student.lastName}`,
       email: student.email,
-      class: student.class,
+      classId: student.classId,
+      armId: student.armId,
       section: student.section,
-      classDisplay: student.class && student.section ? `${student.class}-${student.section}` : student.class || 'Not Assigned',
+      classDisplay: student.classId ? `Class ID: ${student.classId}` : 'Not Assigned',
       grade: student.grade,
       dateOfBirth: student.dateOfBirth,
       age: student.age,

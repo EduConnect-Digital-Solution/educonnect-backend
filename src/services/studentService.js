@@ -18,8 +18,8 @@ const createStudent = async (studentData, schoolId) => {
     firstName,
     lastName,
     email,
-    class: studentClass,
-    section,
+    classId: studentClass,
+    armId,
     rollNumber,
     grade,
     dateOfBirth,
@@ -31,18 +31,26 @@ const createStudent = async (studentData, schoolId) => {
   } = studentData;
 
   // Check if school exists and is active
-  const school = await prisma.school.findFirst({
-    where: { schoolId, isActive: true, isVerified: true }
+  // Find school by either UUID (id) or human-readable schoolId
+  let school = await prisma.school.findFirst({
+    where: { id: schoolId, isActive: true, isVerified: true }
   });
+  
+  // If not found by UUID, try human-readable schoolId
+  if (!school) {
+    school = await prisma.school.findFirst({
+      where: { schoolId: schoolId, isActive: true, isVerified: true }
+    });
+  }
+  
   if (!school) {
     throw new Error('School not found or inactive');
   }
-  const schoolIdUuid = school.id;
 
   // Check if student with same email already exists in this school
   if (email) {
     const existingStudent = await prisma.student.findFirst({
-      where: { email: email.toLowerCase(), schoolId: schoolIdUuid, isActive: true }
+      where: { email: email.toLowerCase(), schoolId: school.id, isActive: true }
     });
 
     if (existingStudent) {
@@ -50,21 +58,21 @@ const createStudent = async (studentData, schoolId) => {
     }
   }
 
-  // Check if roll number is unique within the class and section
+  // Check if roll number is unique within the class and arm
   if (rollNumber) {
     const existingRollNumber = await prisma.student.findFirst({
-      where: { schoolId: schoolIdUuid, class: studentClass, section, rollNumber, isActive: true }
+      where: { schoolId: school.id, classId: studentClass, armId, rollNumber, isActive: true }
     });
 
     if (existingRollNumber) {
-      throw new Error('Roll number already exists in this class and section');
+      throw new Error('Roll number already exists in this class and arm');
     }
   }
 
   // Validate parent IDs if provided
   if (parentIds.length > 0) {
     const parents = await prisma.user.findMany({
-      where: { id: { in: parentIds }, schoolId: schoolIdUuid, role: 'parent', isActive: true }
+      where: { id: { in: parentIds }, schoolId: school.id, role: 'parent', isActive: true }
     });
 
     if (parents.length !== parentIds.length) {
@@ -75,7 +83,7 @@ const createStudent = async (studentData, schoolId) => {
   // Validate teacher IDs if provided
   if (teacherIds.length > 0) {
     const teachers = await prisma.user.findMany({
-      where: { id: { in: teacherIds }, schoolId: schoolIdUuid, role: 'teacher', isActive: true }
+      where: { id: { in: teacherIds }, schoolId: school.id, role: 'teacher', isActive: true }
     });
 
     if (teachers.length !== teacherIds.length) {
@@ -86,12 +94,12 @@ const createStudent = async (studentData, schoolId) => {
   // Create student record
   const student = await prisma.student.create({
     data: {
-      schoolId: schoolIdUuid,
+      schoolId: school.id,
       firstName,
       lastName,
       email: email ? email.toLowerCase() : undefined,
-      class: studentClass,
-      section,
+      classId: studentClass,
+      armId,
       rollNumber,
       grade,
       dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : undefined,
@@ -137,7 +145,8 @@ const createStudent = async (studentData, schoolId) => {
       firstName: student.firstName,
       lastName: student.lastName,
       email: student.email,
-      class: student.class,
+      classId: student.classId,
+      armId: student.armId,
       section: student.section,
       rollNumber: student.rollNumber,
       grade: student.grade,
@@ -162,8 +171,8 @@ const updateStudent = async (studentId, updateData, schoolId) => {
     firstName,
     lastName,
     email,
-    class: studentClass,
-    section,
+    classId: studentClass,
+    armId,
     rollNumber,
     grade,
     dateOfBirth,
@@ -210,11 +219,11 @@ const updateStudent = async (studentId, updateData, schoolId) => {
   }
 
   // Check if roll number is being changed and if new roll number already exists
-  if (rollNumber && (rollNumber !== student.rollNumber || studentClass !== student.class || section !== student.section)) {
+  if (rollNumber && (rollNumber !== student.rollNumber || studentClass !== student.classId || section !== student.section)) {
     const existingRollNumber = await prisma.student.findFirst({
       where: {
         schoolId: schoolIdUuid,
-        class: studentClass || student.class,
+        classId: studentClass || student.classId,
         section: section || student.section,
         rollNumber,
         isActive: true,
@@ -223,14 +232,14 @@ const updateStudent = async (studentId, updateData, schoolId) => {
     });
 
     if (existingRollNumber) {
-      throw new Error('Roll number already exists in this class and section');
+      throw new Error('Roll number already exists in this class and arm');
     }
   }
 
   // Validate parent IDs if provided
   if (parentIds && parentIds.length > 0) {
     const parents = await prisma.user.findMany({
-      where: { id: { in: parentIds }, schoolId: schoolIdUuid, role: 'parent', isActive: true }
+      where: { id: { in: parentIds }, schoolId: school.id, role: 'parent', isActive: true }
     });
 
     if (parents.length !== parentIds.length) {
@@ -241,7 +250,7 @@ const updateStudent = async (studentId, updateData, schoolId) => {
   // Validate teacher IDs if provided
   if (teacherIds && teacherIds.length > 0) {
     const teachers = await prisma.user.findMany({
-      where: { id: { in: teacherIds }, schoolId: schoolIdUuid, role: 'teacher', isActive: true }
+      where: { id: { in: teacherIds }, schoolId: school.id, role: 'teacher', isActive: true }
     });
 
     if (teachers.length !== teacherIds.length) {
@@ -254,8 +263,8 @@ const updateStudent = async (studentId, updateData, schoolId) => {
   if (firstName !== undefined) updateFields.firstName = firstName;
   if (lastName !== undefined) updateFields.lastName = lastName;
   if (email !== undefined) updateFields.email = email ? email.toLowerCase() : undefined;
-  if (studentClass !== undefined) updateFields.class = studentClass;
-  if (section !== undefined) updateFields.section = section;
+  if (studentClass !== undefined) updateFields.classId = studentClass;
+  if (armId !== undefined) updateFields.armId = armId;
   if (rollNumber !== undefined) updateFields.rollNumber = rollNumber;
   if (grade !== undefined) updateFields.grade = grade;
   if (dateOfBirth !== undefined) updateFields.dateOfBirth = dateOfBirth ? new Date(dateOfBirth) : undefined;
@@ -309,7 +318,8 @@ const updateStudent = async (studentId, updateData, schoolId) => {
       firstName: updatedStudent.firstName,
       lastName: updatedStudent.lastName,
       email: updatedStudent.email,
-      class: updatedStudent.class,
+      classId: updatedStudent.classId,
+      armId: updatedStudent.armId,
       section: updatedStudent.section,
       rollNumber: updatedStudent.rollNumber,
       grade: updatedStudent.grade,
@@ -331,11 +341,11 @@ const updateStudent = async (studentId, updateData, schoolId) => {
  * Retrieves students with filtering and pagination
  */
 const getStudents = async (filters, pagination) => {
-  const { schoolId, class: studentClass, section, grade, isActive, search } = filters;
+  const { schoolId, classId, armId, grade, isActive, search } = filters;
   const { page = 1, limit = 10 } = pagination;
 
   // Create cache key based on query parameters
-  const cacheKey = `students:${schoolId}:${studentClass || 'all'}:${section || 'all'}:${grade || 'all'}:${isActive || 'all'}:${page}:${limit}:${search || 'none'}`;
+  const cacheKey = `students:${schoolId}:${classId || 'all'}:${armId || 'all'}:${grade || 'all'}:${isActive || 'all'}:${page}:${limit}:${search || 'none'}`;
   
   // Try cache first
   const cachedData = await CacheService.get('student', cacheKey);
@@ -350,25 +360,25 @@ const getStudents = async (filters, pagination) => {
 
   logger.info(`👨‍🎓 Student list cache MISS for ${cacheKey} - querying database`);
 
-  // Get school UUID
+  // Get school
   // Find school by either UUID (id) or human-readable schoolId
   let school = await prisma.school.findFirst({
-    where: { id: schoolId }
+    where: { id: schoolId, isActive: true, isVerified: true }
   });
-
+  
   // If not found by UUID, try human-readable schoolId
   if (!school) {
     school = await prisma.school.findFirst({
-      where: { schoolId: schoolId }
+      where: { schoolId: schoolId, isActive: true, isVerified: true }
     });
   }
+  
   if (!school) throw new Error('School not found');
-  const schoolIdUuid = school.id;
 
   // Build query
-  const where = { schoolId: schoolIdUuid };
-  if (studentClass) where.class = studentClass;
-  if (section) where.section = section;
+  const where = { schoolId: school.id };
+  if (classId) where.classId = classId;
+  if (armId) where.armId = armId;
   if (grade) where.grade = grade;
   if (isActive !== undefined) where.isActive = isActive;
 
@@ -409,7 +419,8 @@ const getStudents = async (filters, pagination) => {
     lastName: student.lastName,
     fullName: `${student.firstName} ${student.lastName}`,
     email: student.email,
-    class: student.class,
+    classId: student.classId,
+      armId: student.armId,
     section: student.section,
     rollNumber: student.rollNumber,
     grade: student.grade,
@@ -513,7 +524,8 @@ const getStudentById = async (studentId, schoolId) => {
       lastName: student.lastName,
       fullName: `${student.firstName} ${student.lastName}`,
       email: student.email,
-      class: student.class,
+      classId: student.classId,
+      armId: student.armId,
       section: student.section,
       rollNumber: student.rollNumber,
       grade: student.grade,

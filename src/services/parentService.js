@@ -80,7 +80,7 @@ const getParents = async (filters, pagination) => {
                 firstName: true,
                 lastName: true,
                 studentId: true,
-                class: true,
+                classId: true,
                 section: true
               }
             }
@@ -116,7 +116,8 @@ const getParents = async (filters, pagination) => {
         id: ps.student.id,
         name: `${ps.student.firstName} ${ps.student.lastName}`,
         studentId: ps.student.studentId,
-        class: ps.student.class,
+        classId: ps.student.classId,
+        armId: ps.student.armId,
         section: ps.student.section
       }))
   }));
@@ -180,7 +181,7 @@ const getParentById = async (parentId, schoolId) => {
               firstName: true,
               lastName: true,
               studentId: true,
-              class: true,
+              classId: true,
               section: true,
               grade: true,
               dateOfBirth: true,
@@ -219,7 +220,8 @@ const getParentById = async (parentId, schoolId) => {
           id: ps.student.id,
           name: `${ps.student.firstName} ${ps.student.lastName}`,
           studentId: ps.student.studentId,
-          class: ps.student.class,
+          classId: ps.student.classId,
+        armId: ps.student.armId,
           section: ps.student.section,
           grade: ps.student.grade,
           dateOfBirth: ps.student.dateOfBirth,
@@ -305,7 +307,7 @@ const updateParent = async (parentId, updateData, schoolId) => {
               firstName: true,
               lastName: true,
               studentId: true,
-              class: true,
+              classId: true,
               section: true
             }
           }
@@ -338,7 +340,8 @@ const updateParent = async (parentId, updateData, schoolId) => {
           id: ps.student.id,
           name: `${ps.student.firstName} ${ps.student.lastName}`,
           studentId: ps.student.studentId,
-          class: ps.student.class,
+          classId: ps.student.classId,
+        armId: ps.student.armId,
           section: ps.student.section
         }))
     }
@@ -428,7 +431,7 @@ const linkParentToStudent = async (parentId, studentId, schoolId) => {
       id: student.id,
       name: `${student.firstName} ${student.lastName}`,
       studentId: student.studentId,
-      class: student.class,
+      classId: student.classId,
       section: student.section
     },
     message: 'Parent linked to student successfully'
@@ -518,7 +521,7 @@ const unlinkParentFromStudent = async (parentId, studentId, schoolId) => {
       id: student.id,
       name: `${student.firstName} ${student.lastName}`,
       studentId: student.studentId,
-      class: student.class,
+      classId: student.classId,
       section: student.section
     },
     message: 'Parent unlinked from student successfully'
