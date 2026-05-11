@@ -36,8 +36,8 @@ const validateBulkClassCreation = [
     .withMessage('Classes must be a non-empty array'),
   
   body('classes.*.level')
-    .isInt({ min: 1, max: 6 })
-    .withMessage('Level must be a number between 1 and 6'),
+    .isInt({ min: 1, max: 100 })
+    .withMessage('Level must be a number between 1 and 100'),
   
   body('classes.*.name')
     .notEmpty()
@@ -109,8 +109,8 @@ const validateClassUpdate = [
   
   body('level')
     .optional()
-    .isInt({ min: 1, max: 6 })
-    .withMessage('Level must be an integer between 1 and 6'),
+    .isInt({ min: 1, max: 100 })
+    .withMessage('Level must be an integer greater than 1 and less than 100'),
   
   handleValidationErrors
 ];
