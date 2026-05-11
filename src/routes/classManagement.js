@@ -22,7 +22,7 @@ router.use(authenticateToken);
 router.use(requireRole(['admin']));
 
 /**
- * @route   GET /api/admin/classes
+ * @route   GET /api/academic/classes
  * @desc    Get all classes for the school
  * @access  Admin
  */
@@ -31,31 +31,31 @@ router.get('/',
 );
 
 /**
- * @route   POST /api/admin/classes/bulk
- * @desc    Bulk create classes
+ * @route   POST /api/academic/classes
+ * @desc    Create classes for the school
  * @access  Admin
  */
-router.post('/bulk',
+router.post('/',
   validateBulkClassCreation,
   classManagementController.bulkCreateClasses
 );
 
 /**
- * @route   GET /api/admin/classes/:id
- * @desc    Get class details by ID
+ * @route   GET /api/academic/classes/:classId
+ * @desc    Get class by ID
  * @access  Admin
  */
-router.get('/:id',
+router.get('/:classId',
   validateClassId,
   classManagementController.getClassById
 );
 
 /**
- * @route   DELETE /api/admin/classes/:id
- * @desc    Delete a class by ID
+ * @route   DELETE /api/academic/classes/:classId
+ * @desc    Delete class by ID
  * @access  Admin
  */
-router.delete('/:id',
+router.delete('/:classId',
   validateClassId,
   classManagementController.deleteClass
 );

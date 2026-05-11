@@ -43,6 +43,7 @@ const getSchoolClasses = async (req, res) => {
           id: cls.id,
           name: cls.name,
           baseLevel: cls.baseLevel,
+          level: cls.level,
           arm: cls.arm
         }))
       }
@@ -77,19 +78,31 @@ const bulkCreateClasses = async (req, res) => {
     // Validate each class object
     const validationErrors = [];
     const validClasses = [];
-
     for (let i = 0; i < classes.length; i++) {
       const classData = classes[i];
       
-      if (!classData.baseLevel || !classData.name) {
-        validationErrors.push(`Class at index ${i}: baseLevel and name are required`);
+      if (classData.level === undefined || !classData.name) {
+        validationErrors.push(`Class at index ${i}: level and name are required`);
         continue;
       }
+
+      // Validate level is between 1-6
+      if (classData.level < 1 || classData.level > 6) {
+        validationErrors.push(`Class at index ${i}: level must be between 1-6`);
+        continue;
+      }
+
+      // Convert numeric level back to baseLevel for database compatibility
+      const baseLevelMap = {
+        1: 'JSS1', 2: 'JSS2', 3: 'JSS3',
+        4: 'SSS1', 5: 'SSS2', 6: 'SSS3'
+      };
 
       validClasses.push({
         schoolId,
         name: classData.name,
-        baseLevel: classData.baseLevel,
+        baseLevel: baseLevelMap[classData.level],
+        level: classData.level,
         arm: classData.arm || null
       });
     }
@@ -128,7 +141,7 @@ const bulkCreateClasses = async (req, res) => {
       skipDuplicates: false
     });
 
-    // Fetch the created classes with their IDs
+    // Fetch created classes with their IDs
     const newClasses = await prisma.class.findMany({
       where: {
         schoolId,
@@ -140,6 +153,7 @@ const bulkCreateClasses = async (req, res) => {
         id: true,
         name: true,
         baseLevel: true,
+        level: true,
         arm: true
       }
     });
@@ -310,6 +324,7 @@ const getClassById = async (req, res) => {
           id: classData.id,
           name: classData.name,
           baseLevel: classData.baseLevel,
+          level: classData.level,
           arm: classData.arm,
           isActive: classData.isActive,
           createdAt: classData.createdAt,

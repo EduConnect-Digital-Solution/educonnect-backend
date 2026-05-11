@@ -175,6 +175,8 @@ const teacherAssignmentRoutes = require('./routes/teacherAssignment');
 const teacherClassAssignmentRoutes = require('./routes/teacherClassAssignment');
 const classManagementRoutes = require('./routes/classManagement');
 const academicStructureRoutes = require('./routes/academicStructure');
+const academicCalendarRoutes = require('./routes/academicCalendar');
+const studentAssignmentRoutes = require('./routes/studentAssignment');
 
 // System Admin routes
 const systemAdminAuthRoutes = require('./routes/systemAdminAuth');
@@ -197,8 +199,10 @@ app.use('/api/students', studentManagementRoutes);
 app.use('/api/parent-management', parentManagementRoutes);
 app.use('/api/admin', teacherAssignmentRoutes);
 app.use('/api/admin/teachers', teacherClassAssignmentRoutes);
-app.use('/api/admin/classes', classManagementRoutes);
 app.use('/api/academic', academicStructureRoutes);
+app.use('/api/academic/classes', classManagementRoutes);
+app.use('/api/academic', academicCalendarRoutes);
+app.use('/api/academic/students', studentAssignmentRoutes);
 
 // System Admin routes
 app.use('/api/system-admin/auth', systemAdminAuthRoutes);

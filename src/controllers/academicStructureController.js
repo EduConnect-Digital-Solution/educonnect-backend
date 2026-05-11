@@ -1161,6 +1161,229 @@ const removeSubjectsFromArm = async (req, res) => {
   }
 };
 
+/**
+ * Replace subjects for an arm
+ * PUT /api/academic/arms/:armId/subjects/replace
+ */
+const replaceArmSubjects = async (req, res) => {
+  try {
+    const { schoolId } = req.user;
+    const { armId } = req.params;
+    const { subjectIds } = req.body;
+
+    if (!subjectIds || !Array.isArray(subjectIds)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Subject IDs array is required'
+      });
+    }
+
+    // Verify arm belongs to user's school
+    const arm = await prisma.arm.findFirst({
+      where: { id: armId, schoolId },
+      include: {
+        class: {
+          select: { id: true, schoolId: true }
+        }
+      }
+    });
+
+    if (!arm) {
+      return res.status(404).json({
+        success: false,
+        message: 'Arm not found'
+      });
+    }
+
+    // Verify all subjects belong to school
+    const subjects = await prisma.subject.findMany({
+      where: {
+        id: { in: subjectIds },
+        schoolId,
+        isActive: true
+      }
+    });
+
+    if (subjects.length !== subjectIds.length) {
+      return res.status(404).json({
+        success: false,
+        message: 'One or more subjects not found'
+      });
+    }
+
+    // Remove all existing subjects from arm
+    await prisma.armSubject.deleteMany({
+      where: { armId }
+    });
+
+    // Add new subjects to arm
+    const newRelations = subjectIds.map(subjectId => ({
+      armId,
+      subjectId
+    }));
+
+    await prisma.armSubject.createMany({
+      data: newRelations,
+      skipDuplicates: true
+    });
+
+    // Update class-subject relationships
+    for (const subjectId of subjectIds) {
+      await prisma.classSubject.upsert({
+        where: {
+          classId_subjectId: {
+            classId: arm.classId,
+            subjectId
+          }
+        },
+        update: {},
+        create: {
+          classId: arm.classId,
+          subjectId
+        }
+      });
+    }
+
+    // Fetch updated subjects
+    const updatedSubjects = await prisma.subject.findMany({
+      where: { id: { in: subjectIds } },
+      select: { id: true, name: true, code: true, category: true }
+    });
+
+    logger.info(`Replaced subjects for arm ${armId} in school ${schoolId}`);
+
+    res.json({
+      success: true,
+      message: 'Arm subjects replaced successfully',
+      data: {
+        subjects: updatedSubjects,
+        total: updatedSubjects.length
+      }
+    });
+  } catch (error) {
+    logger.error('Error replacing arm subjects:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to replace arm subjects',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+/**
+ * Copy subjects from one arm to another
+ * POST /api/academic/arms/:sourceArmId/subjects/copy/:targetArmId
+ */
+const copyArmSubjects = async (req, res) => {
+  try {
+    const { schoolId } = req.user;
+    const { sourceArmId, targetArmId } = req.params;
+
+    // Verify both arms belong to user's school
+    const [sourceArm, targetArm] = await Promise.all([
+      prisma.arm.findFirst({
+        where: { id: sourceArmId, schoolId },
+        include: {
+          class: {
+            select: { id: true, schoolId: true }
+          }
+        }
+      }),
+      prisma.arm.findFirst({
+        where: { id: targetArmId, schoolId },
+        include: {
+          class: {
+            select: { id: true, schoolId: true }
+          }
+        }
+      })
+    ]);
+
+    if (!sourceArm) {
+      return res.status(404).json({
+        success: false,
+        message: 'Source arm not found'
+      });
+    }
+
+    if (!targetArm) {
+      return res.status(404).json({
+        success: false,
+        message: 'Target arm not found'
+      });
+    }
+
+    // Get subjects from source arm
+    const sourceSubjects = await prisma.armSubject.findMany({
+      where: { armId: sourceArmId },
+      select: { subjectId: true }
+    });
+
+    if (sourceSubjects.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Source arm has no subjects to copy'
+      });
+    }
+
+    const subjectIds = sourceSubjects.map(s => s.subjectId);
+
+    // Add subjects to target arm (skip duplicates)
+    const newRelations = subjectIds.map(subjectId => ({
+      armId: targetArmId,
+      subjectId
+    }));
+
+    await prisma.armSubject.createMany({
+      data: newRelations,
+      skipDuplicates: true
+    });
+
+    // Update class-subject relationships for target arm's class
+    for (const subjectId of subjectIds) {
+      await prisma.classSubject.upsert({
+        where: {
+          classId_subjectId: {
+            classId: targetArm.classId,
+            subjectId
+          }
+        },
+        update: {},
+        create: {
+          classId: targetArm.classId,
+          subjectId
+        }
+      });
+    }
+
+    // Fetch copied subjects
+    const copiedSubjects = await prisma.subject.findMany({
+      where: { id: { in: subjectIds } },
+      select: { id: true, name: true, code: true, category: true }
+    });
+
+    logger.info(`Copied ${copiedSubjects.length} subjects from arm ${sourceArmId} to arm ${targetArmId} in school ${schoolId}`);
+
+    res.json({
+      success: true,
+      message: 'Subjects copied successfully',
+      data: {
+        subjects: copiedSubjects,
+        total: copiedSubjects.length,
+        sourceArmId,
+        targetArmId
+      }
+    });
+  } catch (error) {
+    logger.error('Error copying arm subjects:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to copy arm subjects',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
 module.exports = {
   // Subject management
   createSubjects,
@@ -1178,6 +1401,8 @@ module.exports = {
   // Arm-Subject relationships
   getArmSubjects,
   addSubjectsToArm,
+  replaceArmSubjects,
+  copyArmSubjects,
   
   // Class-Subject relationships
   addSubjectsToClass,

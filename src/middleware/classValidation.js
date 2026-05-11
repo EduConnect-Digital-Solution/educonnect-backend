@@ -35,13 +35,9 @@ const validateBulkClassCreation = [
     .isArray({ min: 1 })
     .withMessage('Classes must be a non-empty array'),
   
-  body('classes.*.baseLevel')
-    .notEmpty()
-    .withMessage('Base level is required')
-    .isLength({ min: 1, max: 50 })
-    .withMessage('Base level must be between 1 and 50 characters')
-    .matches(/^[a-zA-Z0-9\s\-]+$/)
-    .withMessage('Base level can only contain letters, numbers, spaces, and hyphens'),
+  body('classes.*.level')
+    .isInt({ min: 1, max: 6 })
+    .withMessage('Level must be a number between 1 and 6'),
   
   body('classes.*.name')
     .notEmpty()
@@ -51,12 +47,10 @@ const validateBulkClassCreation = [
     .matches(/^[a-zA-Z0-9\s\-]+$/)
     .withMessage('Class name can only contain letters, numbers, spaces, and hyphens'),
   
-  body('classes.*.arm')
+  body('classes.*.description')
     .optional()
-    .isLength({ min: 1, max: 50 })
-    .withMessage('Class arm must be between 1 and 50 characters')
-    .matches(/^[a-zA-Z0-9\s\-]+$/)
-    .withMessage('Class arm can only contain letters, numbers, spaces, and hyphens'),
+    .isLength({ max: 500 })
+    .withMessage('Description must not exceed 500 characters'),
   
   // Custom validation to ensure unique names within the request
   body('classes').custom((classes) => {
@@ -77,7 +71,7 @@ const validateBulkClassCreation = [
  * Validate class ID parameter
  */
 const validateClassId = [
-  param('id')
+  param('classId')
     .isUUID()
     .withMessage('Invalid class ID format'),
   
@@ -88,7 +82,7 @@ const validateClassId = [
  * Validate class update (if needed in future)
  */
 const validateClassUpdate = [
-  param('id')
+  param('classId')
     .isUUID()
     .withMessage('Invalid class ID format'),
   
@@ -112,6 +106,11 @@ const validateClassUpdate = [
     .withMessage('Class arm must be between 1 and 50 characters')
     .matches(/^[a-zA-Z0-9\s\-]+$/)
     .withMessage('Class arm can only contain letters, numbers, spaces, and hyphens'),
+  
+  body('level')
+    .optional()
+    .isInt({ min: 1, max: 6 })
+    .withMessage('Level must be an integer between 1 and 6'),
   
   handleValidationErrors
 ];

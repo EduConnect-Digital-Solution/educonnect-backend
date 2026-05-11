@@ -677,7 +677,7 @@
                 "value": "Bearer {{accessToken}}"
               }
             ],
-            "url": "{{baseUrl}}/api/admin/classes"
+            "url": "{{baseUrl}}/api/academic/classes"
           },
           "response": []
         },
@@ -691,12 +691,12 @@
                 "value": "Bearer {{accessToken}}"
               }
             ],
-            "url": "{{baseUrl}}/api/admin/classes/{{classId}}"
+            "url": "{{baseUrl}}/api/academic/classes/{{classId}}"
           },
           "response": []
         },
         {
-          "name": "Bulk Create Classes",
+          "name": "Create Classes",
           "request": {
             "method": "POST",
             "header": [
@@ -711,14 +711,14 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"classes\": [\n    {\n      \"baseLevel\": \"SS 1\",\n      \"arm\": \"Science\",\n      \"name\": \"SS 1 Science\"\n    },\n    {\n      \"baseLevel\": \"SS 1\",\n      \"arm\": \"Arts\",\n      \"name\": \"SS 1 Arts\"\n    },\n    {\n      \"baseLevel\": \"SS 2\",\n      \"arm\": \"Science\",\n      \"name\": \"SS 2 Science\"\n    },\n    {\n      \"baseLevel\": \"SS 2\",\n      \"arm\": \"Arts\",\n      \"name\": \"SS 2 Arts\"\n    },\n    {\n      \"baseLevel\": \"SS 3\",\n      \"arm\": \"Science\",\n      \"name\": \"SS 3 Science\"\n    },\n    {\n      \"baseLevel\": \"SS 3\",\n      \"arm\": \"Arts\",\n      \"name\": \"SS 3 Arts\"\n    }\n  ]\n}",
+              "raw": "{\n  \"classes\": [\n    {\n      \"name\": \"JSS 1 Science\",\n      \"level\": 1,\n      \"description\": \"Junior Secondary School Year 1 Science Class\"\n    },\n    {\n      \"name\": \"JSS 1 Arts\",\n      \"level\": 1,\n      \"description\": \"Junior Secondary School Year 1 Arts Class\"\n    },\n    {\n      \"name\": \"SSS 2 Science\",\n      \"level\": 5,\n      \"description\": \"Senior Secondary School Year 2 Science Class\"\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
                 }
               }
             },
-            "url": "{{baseUrl}}/api/admin/classes/bulk"
+            "url": "{{baseUrl}}/api/academic/classes"
           },
           "response": []
         },
@@ -732,7 +732,7 @@
                 "value": "Bearer {{accessToken}}"
               }
             ],
-            "url": "{{baseUrl}}/api/admin/classes/{{classId}}"
+            "url": "{{baseUrl}}/api/academic/classes/{{classId}}"
           },
           "response": []
         }
@@ -1048,6 +1048,261 @@
               }
             },
             "url": "{{baseUrl}}/api/academic/arms/{{armId}}/subjects"
+          },
+          "response": []
+        },
+        {
+          "name": "Replace Arm Subjects",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subjectIds\": [\"{{subjectId1}}\", \"{{subjectId2}}\", \"{{subjectId3}}\"]\n}"
+            },
+            "url": "{{baseUrl}}/api/academic/arms/{{armId}}/subjects/replace"
+          },
+          "response": []
+        },
+        {
+          "name": "Copy Arm Subjects",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subjectIds\": [\"{{subjectId1}}\", \"{{subjectId2}}\", \"{{subjectId3}}\"]\n}"
+            },
+            "url": "{{baseUrl}}/api/academic/arms/{{sourceArmId}}/subjects/copy/{{targetArmId}}"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "03.7 - Academic Calendar",
+      "item": [
+        {
+          "name": "Create Academic Years",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"years\": [\n    {\n      \"year\": \"2023-2024\",\n      \"name\": \"2023/2024 Academic Year\",\n      \"startDate\": \"2023-09-01T00:00:00.000Z\",\n      \"endDate\": \"2024-07-31T23:59:59.999Z\",\n      \"isCurrent\": true\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/admin/academic/years"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Academic Years",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/academic/years"
+          },
+          "response": []
+        },
+        {
+          "name": "Set Current Academic Year",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/academic/years/{{yearId}}/current"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Academic Terms",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"terms\": [\n    {\n      \"academicYearId\": \"{{academicYearId}}\",\n      \"term\": \"First_Term\",\n      \"name\": \"First Term\",\n      \"startDate\": \"2023-09-01T00:00:00.000Z\",\n      \"endDate\": \"2023-12-15T23:59:59.999Z\",\n      \"isCurrent\": true\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/admin/academic/terms"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Academic Terms",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/academic/terms?academicYearId={{academicYearId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Set Current Academic Term",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/academic/terms/{{termId}}/current"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Current Academic Period",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/academic/current"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "03.8 - Student Assignment",
+      "item": [
+        {
+          "name": "Bulk Assign Students to Classes",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"assignments\": [\n    {\n      \"studentId\": \"{{studentId1}}\",\n      \"classId\": \"{{classId1}}\",\n      \"armId\": \"{{armId1}}\"\n    },\n    {\n      \"studentId\": \"{{studentId2}}\",\n      \"classId\": \"{{classId2}}\",\n      \"armId\": \"{{armId2}}\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/academic/students/assign"
+          },
+          "response": []
+        },
+        {
+          "name": "Bulk Unassign Students from Classes",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"studentIds\": [\"{{studentId1}}\", \"{{studentId2}}\"]\n}"
+            },
+            "url": "{{baseUrl}}/api/academic/students/unassign"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Class Population Statistics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/academic/classes/population?classId={{classId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Unassigned Students",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/academic/students/unassigned?page={{page}}&limit={{limit}}"
           },
           "response": []
         }
