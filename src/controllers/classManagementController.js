@@ -87,15 +87,17 @@ const bulkCreateClasses = async (req, res) => {
       }
 
       // Validate level is between 1-6
-      if (classData.level < 1 || classData.level > 6) {
-        validationErrors.push(`Class at index ${i}: level must be between 1-6`);
+      if (classData.level < 1 || classData.level > 100) {
+        validationErrors.push(`Class at index ${i}: level must be between 1-100`);
         continue;
       }
 
       // Convert numeric level back to baseLevel for database compatibility
       const baseLevelMap = {
-        1: 'JSS1', 2: 'JSS2', 3: 'JSS3',
-        4: 'SSS1', 5: 'SSS2', 6: 'SSS3'
+        1: 'Crèche', 2: 'Pre-Nursery', 3: 'Nursery 1', 4: 'Nursery 2',
+        5: 'Primary 1', 6: 'Primary 2', 7: 'Primary 3', 8: 'Primary 4',
+        9: 'Primary 5', 10: 'Primary 6', 11: 'JSS 1', 12: 'JSS 2',
+        13: 'JSS 3', 14: 'SS 1', 15: 'SS 2', 16: 'SS 3'
       };
 
       validClasses.push({
