@@ -17,6 +17,8 @@ const {
   validateArmDeletion,
   validateArmSubjectAddition,
   validateClassSubjectAddition,
+  validateArmSubjectReplacement,
+  validateArmSubjectCopy,
   validateUUID
 } = require('../middleware/academicValidation');
 const { authenticateToken } = require('../middleware/auth');
@@ -146,20 +148,24 @@ router.post('/arms/:armId/subjects',
 
 /**
  * @route   POST /api/academic/classes/:classId/subjects
- * @desc    Add subjects to class (all arms)
+ * @desc    Add subjects to class
  * @access  Admin
  */
 router.post('/classes/:classId/subjects',
+  authenticateToken,
+  requireRole(['admin']),
   validateClassSubjectAddition,
   academicStructureController.addSubjectsToClass
 );
 
 /**
  * @route   DELETE /api/academic/classes/:classId/subjects
- * @desc    Remove subjects from class (all arms)
+ * @desc    Remove subjects from class
  * @access  Admin
  */
 router.delete('/classes/:classId/subjects',
+  authenticateToken,
+  requireRole(['admin']),
   validateClassSubjectAddition,
   academicStructureController.removeSubjectsFromClass
 );
@@ -172,6 +178,26 @@ router.delete('/classes/:classId/subjects',
 router.delete('/arms/:armId/subjects',
   validateArmSubjectAddition,
   academicStructureController.removeSubjectsFromArm
+);
+
+/**
+ * @route   PUT /api/academic/arms/:armId/subjects/replace
+ * @desc    Replace subjects for an arm
+ * @access  Admin
+ */
+router.put('/arms/:armId/subjects/replace',
+  validateArmSubjectReplacement,
+  academicStructureController.replaceArmSubjects
+);
+
+/**
+ * @route   POST /api/academic/arms/:sourceArmId/subjects/copy/:targetArmId
+ * @desc    Copy subjects from one arm to another
+ * @access  Admin
+ */
+router.post('/arms/:sourceArmId/subjects/copy/:targetArmId',
+  validateArmSubjectCopy,
+  academicStructureController.copyArmSubjects
 );
 
 module.exports = router;

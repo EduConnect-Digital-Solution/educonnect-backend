@@ -243,6 +243,20 @@ class ParentDashboardService {
     const children = await prisma.student.findMany({
       where: whereClause,
       include: {
+        classRef: {
+          select: {
+            id: true,
+            name: true,
+            baseLevel: true,
+            level: true
+          }
+        },
+        arm: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
         studentOf: {
           include: {
             teacher: true
@@ -255,8 +269,8 @@ class ParentDashboardService {
         }
       },
       orderBy: [
-        { classId: 'asc' },
-        { section: 'asc' },
+        { classRef: { baseLevel: 'asc' } },
+        { arm: { name: 'asc' } },
         { firstName: 'asc' }
       ]
     });
@@ -286,8 +300,14 @@ class ParentDashboardService {
         fullName: `${child.firstName} ${child.lastName}`,
         email: child.email,
         classId: child.classId,
-        section: child.section,
-        classDisplay: child.classId && child.section ? `Class ID: ${child.classId}-${child.section}` : child.classId ? `Class ID: ${child.classId}` : 'Not Assigned',
+        armId: child.armId,
+        class: child.classRef,
+        arm: child.arm,
+        classDisplay: child.classRef && child.arm 
+          ? `${child.classRef.name} - ${child.arm.name}` 
+          : child.classRef 
+          ? child.classRef.name 
+          : 'Not Assigned',
         rollNumber: child.rollNumber,
         grade: child.grade,
         dateOfBirth: child.dateOfBirth,

@@ -259,15 +259,46 @@ const validateClassSubjectAddition = [
     .withMessage('Invalid class ID format'),
   
   body('subjectIds')
-    .notEmpty()
-    .withMessage('Subject IDs are required')
-    .custom((value) => {
-      // Accept both string and array
-      if (typeof value === 'string' || Array.isArray(value)) {
-        return true;
-      }
-      throw new Error('Subject IDs must be a string or array');
-    }),
+    .isArray({ min: 1 })
+    .withMessage('Subject IDs must be a non-empty array'),
+  
+  body('subjectIds.*')
+    .isUUID()
+    .withMessage('Each subject ID must be a valid UUID'),
+  
+  handleValidationErrors
+];
+
+/**
+ * Validate arm subject replacement
+ */
+const validateArmSubjectReplacement = [
+  param('armId')
+    .isUUID()
+    .withMessage('Invalid arm ID format'),
+  
+  body('subjectIds')
+    .isArray({ min: 0 })
+    .withMessage('Subject IDs must be an array'),
+  
+  body('subjectIds.*')
+    .isUUID()
+    .withMessage('Each subject ID must be a valid UUID'),
+  
+  handleValidationErrors
+];
+
+/**
+ * Validate arm subject copying
+ */
+const validateArmSubjectCopy = [
+  param('sourceArmId')
+    .isUUID()
+    .withMessage('Invalid source arm ID format'),
+  
+  param('targetArmId')
+    .isUUID()
+    .withMessage('Invalid target arm ID format'),
   
   handleValidationErrors
 ];
@@ -297,6 +328,8 @@ module.exports = {
   // Arm-Subject validations
   validateArmSubjectAddition,
   validateClassSubjectAddition,
+  validateArmSubjectReplacement,
+  validateArmSubjectCopy,
   
   // Common validations
   validateUUID,
