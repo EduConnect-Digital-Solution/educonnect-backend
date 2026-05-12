@@ -39,7 +39,7 @@ const getCookieConfig = (req) => {
     config = {
       httpOnly: true,
       secure: true,
-      sameSite: 'lax',           // Same-origin can use lax
+      sameSite: 'none',           // Same-origin can use lax
       maxAge: 7 * 24 * 60 * 60 * 1000,
       path: '/'
     };
@@ -48,7 +48,7 @@ const getCookieConfig = (req) => {
     config = {
       httpOnly: true,
       secure: false,             // Can't use secure: true without HTTPS
-      sameSite: 'lax',          // Best we can do without HTTPS
+      sameSite: 'none',          // Best we can do without HTTPS
       maxAge: 7 * 24 * 60 * 60 * 1000,
       path: '/'
     };
