@@ -814,26 +814,42 @@ const refreshToken = async (refreshTokenValue, source = 'body') => {
     throw new Error('Refresh token is required');
   }
 
+  console.log('Auth Service: Refreshing token with value:', refreshTokenValue?.substring(0, 20) + '...');
+
   // Verify refresh token
   const decoded = verifyRefreshTokenFn(refreshTokenValue);
+  console.log('Auth Service: Token verification result:', !!decoded);
+  
+  if (!decoded) {
+    console.log('Auth Service: Token verification failed - invalid or expired');
+    throw new Error('Invalid refresh token');
+  }
 
   // Find the user
+  console.log('Auth Service: Looking up user with ID:', decoded.userId);
   const user = await prisma.user.findUnique({
     where: { id: decoded.userId },
     select: { id: true, schoolId: true, email: true, firstName: true, lastName: true, role: true, isActive: true }
   });
   
+  console.log('Auth Service: User lookup result:', !!user, 'isActive:', user?.isActive);
+  
   if (!user || !user.isActive) {
+    console.log('Auth Service: User lookup failed - throwing Invalid refresh token');
     throw new Error('Invalid refresh token');
   }
 
   // Find the school
+  console.log('Auth Service: Looking up school with ID:', decoded.schoolId);
   const school = await prisma.school.findFirst({
-    where: { schoolId: decoded.schoolId },
-    select: { schoolId: true, isActive: true }
+    where: { id: decoded.schoolId },
+    select: { id: true, isActive: true }
   });
   
+  console.log('Auth Service: School lookup result:', !!school, 'isActive:', school?.isActive);
+  
   if (!school || !school.isActive) {
+    console.log('Auth Service: School lookup failed - throwing Invalid refresh token');
     throw new Error('Invalid refresh token');
   }
 
