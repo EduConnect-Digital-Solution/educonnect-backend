@@ -83,7 +83,7 @@ router.post('/logout',
  */
 router.get('/me',
   rateLimiter.generalLimiter,
-  authenticateToken,
+  authenticateRefreshToken,
   userAuthController.getMe
 );
 
