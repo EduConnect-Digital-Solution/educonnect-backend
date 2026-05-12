@@ -1,6 +1,7 @@
 # Academic Structure API Endpoints
 **Classes, Subjects, Arms, Students, Class Assignments, Academic Calendar, Attendance, and Fees**  
-**Generated:** April 26, 2026
+**Generated:** April 26, 2026  
+**Last Updated:** May 12, 2026 - Current implementation status
 
 ---
 
@@ -30,13 +31,14 @@ POST /api/academic/classes
 {
   "classes": [
     {
-      "name": "string (required)",        // e.g., "JSS1", "SSS2"
-      "level": "number (required)",    // 1-6 (JSS1=1, JSS2=2, JSS3=3, SSS1=4, SSS2=5, SSS3=6)
-      "description": "string (optional)"
+      "name": "string (required)",        // e.g., "Crèche", "Primary 1", "SS 3"
+      "level": "number (required)",    // 1-100 (School-defined levels)
+      "arm": "string (optional)"       // e.g., "A", "B", "Science"
     }
   ]
 }
 ```
+**✅ Status:** **IMPLEMENTED** - Supports flexible class levels (1-100) as provided by schools
 **Response (201):**
 ```json
 {
@@ -65,15 +67,16 @@ GET /api/academic/classes
       {
         "_id": "69ed...",
         "schoolId": "SUN8935",
-        "name": "JSS1",
+        "name": "Crèche",
         "level": 1,
         "isActive": true
       }
     ],
-    "total": 4
+    "total": 16
   }
 }
 ```
+**✅ Status:** **IMPLEMENTED** - Returns all classes for school with current levels
 
 ### Get Class by ID
 ```http
@@ -103,17 +106,11 @@ PUT /api/academic/classes/:classId
 ```json
 {
   "name": "JSS1 Updated",
-  "level": 1
+  "level": 1,
+  "arm": "A"  // Optional
 }
 ```
-**Response (200):**
-```json
-{
-  "success": true,
-  "message": "Class updated successfully",
-  "data": {...}
-}
-```
+**✅ Status:** **IMPLEMENTED** - Class update functionality exists
 
 ### Delete Classes
 ```http
@@ -805,37 +802,24 @@ Academic years and terms (3-term structure).
 
 ### Create Academic Year
 ```http
-POST /api/academic/calendar/years
+POST /api/admin/academic/years
 ```
 **Access:** Admin  
 **Body:**
 ```json
 {
-  "startYear": 2025,
-  "endYear": 2026,
+  "year": "2025-2026",           // Academic year identifier
+  "name": "2025/2026 Academic Year", // Optional display name
+  "startDate": "2025-09-01",      // ISO date format
+  "endDate": "2026-07-31",        // ISO date format
   "isCurrent": true
 }
 ```
-**Response (201):**
-```json
-{
-  "success": true,
-  "message": "Academic year created successfully",
-  "data": {
-    "academicYear": {
-      "_id": "70abc...",
-      "schoolId": "SUN8935",
-      "startYear": 2025,
-      "endYear": 2026,
-      "isCurrent": true
-    }
-  }
-}
-```
+**✅ Status:** **IMPLEMENTED** - Database tables exist, endpoints functional
 
 ### List Academic Years
 ```http
-GET /api/academic/calendar/years
+GET /api/academic/years
 ```
 **Access:** Authenticated  
 **Response (200):**
@@ -848,10 +832,11 @@ GET /api/academic/calendar/years
   }
 }
 ```
+**✅ Status:** **IMPLEMENTED** - Database tables exist, endpoints functional
 
 ### Get Current Academic Year
 ```http
-GET /api/academic/calendar/years/current
+GET /api/academic/current
 ```
 **Access:** Authenticated  
 **Response (200):**
@@ -863,10 +848,11 @@ GET /api/academic/calendar/years/current
   }
 }
 ```
+**✅ Status:** **IMPLEMENTED** - Returns current academic period
 
 ### Set Current Academic Year
 ```http
-PUT /api/academic/calendar/years/:yearId/current
+PUT /api/admin/academic/years/:yearId/current
 ```
 **Access:** Admin  
 **Response (200):**
@@ -877,6 +863,7 @@ PUT /api/academic/calendar/years/:yearId/current
   "data": {...}
 }
 ```
+**✅ Status:** **IMPLEMENTED** - Sets current academic year
 
 ### Delete Academic Year
 ```http
@@ -893,7 +880,7 @@ DELETE /api/academic/calendar/years/:yearId
 
 ### Create Term
 ```http
-POST /api/academic/calendar/terms
+POST /api/admin/academic/terms
 ```
 **Access:** Admin  
 **Body:**
@@ -917,10 +904,11 @@ POST /api/academic/calendar/terms
   }
 }
 ```
+**✅ Status:** **IMPLEMENTED** - Term creation functional
 
 ### List Terms
 ```http
-GET /api/academic/calendar/terms
+GET /api/academic/terms
 ```
 **Access:** Authenticated  
 **Query:** `?yearId=70abc...`  
@@ -934,6 +922,7 @@ GET /api/academic/calendar/terms
   }
 }
 ```
+**✅ Status:** **IMPLEMENTED** - Term listing functional
 
 ### Get Terms by Academic Year
 ```http
@@ -963,7 +952,7 @@ GET /api/academic/calendar/years/:yearId/terms
 
 ### Get Current Term
 ```http
-GET /api/academic/calendar/terms/current
+GET /api/academic/current
 ```
 **Access:** Authenticated  
 **Response (200):**
@@ -975,10 +964,11 @@ GET /api/academic/calendar/terms/current
   }
 }
 ```
+**✅ Status:** **IMPLEMENTED** - Part of current academic period endpoint
 
 ### Set Current Term
 ```http
-PUT /api/academic/calendar/terms/:termId/current
+PUT /api/admin/academic/terms/:termId/current
 ```
 **Access:** Admin  
 **Response (200):**
@@ -989,6 +979,7 @@ PUT /api/academic/calendar/terms/:termId/current
   "data": {...}
 }
 ```
+**✅ Status:** **IMPLEMENTED** - Sets current term
 
 ### Update Term
 ```http

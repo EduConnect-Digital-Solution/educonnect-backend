@@ -28,11 +28,60 @@ const getSchoolProfile = catchAsync(async (req, res) => {
 
     const result = await schoolService.getSchoolProfile(targetSchoolId);
 
+    // Get current academic year and term
+    const currentAcademicYear = await prisma.academicYear.findFirst({
+      where: {
+        schoolId: targetSchoolId,
+        isCurrent: true
+      },
+      select: {
+        id: true,
+        year: true,
+        name: true,
+        startDate: true,
+        endDate: true,
+        isActive: true,
+        isCurrent: true
+      }
+    });
+
+    const currentTerm = await prisma.academicTerm.findFirst({
+      where: {
+        academicYearId: currentAcademicYear?.id,
+        isCurrent: true
+      },
+      select: {
+        id: true,
+        name: true,
+        academicYearId: true,
+        startDate: true,
+        endDate: true,
+        isCurrent: true
+      }
+    });
+
     res.status(200).json({
       success: true,
       message: 'School profile retrieved successfully',
       data: {
         school: result.school,
+        currentAcademicYear: currentAcademicYear ? {
+          id: currentAcademicYear.id,
+          name: currentAcademicYear.name,
+          startDate: currentAcademicYear.startDate.toISOString().split('T')[0],
+          endDate: currentAcademicYear.endDate.toISOString().split('T')[0],
+          expectedEndDate: currentAcademicYear.endDate.toISOString(),
+          isActive: currentAcademicYear.isActive
+        } : null,
+        currentTerm: currentTerm ? {
+          id: currentTerm.id,
+          name: currentTerm.name,
+          academicYearId: currentTerm.academicYearId,
+          startDate: currentTerm.startDate.toISOString().split('T')[0],
+          endDate: currentTerm.endDate.toISOString().split('T')[0],
+          expectedEndDate: currentTerm.endDate.toISOString(),
+          isCurrent: currentTerm.isCurrent
+        } : null,
         adminUser: result.admin,
         statistics: result.statistics
       }
