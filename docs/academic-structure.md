@@ -1,7 +1,7 @@
 # Academic Structure API Endpoints
-**Classes, Subjects, Arms, Students, Class Assignments, Academic Calendar, Attendance, and Fees**  
-**Generated:** April 26, 2026  
-**Last Updated:** May 12, 2026 - Current implementation status
+**Classes, Subjects, Arms, Students, Class Assignments, Academic Calendar, Attendance, and Fees**
+**Generated:** April 26, 2026
+**Last Updated:** May 16, 2026 - Corrected to match actual implementation
 
 ---
 
@@ -13,8 +13,8 @@
 5. [Student Management](#student-management)
 6. [Student Class Assignment](#student-class-assignment)
 7. [Academic Calendar](#academic-calendar)
-8. [Attendance](#attendance)
-9. [Fees](#fees)
+8. [Attendance](#attendance) *(Not Implemented)*
+9. [Fees](#fees) *(Not Implemented)*
 10. [Unified Request Format](#unified-request-format)
 
 ---
@@ -25,7 +25,7 @@
 ```http
 POST /api/academic/classes
 ```
-**Access:** Admin  
+**Access:** Admin
 **Body:**
 ```json
 {
@@ -33,7 +33,7 @@ POST /api/academic/classes
     {
       "name": "string (required)",        // e.g., "Crèche", "Primary 1", "SS 3"
       "level": "number (required)",    // 1-100 (School-defined levels)
-      "arm": "string (optional)"       // e.g., "A", "B", "Science"
+      "description": "string (optional)"   // e.g., "Junior Secondary School Year 1"
     }
   ]
 }
@@ -56,8 +56,8 @@ POST /api/academic/classes
 ```http
 GET /api/academic/classes
 ```
-**Access:** Authenticated  
-**Query:** `?schoolId=SUN8935` (system admin only)  
+**Access:** Admin
+**Query:** `?schoolId=SUN8935` (system admin only)
 **Response (200):**
 ```json
 {
@@ -76,13 +76,13 @@ GET /api/academic/classes
   }
 }
 ```
-**✅ Status:** **IMPLEMENTED** - Returns all classes for school with current levels
+**✅ Status:** **IMPLEMENTED** - Returns all classes for school
 
 ### Get Class by ID
 ```http
 GET /api/academic/classes/:classId
 ```
-**Access:** Authenticated  
+**Access:** Admin
 **Response (200):**
 ```json
 {
@@ -101,43 +101,33 @@ GET /api/academic/classes/:classId
 ```http
 PUT /api/academic/classes/:classId
 ```
-**Access:** Admin  
+**Access:** Admin
 **Body:**
 ```json
 {
   "name": "JSS1 Updated",
-  "level": 1,
-  "arm": "A"  // Optional
+  "level": 1
 }
 ```
-**✅ Status:** **IMPLEMENTED** - Class update functionality exists
+**❌ Status:** **NOT IMPLEMENTED** - Route does not exist in classManagement.js
 
-### Delete Classes
+### Delete Class
 ```http
-DELETE /api/academic/classes
+DELETE /api/academic/classes/:classId
 ```
-**Access:** Admin  
-**Body (Unified):**
-```json
-{
-  "classIds": "69ed..."
-}
-// or
-{
-  "classIds": ["69ed...", "69ed..."]
-}
-```
+**Access:** Admin
 **Response (200):**
 ```json
 {
   "success": true,
-  "message": "2 class(es) deleted successfully",
+  "message": "Class deleted successfully",
   "data": {
-    "deleted": 2,
+    "deleted": 1,
     "errors": []
   }
 }
 ```
+**✅ Status:** **IMPLEMENTED** - Deletes single class by ID
 
 ---
 
@@ -147,7 +137,7 @@ DELETE /api/academic/classes
 ```http
 POST /api/academic/subjects
 ```
-**Access:** Admin  
+**Access:** Admin
 **Body:**
 ```json
 {
@@ -178,7 +168,7 @@ POST /api/academic/subjects
 ```http
 GET /api/academic/subjects
 ```
-**Access:** Authenticated  
+**Access:** Authenticated
 **Response (200):**
 ```json
 {
@@ -194,7 +184,7 @@ GET /api/academic/subjects
 ```http
 GET /api/academic/classes/:classId/subjects
 ```
-**Access:** Authenticated  
+**Access:** Authenticated
 **Response (200):**
 ```json
 {
@@ -210,20 +200,14 @@ GET /api/academic/classes/:classId/subjects
 ```http
 POST /api/academic/classes/:classId/subjects
 ```
-**Access:** Admin  
-**Body (Unified - Single):**
-```json
-{
-  "subjectIds": "65abc123..."
-}
-```
+**Access:** Admin
 **Body (Unified - Array):**
 ```json
 {
   "subjectIds": ["65abc123...", "65abc456..."]
 }
 ```
-**Effect:** Adds subjects to ALL arms under the class  
+**Effect:** Adds subjects to ALL arms under the class
 **Response (200):**
 ```json
 {
@@ -237,11 +221,31 @@ POST /api/academic/classes/:classId/subjects
 }
 ```
 
+### Remove Subjects from Class
+```http
+DELETE /api/academic/classes/:classId/subjects
+```
+**Access:** Admin
+**Body:**
+```json
+{
+  "subjectIds": ["65abc123...", "65abc456..."]
+}
+```
+**Response (200):**
+```json
+{
+  "success": true,
+  "message": "Subject(s) removed from class",
+  "data": {...}
+}
+```
+
 ### Update Subject
 ```http
 PUT /api/academic/subjects/:subjectId
 ```
-**Access:** Admin  
+**Access:** Admin
 **Body:**
 ```json
 {
@@ -262,7 +266,7 @@ PUT /api/academic/subjects/:subjectId
 ```http
 DELETE /api/academic/subjects
 ```
-**Access:** Admin  
+**Access:** Admin
 **Body (Unified):**
 ```json
 {
@@ -293,7 +297,7 @@ DELETE /api/academic/subjects
 ```http
 POST /api/academic/arms
 ```
-**Access:** Admin  
+**Access:** Admin
 **Body:**
 ```json
 {
@@ -323,7 +327,7 @@ POST /api/academic/arms
 ```http
 GET /api/academic/classes/:classId/arms
 ```
-**Access:** Authenticated  
+**Access:** Authenticated
 **Response (200):**
 ```json
 {
@@ -348,7 +352,7 @@ GET /api/academic/classes/:classId/arms
 ```http
 PUT /api/academic/arms/:armId
 ```
-**Access:** Admin  
+**Access:** Admin
 **Body:**
 ```json
 {
@@ -369,7 +373,7 @@ PUT /api/academic/arms/:armId
 ```http
 DELETE /api/academic/arms
 ```
-**Access:** Admin  
+**Access:** Admin
 **Body (Unified):**
 ```json
 {
@@ -404,7 +408,7 @@ Each Arm (class section) can have its own set of subjects. This is useful when:
 ```http
 GET /api/academic/arms/:armId/subjects
 ```
-**Access:** Authenticated  
+**Access:** Authenticated
 **Response (200):**
 ```json
 {
@@ -427,13 +431,7 @@ GET /api/academic/arms/:armId/subjects
 ```http
 POST /api/academic/arms/:armId/subjects
 ```
-**Access:** Admin  
-**Body (Unified - Single):**
-```json
-{
-  "subjectIds": "65abc123..."
-}
-```
+**Access:** Admin
 **Body (Unified - Array):**
 ```json
 {
@@ -455,13 +453,33 @@ POST /api/academic/arms/:armId/subjects
 }
 ```
 
+### Remove Subjects from Arm
+```http
+DELETE /api/academic/arms/:armId/subjects
+```
+**Access:** Admin
+**Body:**
+```json
+{
+  "subjectIds": ["65abc123...", "65abc456..."]
+}
+```
+**Response (200):**
+```json
+{
+  "success": true,
+  "message": "Subject(s) removed from arm",
+  "data": {...}
+}
+```
+
 ### Replace Subjects on Arm
 Replaces all existing subjects on the arm with new ones.
 
 ```http
-POST /api/academic/arms/:armId/subjects/replace
+PUT /api/academic/arms/:armId/subjects/replace
 ```
-**Access:** Admin  
+**Access:** Admin
 **Body:**
 ```json
 {
@@ -482,38 +500,30 @@ POST /api/academic/arms/:armId/subjects/replace
 }
 ```
 
-### Copy Subjects to Arms
-Copies subjects from a source arm to one or more target arms. Useful for JSS where all arms share the same subjects.
+### Copy Subjects to Arm
+Copies subjects from a source arm to a target arm. Useful for JSS where all arms share the same subjects.
 
 ```http
-POST /api/academic/arms/:sourceArmId/subjects/copy
+POST /api/academic/arms/:sourceArmId/subjects/copy/:targetArmId
 ```
-**Access:** Admin  
-**Body (Unified - Single Target):**
+**Access:** Admin
+**Body:**
 ```json
 {
-  "targetArmIds": "69ed..."
-}
-```
-**Body (Unified - Array Targets):**
-```json
-{
-  "targetArmIds": ["69ed...", "69ed...", "69ed..."]
+  "subjectIds": ["65abc123...", "65abc456...", "65abc789..."]
 }
 ```
 **Response (200):**
 ```json
 {
   "success": true,
-  "message": "Copied 5 subjects to 3 arms",
+  "message": "Copied 5 subjects to arm",
   "data": {
     "sourceArmId": "69ed...",
     "sourceArmName": "A",
+    "targetArmId": "69ed...",
+    "targetArmName": "B",
     "subjectsCopied": 5,
-    "results": [
-      { "targetArmId": "69ed...", "armName": "B", "subjectsCount": 5 },
-      { "targetArmId": "69ed...", "armName": "C", "subjectsCount": 5 }
-    ],
     "errors": []
   }
 }
@@ -527,26 +537,25 @@ POST /api/academic/arms/:sourceArmId/subjects/copy
 ```http
 POST /api/students
 ```
-**Access:** Admin  
+**Access:** Admin
 **Body:**
 ```json
 {
   "firstName": "string (required)",
   "lastName": "string (required)",
   "email": "string (optional)",
-  "classId": "string (optional)",        // Links to Class model
-  "section": "string (optional)",        // Legacy field
+  "class": "string (optional)",           // e.g., "JSS1"
+  "section": "string (optional)",         // e.g., "A"
   "rollNumber": "string (optional)",
   "grade": "string (optional)",
   "dateOfBirth": "string (optional)",  // YYYY-MM-DD
   "gender": "male | female (optional)",
   "address": "string (optional)",
   "phone": "string (optional)",
-  "parentIds": ["string"] (optional)", // Array of parent user IDs
+  "parentIds": ["string"] (optional)",
   "teacherIds": ["string"] (optional)"
 }
 ```
-**Note:** When `classId` is provided, the student is automatically linked to that class.  
 **Response (201):**
 ```json
 {
@@ -562,9 +571,10 @@ POST /api/students
 ```http
 GET /api/students
 ```
-**Access:** Admin/Teacher  
+**Access:** Admin/Teacher
 **Query:**
-- `?classId=...` - Filter by class
+- `?class=...` - Filter by class name (e.g., JSS1)
+- `?section=...` - Filter by section (e.g., A)
 - `?search=...` - Search by name
 - `?page=1&limit=20` - Pagination
 
@@ -585,7 +595,7 @@ GET /api/students
 ```http
 GET /api/students/:studentId
 ```
-**Access:** Admin/Teacher/Parent  
+**Access:** Admin/Teacher/Parent
 **Response (200):**
 ```json
 {
@@ -596,7 +606,6 @@ GET /api/students/:studentId
     "firstName": "John",
     "lastName": "Doe",
     "class": "JSS1",
-    "classId": "69ed...",          // Links to Class model
     "section": "A",
     "rollNumber": "001",
     "parentIds": ["60abc..."],
@@ -610,13 +619,13 @@ GET /api/students/:studentId
 ```http
 PUT /api/students/:studentId
 ```
-**Access:** Admin  
+**Access:** Admin
 **Body:**
 ```json
 {
   "firstName": "John Updated",
-  "classId": "69ed...",
-  "rollNumber": "002"
+  "class": "JSS2",
+  "section": "A"
 }
 ```
 **Response (200):**
@@ -632,7 +641,7 @@ PUT /api/students/:studentId
 ```http
 POST /api/students/toggle-status
 ```
-**Access:** Admin  
+**Access:** Admin
 **Body:**
 ```json
 {
@@ -654,7 +663,7 @@ POST /api/students/toggle-status
 ```http
 DELETE /api/students/remove
 ```
-**Access:** Admin  
+**Access:** Admin
 **Body:**
 ```json
 {
@@ -676,21 +685,19 @@ DELETE /api/students/remove
 
 ### Assign Students to Class
 ```http
-POST /api/students/class/assign
+POST /api/academic/students/assign
 ```
-**Access:** Admin  
-**Body (Unified - Single Student):**
+**Access:** Admin
+**Body:**
 ```json
 {
-  "studentIds": "60abc...",
-  "classId": "69ed..."
-}
-```
-**Body (Unified - Array Students):**
-```json
-{
-  "studentIds": ["60abc...", "60abc..."],
-  "classId": "69ed..."
+  "assignments": [
+    {
+      "studentId": "60abc...",
+      "classId": "69ed...",
+      "armId": "69ed..."      // optional
+    }
+  ]
 }
 ```
 **Response (200):**
@@ -704,15 +711,11 @@ POST /api/students/class/assign
 
 ### Unassign Students from Class
 ```http
-POST /api/students/class/unassign
+POST /api/academic/students/unassign
 ```
-**Access:** Admin  
+**Access:** Admin
 **Body (Unified):**
 ```json
-{
-  "studentIds": "60abc..."
-}
-// or
 {
   "studentIds": ["60abc...", "60abc..."]
 }
@@ -726,13 +729,14 @@ POST /api/students/class/unassign
 }
 ```
 
-### Get All Class Populations
-Returns count of students in each class.
+### Get Class Population Statistics
+Returns count of students in each class (optionally filtered by classId).
 
 ```http
-GET /api/students/class/populations
+GET /api/academic/classes/population
 ```
-**Access:** Admin/Teacher  
+**Access:** Admin
+**Query:** `?classId=69ed...` (optional)
 **Response (200):**
 ```json
 {
@@ -754,44 +758,33 @@ GET /api/students/class/populations
 }
 ```
 
-### Get Students by Class
+### Get Unassigned Students
+Returns students not assigned to any class.
+
 ```http
-GET /api/students/class/:classId/students
+GET /api/academic/students/unassigned
 ```
-**Access:** Admin/Teacher  
+**Access:** Admin
+**Query:** `?page=1&limit=20`
 **Response (200):**
 ```json
 {
   "success": true,
   "data": {
-    "students": [
-      {
-        "_id": "60abc...",
-        "firstName": "John",
-        "lastName": "Doe",
-        "rollNumber": "001"
-      }
-    ],
-    "total": 45
+    "students": [...],
+    "total": 5,
+    "page": 1,
+    "limit": 20
   }
 }
 ```
 
-### Get Class Population
+### Planned (Not Yet Implemented)
+The following student class assignment endpoints are planned but not yet implemented:
+
 ```http
-GET /api/students/class/:classId/population
-```
-**Access:** Admin/Teacher  
-**Response (200):**
-```json
-{
-  "success": true,
-  "data": {
-    "classId": "69ed...",
-    "className": "JSS1",
-    "totalStudents": 45
-  }
-}
+GET /api/students/class/:classId/students   # Get Students by Class
+GET /api/students/class/:classId/population  # Get Class Population
 ```
 
 ---
@@ -802,26 +795,30 @@ Academic years and terms (3-term structure).
 
 ### Create Academic Year
 ```http
-POST /api/admin/academic/years
+POST /api/academic/years
 ```
-**Access:** Admin  
+**Access:** Admin
 **Body:**
 ```json
 {
-  "year": "2025-2026",           // Academic year identifier
-  "name": "2025/2026 Academic Year", // Optional display name
-  "startDate": "2025-09-01",      // ISO date format
-  "endDate": "2026-07-31",        // ISO date format
-  "isCurrent": true
+  "years": [
+    {
+      "year": "2025-2026",
+      "name": "2025/2026 Academic Year",
+      "startDate": "2025-09-01T00:00:00.000Z",
+      "endDate": "2026-07-31T23:59:59.999Z",
+      "isCurrent": true
+    }
+  ]
 }
 ```
-**✅ Status:** **IMPLEMENTED** - Database tables exist, endpoints functional
+**✅ Status:** **IMPLEMENTED**
 
 ### List Academic Years
 ```http
 GET /api/academic/years
 ```
-**Access:** Authenticated  
+**Access:** Authenticated
 **Response (200):**
 ```json
 {
@@ -832,29 +829,32 @@ GET /api/academic/years
   }
 }
 ```
-**✅ Status:** **IMPLEMENTED** - Database tables exist, endpoints functional
+**✅ Status:** **IMPLEMENTED**
 
-### Get Current Academic Year
+### Get Current Academic Period
+Returns current academic year and term.
+
 ```http
 GET /api/academic/current
 ```
-**Access:** Authenticated  
+**Access:** Authenticated
 **Response (200):**
 ```json
 {
   "success": true,
   "data": {
-    "academicYear": {...}
+    "academicYear": {...},
+    "term": {...}
   }
 }
 ```
-**✅ Status:** **IMPLEMENTED** - Returns current academic period
+**✅ Status:** **IMPLEMENTED**
 
 ### Set Current Academic Year
 ```http
-PUT /api/admin/academic/years/:yearId/current
+PUT /api/academic/years/:yearId/current
 ```
-**Access:** Admin  
+**Access:** Admin
 **Response (200):**
 ```json
 {
@@ -863,35 +863,26 @@ PUT /api/admin/academic/years/:yearId/current
   "data": {...}
 }
 ```
-**✅ Status:** **IMPLEMENTED** - Sets current academic year
-
-### Delete Academic Year
-```http
-DELETE /api/academic/calendar/years/:yearId
-```
-**Access:** Admin  
-**Response (200):**
-```json
-{
-  "success": true,
-  "message": "Academic year deleted successfully"
-}
-```
+**✅ Status:** **IMPLEMENTED**
 
 ### Create Term
 ```http
-POST /api/admin/academic/terms
+POST /api/academic/terms
 ```
-**Access:** Admin  
+**Access:** Admin
 **Body:**
 ```json
 {
-  "academicYearId": "70abc...",
-  "termNumber": 1,
-  "name": "First Term",
-  "startDate": "2025-09-01",
-  "endDate": "2025-12-01",
-  "isCurrent": true
+  "terms": [
+    {
+      "academicYearId": "70abc...",
+      "term": "First_Term",
+      "name": "First Term",
+      "startDate": "2025-09-01T00:00:00.000Z",
+      "endDate": "2025-12-01T23:59:59.999Z",
+      "isCurrent": true
+    }
+  ]
 }
 ```
 **Response (201):**
@@ -904,14 +895,14 @@ POST /api/admin/academic/terms
   }
 }
 ```
-**✅ Status:** **IMPLEMENTED** - Term creation functional
+**✅ Status:** **IMPLEMENTED** - Note: `term` field uses enum values (First_Term, Second_Term, Third_Term)
 
 ### List Terms
 ```http
 GET /api/academic/terms
 ```
-**Access:** Authenticated  
-**Query:** `?yearId=70abc...`  
+**Access:** Authenticated
+**Query:** `?academicYearId=70abc...`
 **Response (200):**
 ```json
 {
@@ -922,55 +913,13 @@ GET /api/academic/terms
   }
 }
 ```
-**✅ Status:** **IMPLEMENTED** - Term listing functional
-
-### Get Terms by Academic Year
-```http
-GET /api/academic/calendar/years/:yearId/terms
-```
-**Access:** Authenticated  
-**Response (200):**
-```json
-{
-  "success": true,
-  "data": {
-    "terms": [
-      {
-        "_id": "71abc...",
-        "academicYearId": "70abc...",
-        "termNumber": 1,
-        "name": "First Term",
-        "startDate": "2025-09-01",
-        "endDate": "2025-12-01",
-        "isCurrent": true
-      }
-    ],
-    "total": 3
-  }
-}
-```
-
-### Get Current Term
-```http
-GET /api/academic/current
-```
-**Access:** Authenticated  
-**Response (200):**
-```json
-{
-  "success": true,
-  "data": {
-    "term": {...}
-  }
-}
-```
-**✅ Status:** **IMPLEMENTED** - Part of current academic period endpoint
+**✅ Status:** **IMPLEMENTED**
 
 ### Set Current Term
 ```http
-PUT /api/admin/academic/terms/:termId/current
+PUT /api/academic/terms/:termId/current
 ```
-**Access:** Admin  
+**Access:** Admin
 **Response (200):**
 ```json
 {
@@ -979,372 +928,90 @@ PUT /api/admin/academic/terms/:termId/current
   "data": {...}
 }
 ```
-**✅ Status:** **IMPLEMENTED** - Sets current term
+**✅ Status:** **IMPLEMENTED**
 
-### Update Term
-```http
-PUT /api/academic/calendar/terms/:termId
-```
-**Access:** Admin  
-**Body:**
-```json
-{
-  "name": "First Term Updated",
-  "endDate": "2025-12-15"
-}
-```
-**Response (200):**
-```json
-{
-  "success": true,
-  "message": "Term updated successfully",
-  "data": {...}
-}
-```
+### Planned (Not Yet Implemented)
+The following academic calendar endpoints are planned but not yet implemented:
 
-### Delete Term
 ```http
-DELETE /api/academic/calendar/terms/:termId
-```
-**Access:** Admin  
-**Response (200):**
-```json
-{
-  "success": true,
-  "message": "Term deleted successfully"
-}
+GET   /api/academic/calendar/years/:yearId/terms     # Get Terms by Academic Year
+PUT   /api/academic/calendar/terms/:termId            # Update Term
+DELETE /api/academic/calendar/terms/:termId           # Delete Term
+DELETE /api/academic/calendar/years/:yearId           # Delete Academic Year
 ```
 
 ---
 
 ## Attendance
 
+**❌ Status:** **NOT IMPLEMENTED** - No route files, controllers, or Postman entries exist yet.
+
+The following endpoints are planned for future implementation:
+
 ### Mark Attendance
 ```http
 POST /api/attendance/mark
 ```
-**Access:** Admin/Teacher  
-**Body:**
-```json
-{
-  "attendances": [
-    {
-      "academicYearId": "70abc..." (required),
-      "termId": "71abc..." (required),
-      "classId": "69ed..." (required),
-      "studentId": "60abc..." (required),
-      "date": "2025-09-15" (required),
-      "status": "present | absent | late | excused" (required),
-      "reason": "string (optional)"  // Required if status is absent/excused
-    }
-  ]
-}
-```
-**Response (201):**
-```json
-{
-  "success": true,
-  "message": "10 attendance record(s) marked successfully",
-  "data": {...}
-}
-```
-
 ### Get Student Attendance
 ```http
 GET /api/attendance/student/:studentId
 ```
-**Access:** Admin/Teacher/Parent  
-**Query:** `?days=30` - Number of days to look back  
-**Response (200):**
-```json
-{
-  "success": true,
-  "data": {
-    "attendance": [...],
-    "total": 25,
-    "present": 22,
-    "absent": 2,
-    "late": 1,
-    "excused": 0
-  }
-}
-```
-
 ### Get Class Attendance
 ```http
 GET /api/attendance/class/:classId
 ```
-**Access:** Admin/Teacher  
-**Query:** `?date=2025-09-15`  
-**Response (200):**
-```json
-{
-  "success": true,
-  "data": {
-    "date": "2025-09-15",
-    "totalStudents": 45,
-    "present": 40,
-    "absent": 3,
-    "late": 2,
-    "excused": 0,
-    "records": [...]
-  }
-}
-```
-
 ### Get Attendance Stats
 ```http
 GET /api/attendance/stats
 ```
-**Access:** Admin/Teacher  
-**Query:** `?classId=...&startDate=2025-09-01&endDate=2025-12-01`  
-**Response (200):**
-```json
-{
-  "success": true,
-  "data": {
-    "classId": "69ed...",
-    "totalStudents": 45,
-    "averageAttendance": 92.5,
-    "byStatus": {
-      "present": 828,
-      "absent": 45,
-      "late": 27,
-      "excused": 3
-    }
-  }
-}
-```
-
 ### Get Chronic Absentees
-Students with absences above threshold.
-
 ```http
 GET /api/attendance/chronic/absent
 ```
-**Access:** Admin/Teacher  
-**Query:** `?classId=...&threshold=3`  
-**Response (200):**
-```json
-{
-  "success": true,
-  "data": {
-    "students": [
-      {
-        "studentId": "60abc...",
-        "firstName": "John",
-        "lastName": "Doe",
-        "absentCount": 5,
-        "attendanceRate": 85.0
-      }
-    ],
-    "total": 2
-  }
-}
-```
-
 ### Get Chronic Lates
-Students with lates above threshold.
-
 ```http
 GET /api/attendance/chronic/late
-```
-**Access:** Admin/Teacher  
-**Query:** `?classId=...&threshold=2`  
-**Response (200):**
-```json
-{
-  "success": true,
-  "data": {
-    "students": [...],
-    "total": 3
-  }
-}
 ```
 
 ---
 
 ## Fees
 
+**❌ Status:** **NOT IMPLEMENTED** - No route files, controllers, or Postman entries exist yet.
+
+The following endpoints are planned for future implementation:
+
 ### Create Fee Structure
 ```http
 POST /api/fees/structures
 ```
-**Access:** Admin  
-**Body:**
-```json
-{
-  "academicYearId": "70abc..." (required),
-  "name": "string (required)",     // e.g., "School Fees", "Uniform Fee"
-  "amount": 50000 (required),      // Amount in kobo
-  "dueDate": "2025-09-30" (required),
-  "paymentType": "one-time | installment" (optional),
-  "installmentPlans": [] (optional)  // For installment payments
-}
-```
-**Response (201):**
-```json
-{
-  "success": true,
-  "message": "Fee structure created successfully",
-  "data": {
-    "feeStructure": {...}
-  }
-}
-```
-
 ### List Fee Structures
 ```http
 GET /api/fees/structures
 ```
-**Access:** Authenticated  
-**Response (200):**
-```json
-{
-  "success": true,
-  "data": {
-    "feeStructures": [...],
-    "total": 5
-  }
-}
-```
-
 ### Create Invoices
 ```http
 POST /api/fees/invoices
 ```
-**Access:** Admin  
-**Body:**
-```json
-{
-  "invoices": [
-    {
-      "feeStructureId": "72abc..." (required),
-      "studentId": "60abc..." (required)
-    }
-  ]
-}
-```
-**Response (201):**
-```json
-{
-  "success": true,
-  "message": "10 invoice(s) created successfully",
-  "data": {...}
-}
-```
-
 ### List Invoices
 ```http
 GET /api/fees/invoices
 ```
-**Access:** Admin/Teacher  
-**Query:** `?classId=...&status=pending|paid|overdue`  
-**Response (200):**
-```json
-{
-  "success": true,
-  "data": {
-    "invoices": [...],
-    "total": 50,
-    "summary": {
-      "totalAmount": 2500000,
-      "paid": 1500000,
-      "pending": 1000000
-    }
-  }
-}
-```
-
 ### Get Student Fees
 ```http
 GET /api/fees/student/:studentId
 ```
-**Access:** Admin/Teacher/Parent  
-**Response (200):**
-```json
-{
-  "success": true,
-  "data": {
-    "student": {...},
-    "invoices": [
-      {
-        "feeStructure": {...},
-        "amount": 50000,
-        "amountPaid": 0,
-        "status": "pending"
-      }
-    ]
-  }
-}
-```
-
 ### Record Payment
 ```http
 POST /api/fees/invoices/:invoiceId/payment
 ```
-**Access:** Admin  
-**Body:**
-```json
-{
-  "amount": 25000,
-  "paymentMethod": "cash | bank_transfer | pos | online",
-  "referenceNumber": "TXN123456",
-  "receiptNumber": "RCP001" (optional)
-}
-```
-**Response (200):**
-```json
-{
-  "success": true,
-  "message": "Payment recorded successfully",
-  "data": {
-    "payment": {...},
-    "invoice": {
-      "status": "partial",
-      "amountPaid": 25000,
-      "amountDue": 25000
-    }
-  }
-}
-```
-
 ### Get Payment History
 ```http
 GET /api/fees/invoices/:invoiceId/payments
 ```
-**Access:** Admin  
-**Response (200):**
-```json
-{
-  "success": true,
-  "data": {
-    "payments": [...],
-    "totalPaid": 50000
-  }
-}
-```
-
 ### Get Fee Analytics
 ```http
 GET /api/fees/analytics
-```
-**Access:** Admin  
-**Query:** `?classId=...&academicYearId=...`  
-**Response (200):**
-```json
-{
-  "success": true,
-  "data": {
-    "totalExpected": 5000000,
-    "totalCollected": 3500000,
-    "totalPending": 1500000,
-    "collectionRate": 70.0,
-    "byClass": [
-      { "className": "JSS1", "expected": 1000000, "collected": 800000 }
-    ]
-  }
-}
 ```
 
 ---
