@@ -48,9 +48,11 @@ const validateDraftSave = [
     .isUUID()
     .withMessage('academicYearId must be a valid UUID'),
   body('periods')
+    .optional()
     .isArray()
     .withMessage('periods must be an array'),
   body('schedules')
+    .optional()
     .isArray()
     .withMessage('schedules must be an array'),
   handleValidationErrors
@@ -89,9 +91,11 @@ const validatePublish = [
     .isUUID()
     .withMessage('armId must be a valid UUID'),
   body('periods')
+    .optional()
     .isArray()
     .withMessage('periods must be an array'),
   body('schedules')
+    .optional()
     .isArray()
     .withMessage('schedules must be an array'),
   handleValidationErrors
