@@ -65,8 +65,16 @@ const validateEntities = async (schoolId, { classId, termId, academicYearId, arm
   if (periods && Array.isArray(periods)) {
     for (let i = 0; i < periods.length; i++) {
       const p = periods[i];
-      if (!p.id || !p.periodNumber || !p.startTime || !p.endTime) {
-        errors.push({ field: `periods[${i}]`, message: 'Period id, periodNumber, startTime, and endTime are required' });
+      if (!p.periodConfigId || !p.schoolStart || !p.periodDuration || !p.totalPeriods) {
+        errors.push({ field: `periods[${i}]`, message: 'periodConfigId, schoolStart, periodDuration, and totalPeriods are required' });
+      }
+      if (p.breaks && Array.isArray(p.breaks)) {
+        for (let j = 0; j < p.breaks.length; j++) {
+          const b = p.breaks[j];
+          if (!b.breakAfter || !b.breakDuration || !b.label) {
+            errors.push({ field: `periods[${i}].breaks[${j}]`, message: 'breakAfter, breakDuration, and label are required' });
+          }
+        }
       }
     }
   }

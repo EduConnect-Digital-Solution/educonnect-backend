@@ -1372,7 +1372,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"classId\": \"{{classId}}\",\n  \"termId\": \"{{termId}}\",\n  \"academicYearId\": \"{{academicYearId}}\",\n  \"armId\": \"{{armId}}\",\n  \"periods\": [\n    {\n      \"id\": \"p_1\",\n      \"periodNumber\": 1,\n      \"startTime\": \"08:00\",\n      \"endTime\": \"08:45\",\n      \"label\": null\n    }\n  ],\n  \"schedules\": []\n}",
+              "raw": "{\n  \"classId\": \"{{classId}}\",\n  \"termId\": \"{{termId}}\",\n  \"academicYearId\": \"{{academicYearId}}\",\n  \"armId\": \"{{armId}}\",\n  \"periods\": [\n    {\n      \"periodConfigId\": \"pc_1\",\n      \"schoolStart\": \"08:00\",\n      \"periodDuration\": 45,\n      \"totalPeriods\": 8,\n      \"breaks\": [\n        {\n          \"breakAfter\": 2,\n          \"breakDuration\": 15,\n          \"label\": \"Short Break\"\n        },\n        {\n          \"breakAfter\": 4,\n          \"breakDuration\": 30,\n          \"label\": \"Lunch\"\n        }\n      ]\n    }\n  ],\n  \"schedules\": []\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1440,7 +1440,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"academicYearId\": \"{{academicYearId}}\",\n  \"termId\": \"{{termId}}\",\n  \"classId\": \"{{classId}}\",\n  \"armId\": \"{{armId}}\",\n  \"periods\": [\n    {\n      \"id\": \"p_1\",\n      \"periodNumber\": 1,\n      \"startTime\": \"08:00\",\n      \"endTime\": \"08:45\",\n      \"label\": null\n    }\n  ],\n  \"schedules\": [\n    {\n      \"id\": \"temp_1\",\n      \"classId\": \"{{classId}}\",\n      \"className\": \"SS 3\",\n      \"armId\": \"{{armId}}\",\n      \"armName\": \"A\",\n      \"dayOfWeek\": \"Monday\",\n      \"periodId\": \"p_1\",\n      \"periodNumber\": 1,\n      \"startTime\": \"08:00\",\n      \"endTime\": \"08:45\",\n      \"subjectId\": \"{{subjectId}}\",\n      \"subjectName\": \"Mathematics\",\n      \"teacherId\": \"{{teacherId}}\",\n      \"teacherName\": \"John Doe\",\n      \"roomId\": \"{{roomId}}\",\n      \"roomName\": \"Hall A\"\n    }\n  ]\n}",
+              "raw": "{\n  \"academicYearId\": \"{{academicYearId}}\",\n  \"termId\": \"{{termId}}\",\n  \"classId\": \"{{classId}}\",\n  \"armId\": \"{{armId}}\",\n  \"periods\": [\n    {\n      \"periodConfigId\": \"pc_1\",\n      \"schoolStart\": \"08:00\",\n      \"periodDuration\": 45,\n      \"totalPeriods\": 8,\n      \"breaks\": [\n        {\n          \"breakAfter\": 2,\n          \"breakDuration\": 15,\n          \"label\": \"Short Break\"\n        },\n        {\n          \"breakAfter\": 4,\n          \"breakDuration\": 30,\n          \"label\": \"Lunch\"\n        }\n      ]\n    }\n  ],\n  \"schedules\": [\n    {\n      \"id\": \"temp_1\",\n      \"classId\": \"{{classId}}\",\n      \"className\": \"SS 3\",\n      \"armId\": \"{{armId}}\",\n      \"armName\": \"A\",\n      \"dayOfWeek\": \"Monday\",\n      \"periodId\": \"p_1\",\n      \"periodNumber\": 1,\n      \"startTime\": \"08:00\",\n      \"endTime\": \"08:45\",\n      \"subjectId\": \"{{subjectId}}\",\n      \"subjectName\": \"Mathematics\",\n      \"teacherId\": \"{{teacherId}}\",\n      \"teacherName\": \"John Doe\",\n      \"roomId\": \"{{roomId}}\",\n      \"roomName\": \"Hall A\"\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
