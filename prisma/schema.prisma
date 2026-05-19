@@ -646,6 +646,44 @@ model FeePayment {
   @@map("fee_payments")
 }
 
+// =============== TIMETABLE MODELS ===============
+
+model TimetableDraft {
+  id              String   @id @default(uuid())
+  schoolId        String
+  classId         String
+  termId          String
+  academicYearId  String?
+  armId           String?
+  periods         Json
+  schedules       Json
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([classId, termId, armId])
+  @@index([schoolId])
+  @@map("timetable_drafts")
+}
+
+model TimetablePublished {
+  id              String   @id @default(uuid())
+  schoolId        String
+  classId         String
+  termId          String
+  academicYearId  String?
+  armId           String?
+  periods         Json
+  schedules       Json
+  publishedAt     DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([classId, termId, armId])
+  @@index([schoolId])
+  @@index([termId])
+  @@map("timetable_published")
+}
+
 enum UserRole {
   admin
   teacher

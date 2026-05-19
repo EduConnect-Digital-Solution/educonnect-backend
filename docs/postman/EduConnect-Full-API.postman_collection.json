@@ -701,17 +701,17 @@
             "method": "POST",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
-              },
-              {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"classes\": [\n    {\n      \"name\": \"JSS 1 Science\",\n      \"level\": 1,\n      \"description\": \"Junior Secondary School Year 1 Science Class\"\n    },\n    {\n      \"name\": \"JSS 1 Arts\",\n      \"level\": 1,\n      \"description\": \"Junior Secondary School Year 1 Arts Class\"\n    },\n    {\n      \"name\": \"SSS 2 Science\",\n      \"level\": 5,\n      \"description\": \"Senior Secondary School Year 2 Science Class\"\n    }\n  ]\n}",
+              "raw": "{\n  \"classes\": [\n    {\n      \"name\": \"JSS 1 Science\",\n      \"level\": 1,\n      \"description\": \"Junior Secondary School Year 1 Science Class\"\n    },\n    {\n      \"name\": \"JSS 1 Arts\",\n      \"level\": 1,\n      \"description\": \"Junior Secondary School Year 1 Arts Class\"\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -747,12 +747,12 @@
             "method": "POST",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
-              },
-              {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
               }
             ],
             "body": {
@@ -802,12 +802,12 @@
             "method": "PUT",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
-              },
-              {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
               }
             ],
             "body": {
@@ -829,13 +829,17 @@
             "method": "DELETE",
             "header": [
               {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
                 "key": "Authorization",
                 "value": "Bearer {{accessToken}}"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"subjectIds\": [\"{{subjectId1}}\", \"{{subjectId2}}\"]\n}",
+              "raw": "{\n  \"subjectIds\": [\n    \"{{subjectId1}}\",\n    \"{{subjectId2}}\"\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -852,17 +856,17 @@
             "method": "POST",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
-              },
-              {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"arms\": [\n    {\n      \"classId\": \"{{classId}}\",\n      \"name\": \"A\"\n    },\n    {\n      \"classId\": \"{{classId}}\",\n      \"name\": \"B\"\n    },\n    {\n      \"classId\": \"{{classId}}\",\n      \"name\": \"Science\"\n    }\n  ]\n}",
+              "raw": "{\n  \"arms\": [\n    {\n      \"classId\": \"{{classId}}\",\n      \"name\": \"A\"\n    },\n    {\n      \"classId\": \"{{classId}}\",\n      \"name\": \"B\"\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -893,12 +897,12 @@
             "method": "PUT",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
-              },
-              {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
               }
             ],
             "body": {
@@ -920,13 +924,17 @@
             "method": "DELETE",
             "header": [
               {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
                 "key": "Authorization",
                 "value": "Bearer {{accessToken}}"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"armIds\": [\"{{armId1}}\", \"{{armId2}}\"]\n}",
+              "raw": "{\n  \"armIds\": [\n    \"{{armId1}}\",\n    \"{{armId2}}\"\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -957,17 +965,17 @@
             "method": "POST",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
-              },
-              {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"subjectIds\": [\"{{subjectId1}}\", \"{{subjectId2}}\", \"{{subjectId3}}\"]\n}",
+              "raw": "{\n  \"subjectIds\": [\n    \"{{subjectId1}}\",\n    \"{{subjectId2}}\"\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -984,17 +992,17 @@
             "method": "POST",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
-              },
-              {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"subjectIds\": [\"{{subjectId1}}\", \"{{subjectId2}}\", \"{{subjectId3}}\"]\n}",
+              "raw": "{\n  \"subjectIds\": [\n    \"{{subjectId1}}\",\n    \"{{subjectId2}}\"\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1011,13 +1019,17 @@
             "method": "DELETE",
             "header": [
               {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
                 "key": "Authorization",
                 "value": "Bearer {{accessToken}}"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"subjectIds\": [\"{{subjectId1}}\", \"{{subjectId2}}\"]\n}",
+              "raw": "{\n  \"subjectIds\": [\n    \"{{subjectId1}}\",\n    \"{{subjectId2}}\"\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1034,13 +1046,17 @@
             "method": "DELETE",
             "header": [
               {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
                 "key": "Authorization",
                 "value": "Bearer {{accessToken}}"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"subjectIds\": [\"{{subjectId1}}\", \"{{subjectId2}}\"]\n}",
+              "raw": "{\n  \"subjectIds\": [\n    \"{{subjectId1}}\",\n    \"{{subjectId2}}\"\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1057,17 +1073,22 @@
             "method": "PUT",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
-              },
-              {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"subjectIds\": [\"{{subjectId1}}\", \"{{subjectId2}}\", \"{{subjectId3}}\"]\n}"
+              "raw": "{\n  \"subjectIds\": [\n    \"{{subjectId1}}\",\n    \"{{subjectId2}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": "{{baseUrl}}/api/academic/arms/{{armId}}/subjects/replace"
           },
@@ -1079,17 +1100,22 @@
             "method": "POST",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
-              },
-              {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"subjectIds\": [\"{{subjectId1}}\", \"{{subjectId2}}\", \"{{subjectId3}}\"]\n}"
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": "{{baseUrl}}/api/academic/arms/{{sourceArmId}}/subjects/copy/{{targetArmId}}"
           },
@@ -1106,12 +1132,12 @@
             "method": "POST",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
-              },
-              {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
               }
             ],
             "body": {
@@ -1161,12 +1187,12 @@
             "method": "POST",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
-              },
-              {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
               }
             ],
             "body": {
@@ -1235,12 +1261,12 @@
             "method": "POST",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
-              },
-              {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
               }
             ],
             "body": {
@@ -1262,17 +1288,22 @@
             "method": "POST",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
-              },
-              {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"studentIds\": [\"{{studentId1}}\", \"{{studentId2}}\"]\n}"
+              "raw": "{\n  \"studentIds\": [\n    \"{{studentId1}}\",\n    \"{{studentId2}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": "{{baseUrl}}/api/academic/students/unassign"
           },
@@ -1303,6 +1334,148 @@
               }
             ],
             "url": "{{baseUrl}}/api/academic/students/unassigned?page={{page}}&limit={{limit}}"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "03.9 - Timetable",
+      "item": [
+        {
+          "name": "Get Timetable Draft",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/timetable/draft?classId={{classId}}&termId={{termId}}&armId={{armId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Save Timetable Draft",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"classId\": \"{{classId}}\",\n  \"termId\": \"{{termId}}\",\n  \"academicYearId\": \"{{academicYearId}}\",\n  \"armId\": \"{{armId}}\",\n  \"periods\": [\n    {\n      \"id\": \"p_1\",\n      \"periodNumber\": 1,\n      \"startTime\": \"08:00\",\n      \"endTime\": \"08:45\",\n      \"label\": null\n    }\n  ],\n  \"schedules\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/admin/timetable/draft"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Timetable Draft",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/timetable/draft?classId={{classId}}&termId={{termId}}&armId={{armId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Check Timetable Conflicts",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"classId\": \"{{classId}}\",\n  \"termId\": \"{{termId}}\",\n  \"armId\": \"{{armId}}\",\n  \"schedules\": [\n    {\n      \"id\": \"temp_1\",\n      \"classId\": \"{{classId}}\",\n      \"className\": \"SS 3\",\n      \"armId\": \"{{armId}}\",\n      \"armName\": \"A\",\n      \"dayOfWeek\": \"Monday\",\n      \"periodId\": \"p_1\",\n      \"periodNumber\": 1,\n      \"startTime\": \"08:00\",\n      \"endTime\": \"08:45\",\n      \"subjectId\": \"{{subjectId}}\",\n      \"subjectName\": \"Mathematics\",\n      \"teacherId\": \"{{teacherId}}\",\n      \"teacherName\": \"John Doe\",\n      \"roomId\": \"{{roomId}}\",\n      \"roomName\": \"Hall A\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/admin/timetable/check-conflicts"
+          },
+          "response": []
+        },
+        {
+          "name": "Publish Timetable",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"academicYearId\": \"{{academicYearId}}\",\n  \"termId\": \"{{termId}}\",\n  \"classId\": \"{{classId}}\",\n  \"armId\": \"{{armId}}\",\n  \"periods\": [\n    {\n      \"id\": \"p_1\",\n      \"periodNumber\": 1,\n      \"startTime\": \"08:00\",\n      \"endTime\": \"08:45\",\n      \"label\": null\n    }\n  ],\n  \"schedules\": [\n    {\n      \"id\": \"temp_1\",\n      \"classId\": \"{{classId}}\",\n      \"className\": \"SS 3\",\n      \"armId\": \"{{armId}}\",\n      \"armName\": \"A\",\n      \"dayOfWeek\": \"Monday\",\n      \"periodId\": \"p_1\",\n      \"periodNumber\": 1,\n      \"startTime\": \"08:00\",\n      \"endTime\": \"08:45\",\n      \"subjectId\": \"{{subjectId}}\",\n      \"subjectName\": \"Mathematics\",\n      \"teacherId\": \"{{teacherId}}\",\n      \"teacherName\": \"John Doe\",\n      \"roomId\": \"{{roomId}}\",\n      \"roomName\": \"Hall A\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/admin/timetable/publish"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Published Timetable",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/timetable/published?classId={{classId}}&termId={{termId}}&armId={{armId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Teacher Today Schedule",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/teacher/timetable/today?date=2025-01-27"
           },
           "response": []
         }
@@ -2669,6 +2842,31 @@
     {
       "key": "subject",
       "value": "Mathematics",
+      "type": "string"
+    },
+    {
+      "key": "classId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "termId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "academicYearId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "armId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "roomId",
+      "value": "",
       "type": "string"
     }
   ]

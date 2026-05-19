@@ -178,6 +178,9 @@ const academicStructureRoutes = require('./routes/academicStructure');
 const academicCalendarRoutes = require('./routes/academicCalendar');
 const studentAssignmentRoutes = require('./routes/studentAssignment');
 
+// Timetable routes
+const { adminTimetableRoutes, teacherTimetableRoutes } = require('./routes/timetable');
+
 // System Admin routes
 const systemAdminAuthRoutes = require('./routes/systemAdminAuth');
 const systemAdminRoutes = require('./routes/systemAdmin');
@@ -203,6 +206,10 @@ app.use('/api/academic', academicStructureRoutes);
 app.use('/api/academic/classes', classManagementRoutes);
 app.use('/api/academic', academicCalendarRoutes);
 app.use('/api/academic/students', studentAssignmentRoutes);
+
+// Timetable routes
+app.use('/api/admin/timetable', adminTimetableRoutes);
+app.use('/api/teacher/timetable', teacherTimetableRoutes);
 
 // System Admin routes
 app.use('/api/system-admin/auth', systemAdminAuthRoutes);

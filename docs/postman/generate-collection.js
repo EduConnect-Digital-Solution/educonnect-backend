@@ -92,6 +92,69 @@ const collection = {
       ]
     },
     {
+      name: '03.5 - Class Management',
+      item: [
+        req({ name: 'Get All Classes', method: 'GET', url: '/api/academic/classes', authType: 'user' }),
+        req({ name: 'Get Class by ID', method: 'GET', url: '/api/academic/classes/{{classId}}', authType: 'user' }),
+        req({ name: 'Create Classes', method: 'POST', url: '/api/academic/classes', authType: 'user', body: { classes: [{ name: 'JSS 1 Science', level: 1, description: 'Junior Secondary School Year 1 Science Class' }, { name: 'JSS 1 Arts', level: 1, description: 'Junior Secondary School Year 1 Arts Class' }] } }),
+        req({ name: 'Delete Class', method: 'DELETE', url: '/api/academic/classes/{{classId}}', authType: 'user' })
+      ]
+    },
+    {
+      name: '03.6 - Academic Structure',
+      item: [
+        req({ name: 'Create Subjects', method: 'POST', url: '/api/academic/subjects', authType: 'user', body: { subjects: [{ name: 'Mathematics', code: 'MTH', description: 'Core mathematics subject', category: 'core' }, { name: 'English Language', code: 'ENG', description: 'Core English subject', category: 'core' }, { name: 'Physics', code: 'PHY', description: 'Science subject', category: 'core' }] } }),
+        req({ name: 'List Subjects', method: 'GET', url: '/api/academic/subjects', authType: 'user' }),
+        req({ name: 'Get Subjects by Class', method: 'GET', url: '/api/academic/classes/{{classId}}/subjects', authType: 'user' }),
+        req({ name: 'Update Subject', method: 'PUT', url: '/api/academic/subjects/{{subjectId}}', authType: 'user', body: { name: 'Mathematics Updated', category: 'elective' } }),
+        req({ name: 'Delete Subjects', method: 'DELETE', url: '/api/academic/subjects', authType: 'user', body: { subjectIds: ['{{subjectId1}}', '{{subjectId2}}'] } }),
+        req({ name: 'Create Arms', method: 'POST', url: '/api/academic/arms', authType: 'user', body: { arms: [{ classId: '{{classId}}', name: 'A' }, { classId: '{{classId}}', name: 'B' }] } }),
+        req({ name: 'Get Arms by Class', method: 'GET', url: '/api/academic/classes/{{classId}}/arms', authType: 'user' }),
+        req({ name: 'Update Arm', method: 'PUT', url: '/api/academic/arms/{{armId}}', authType: 'user', body: { name: 'Science Updated', classTeacherId: '{{teacherId}}' } }),
+        req({ name: 'Delete Arms', method: 'DELETE', url: '/api/academic/arms', authType: 'user', body: { armIds: ['{{armId1}}', '{{armId2}}'] } }),
+        req({ name: 'Get Arm Subjects', method: 'GET', url: '/api/academic/arms/{{armId}}/subjects', authType: 'user' }),
+        req({ name: 'Add Subjects to Arm', method: 'POST', url: '/api/academic/arms/{{armId}}/subjects', authType: 'user', body: { subjectIds: ['{{subjectId1}}', '{{subjectId2}}'] } }),
+        req({ name: 'Add Subjects to Class', method: 'POST', url: '/api/academic/classes/{{classId}}/subjects', authType: 'user', body: { subjectIds: ['{{subjectId1}}', '{{subjectId2}}'] } }),
+        req({ name: 'Remove Subjects from Class', method: 'DELETE', url: '/api/academic/classes/{{classId}}/subjects', authType: 'user', body: { subjectIds: ['{{subjectId1}}', '{{subjectId2}}'] } }),
+        req({ name: 'Remove Subjects from Arm', method: 'DELETE', url: '/api/academic/arms/{{armId}}/subjects', authType: 'user', body: { subjectIds: ['{{subjectId1}}', '{{subjectId2}}'] } }),
+        req({ name: 'Replace Arm Subjects', method: 'PUT', url: '/api/academic/arms/{{armId}}/subjects/replace', authType: 'user', body: { subjectIds: ['{{subjectId1}}', '{{subjectId2}}'] } }),
+        req({ name: 'Copy Arm Subjects', method: 'POST', url: '/api/academic/arms/{{sourceArmId}}/subjects/copy/{{targetArmId}}', authType: 'user', body: {} })
+      ]
+    },
+    {
+      name: '03.7 - Academic Calendar',
+      item: [
+        req({ name: 'Create Academic Years', method: 'POST', url: '/api/admin/academic/years', authType: 'user', body: { years: [{ year: '2023-2024', name: '2023/2024 Academic Year', startDate: '2023-09-01T00:00:00.000Z', endDate: '2024-07-31T23:59:59.999Z', isCurrent: true }] } }),
+        req({ name: 'Get Academic Years', method: 'GET', url: '/api/academic/years', authType: 'user' }),
+        req({ name: 'Set Current Academic Year', method: 'PUT', url: '/api/admin/academic/years/{{yearId}}/current', authType: 'user' }),
+        req({ name: 'Create Academic Terms', method: 'POST', url: '/api/admin/academic/terms', authType: 'user', body: { terms: [{ academicYearId: '{{academicYearId}}', term: 'First_Term', name: 'First Term', startDate: '2023-09-01T00:00:00.000Z', endDate: '2023-12-15T23:59:59.999Z', isCurrent: true }] } }),
+        req({ name: 'Get Academic Terms', method: 'GET', url: '/api/academic/terms?academicYearId={{academicYearId}}', authType: 'user' }),
+        req({ name: 'Set Current Academic Term', method: 'PUT', url: '/api/admin/academic/terms/{{termId}}/current', authType: 'user' }),
+        req({ name: 'Get Current Academic Period', method: 'GET', url: '/api/academic/current', authType: 'user' })
+      ]
+    },
+    {
+      name: '03.8 - Student Assignment',
+      item: [
+        req({ name: 'Bulk Assign Students to Classes', method: 'POST', url: '/api/academic/students/assign', authType: 'user', body: { assignments: [{ studentId: '{{studentId1}}', classId: '{{classId1}}', armId: '{{armId1}}' }, { studentId: '{{studentId2}}', classId: '{{classId2}}', armId: '{{armId2}}' }] } }),
+        req({ name: 'Bulk Unassign Students from Classes', method: 'POST', url: '/api/academic/students/unassign', authType: 'user', body: { studentIds: ['{{studentId1}}', '{{studentId2}}'] } }),
+        req({ name: 'Get Class Population Statistics', method: 'GET', url: '/api/academic/classes/population?classId={{classId}}', authType: 'user' }),
+        req({ name: 'Get Unassigned Students', method: 'GET', url: '/api/academic/students/unassigned?page={{page}}&limit={{limit}}', authType: 'user' })
+      ]
+    },
+    {
+      name: '03.9 - Timetable',
+      item: [
+        req({ name: 'Get Timetable Draft', method: 'GET', url: '/api/admin/timetable/draft?classId={{classId}}&termId={{termId}}&armId={{armId}}', authType: 'user' }),
+        req({ name: 'Save Timetable Draft', method: 'POST', url: '/api/admin/timetable/draft', authType: 'user', body: { classId: '{{classId}}', termId: '{{termId}}', academicYearId: '{{academicYearId}}', armId: '{{armId}}', periods: [{ id: 'p_1', periodNumber: 1, startTime: '08:00', endTime: '08:45', label: null }], schedules: [] } }),
+        req({ name: 'Delete Timetable Draft', method: 'DELETE', url: '/api/admin/timetable/draft?classId={{classId}}&termId={{termId}}&armId={{armId}}', authType: 'user' }),
+        req({ name: 'Check Timetable Conflicts', method: 'POST', url: '/api/admin/timetable/check-conflicts', authType: 'user', body: { classId: '{{classId}}', termId: '{{termId}}', armId: '{{armId}}', schedules: [{ id: 'temp_1', classId: '{{classId}}', className: 'SS 3', armId: '{{armId}}', armName: 'A', dayOfWeek: 'Monday', periodId: 'p_1', periodNumber: 1, startTime: '08:00', endTime: '08:45', subjectId: '{{subjectId}}', subjectName: 'Mathematics', teacherId: '{{teacherId}}', teacherName: 'John Doe', roomId: '{{roomId}}', roomName: 'Hall A' }] } }),
+        req({ name: 'Publish Timetable', method: 'POST', url: '/api/admin/timetable/publish', authType: 'user', body: { academicYearId: '{{academicYearId}}', termId: '{{termId}}', classId: '{{classId}}', armId: '{{armId}}', periods: [{ id: 'p_1', periodNumber: 1, startTime: '08:00', endTime: '08:45', label: null }], schedules: [{ id: 'temp_1', classId: '{{classId}}', className: 'SS 3', armId: '{{armId}}', armName: 'A', dayOfWeek: 'Monday', periodId: 'p_1', periodNumber: 1, startTime: '08:00', endTime: '08:45', subjectId: '{{subjectId}}', subjectName: 'Mathematics', teacherId: '{{teacherId}}', teacherName: 'John Doe', roomId: '{{roomId}}', roomName: 'Hall A' }] } }),
+        req({ name: 'Get Published Timetable', method: 'GET', url: '/api/admin/timetable/published?classId={{classId}}&termId={{termId}}&armId={{armId}}', authType: 'user' }),
+        req({ name: 'Teacher Today Schedule', method: 'GET', url: '/api/teacher/timetable/today?date=2025-01-27', authType: 'user' })
+      ]
+    },
+    {
       name: '04 - Teacher Dashboard & Grades',
       item: [
         req({ name: 'Teacher Dashboard', method: 'GET', url: '/api/teacher/dashboard', authType: 'user' }),
@@ -214,7 +277,12 @@ const collection = {
     { key: 'invitationId', value: '', type: 'string' },
     { key: 'gradeId', value: '', type: 'string' },
     { key: 'className', value: 'JSS1', type: 'string' },
-    { key: 'subject', value: 'Mathematics', type: 'string' }
+    { key: 'subject', value: 'Mathematics', type: 'string' },
+    { key: 'classId', value: '', type: 'string' },
+    { key: 'termId', value: '', type: 'string' },
+    { key: 'academicYearId', value: '', type: 'string' },
+    { key: 'armId', value: '', type: 'string' },
+    { key: 'roomId', value: '', type: 'string' }
   ]
 };
 
