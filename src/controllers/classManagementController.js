@@ -23,14 +23,22 @@ const getSchoolClasses = async (req, res) => {
         id: true,
         name: true,
         baseLevel: true,
-        arm: true,
         isActive: true,
         createdAt: true,
-        updatedAt: true
+        updatedAt: true,
+        arms: {
+          select: {
+            id: true,
+            name: true,
+            classTeacherId: true,
+            isActive: true
+          },
+          where: { isActive: true }
+        }
       },
       orderBy: [
         { baseLevel: 'asc' },
-        { arm: 'asc' }
+        { name: 'asc' }
       ]
     });
 
@@ -44,7 +52,7 @@ const getSchoolClasses = async (req, res) => {
           name: cls.name,
           baseLevel: cls.baseLevel,
           level: cls.level,
-          arm: cls.arm
+          arms: cls.arms
         }))
       }
     });
@@ -95,8 +103,7 @@ const bulkCreateClasses = async (req, res) => {
       validClasses.push({
         schoolId,
         name: classData.name,
-        level: classData.level,
-        arm: classData.arm || null
+        level: classData.level
       });
     }
 
@@ -142,13 +149,12 @@ const bulkCreateClasses = async (req, res) => {
           in: validClasses.map(cls => cls.name)
         }
       },
-      select: {
-        id: true,
-        name: true,
-        baseLevel: true,
-        level: true,
-        arm: true
-      }
+        select: {
+          id: true,
+          name: true,
+          baseLevel: true,
+          level: true
+        }
     });
 
     logger.info(`Created ${createdClasses.count} classes for school ${schoolId}`);
@@ -276,10 +282,18 @@ const getClassById = async (req, res) => {
         id: true,
         name: true,
         baseLevel: true,
-        arm: true,
         isActive: true,
         createdAt: true,
         updatedAt: true,
+        arms: {
+          select: {
+            id: true,
+            name: true,
+            classTeacherId: true,
+            isActive: true
+          },
+          where: { isActive: true }
+        },
         students: {
           select: {
             id: true,
@@ -318,7 +332,7 @@ const getClassById = async (req, res) => {
           name: classData.name,
           baseLevel: classData.baseLevel,
           level: classData.level,
-          arm: classData.arm,
+          arms: classData.arms,
           isActive: classData.isActive,
           createdAt: classData.createdAt,
           updatedAt: classData.updatedAt,
