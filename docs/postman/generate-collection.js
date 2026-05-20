@@ -155,6 +155,19 @@ const collection = {
       ]
     },
     {
+      name: '03.10 - Events & Notifications',
+      item: [
+        req({ name: 'Get Events', method: 'GET', url: '/api/admin/events?termId={{termId}}', authType: 'user' }),
+        req({ name: 'Create Event', method: 'POST', url: '/api/admin/events', authType: 'user', body: { termId: '{{termId}}', name: 'Mid-Term Break', date: '2025-03-10T00:00:00.000Z', endDate: '2025-03-14T00:00:00.000Z', type: 'holiday', notifications: { enabled: true, targets: { roles: ['teacher', 'parent'], classIds: [], userIds: [] }, channels: ['push', 'sms'], schedule: { type: 'scheduled', sendAt: '2025-03-07T08:00:00.000Z' } } } }),
+        req({ name: 'Update Event', method: 'PUT', url: '/api/admin/events/{{eventId}}', authType: 'user', body: { name: 'Mid-Term Break (Updated)', endDate: '2025-03-15T00:00:00.000Z' } }),
+        req({ name: 'Delete Event', method: 'DELETE', url: '/api/admin/events/{{eventId}}', authType: 'user' }),
+        req({ name: 'Update Event Notification Settings', method: 'PUT', url: '/api/admin/events/{{eventId}}/notifications', authType: 'user', body: { targets: { roles: ['teacher', 'parent', 'student'], classIds: ['{{classId}}'], userIds: [] }, channels: ['push', 'in_app'], schedule: { type: 'scheduled', sendAt: '2025-03-07T08:00:00.000Z' } } }),
+        req({ name: 'Get Event Notification Config', method: 'GET', url: '/api/admin/events/{{eventId}}/notifications', authType: 'user' }),
+        req({ name: 'Send Notification Override', method: 'POST', url: '/api/admin/events/{{eventId}}/notify', authType: 'user', body: { targets: { roles: ['parent', 'student'], classIds: [], userIds: [] }, channels: ['push', 'sms'], message: 'Reminder: Mid-Term Break starts Monday.' } }),
+        req({ name: 'Get Notification Logs', method: 'GET', url: '/api/admin/notifications/logs?eventId={{eventId}}&status=failed', authType: 'user' })
+      ]
+    },
+    {
       name: '04 - Teacher Dashboard & Grades',
       item: [
         req({ name: 'Teacher Dashboard', method: 'GET', url: '/api/teacher/dashboard', authType: 'user' }),
@@ -282,7 +295,8 @@ const collection = {
     { key: 'termId', value: '', type: 'string' },
     { key: 'academicYearId', value: '', type: 'string' },
     { key: 'armId', value: '', type: 'string' },
-    { key: 'roomId', value: '', type: 'string' }
+    { key: 'roomId', value: '', type: 'string' },
+    { key: 'eventId', value: '', type: 'string' }
   ]
 };
 

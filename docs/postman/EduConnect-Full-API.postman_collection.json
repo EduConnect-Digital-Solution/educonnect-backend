@@ -1482,6 +1482,175 @@
       ]
     },
     {
+      "name": "03.10 - Events & Notifications",
+      "item": [
+        {
+          "name": "Get Events",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/events?termId={{termId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Event",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"termId\": \"{{termId}}\",\n  \"name\": \"Mid-Term Break\",\n  \"date\": \"2025-03-10T00:00:00.000Z\",\n  \"endDate\": \"2025-03-14T00:00:00.000Z\",\n  \"type\": \"holiday\",\n  \"notifications\": {\n    \"enabled\": true,\n    \"targets\": {\n      \"roles\": [\n        \"teacher\",\n        \"parent\"\n      ],\n      \"classIds\": [],\n      \"userIds\": []\n    },\n    \"channels\": [\n      \"push\",\n      \"sms\"\n    ],\n    \"schedule\": {\n      \"type\": \"scheduled\",\n      \"sendAt\": \"2025-03-07T08:00:00.000Z\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/admin/events"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Event",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Mid-Term Break (Updated)\",\n  \"endDate\": \"2025-03-15T00:00:00.000Z\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/admin/events/{{eventId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Event",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/events/{{eventId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Event Notification Settings",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"targets\": {\n    \"roles\": [\n      \"teacher\",\n      \"parent\",\n      \"student\"\n    ],\n    \"classIds\": [\n      \"{{classId}}\"\n    ],\n    \"userIds\": []\n  },\n  \"channels\": [\n    \"push\",\n    \"in_app\"\n  ],\n  \"schedule\": {\n    \"type\": \"scheduled\",\n    \"sendAt\": \"2025-03-07T08:00:00.000Z\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/admin/events/{{eventId}}/notifications"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Event Notification Config",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/events/{{eventId}}/notifications"
+          },
+          "response": []
+        },
+        {
+          "name": "Send Notification Override",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"targets\": {\n    \"roles\": [\n      \"parent\",\n      \"student\"\n    ],\n    \"classIds\": [],\n    \"userIds\": []\n  },\n  \"channels\": [\n    \"push\",\n    \"sms\"\n  ],\n  \"message\": \"Reminder: Mid-Term Break starts Monday.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/admin/events/{{eventId}}/notify"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Notification Logs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/notifications/logs?eventId={{eventId}}&status=failed"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
       "name": "04 - Teacher Dashboard & Grades",
       "item": [
         {
@@ -2866,6 +3035,11 @@
     },
     {
       "key": "roomId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "eventId",
       "value": "",
       "type": "string"
     }
