@@ -1,3 +1,4 @@
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -644,6 +645,62 @@ model FeePayment {
   @@index([paymentDate])
   @@index([status])
   @@map("fee_payments")
+}
+
+// =============== EVENTS & NOTIFICATIONS MODELS ===============
+
+model Event {
+  id                   String              @id @default(uuid())
+  schoolId             String
+  termId               String
+  name                 String
+  date                 DateTime
+  endDate              DateTime?
+  type                 String              // holiday | exam | event
+  notificationConfigId String?
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+
+  notificationConfig NotificationConfig?
+  notificationLogs   NotificationLog[]
+
+  @@index([schoolId])
+  @@index([termId])
+  @@index([type])
+  @@map("events")
+}
+
+model NotificationConfig {
+  id        String   @id @default(uuid())
+  eventId   String   @unique
+  targets   Json     // { roles: [], classIds: [], userIds: [] }
+  channels  Json     // ["push", "sms", "email", "in_app"]
+  schedule  Json     // { type: "immediate|scheduled", sendAt: "ISO8601|null" }
+  status    String   @default("draft") // draft | scheduled | processing | sent | failed
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@map("notification_configs")
+}
+
+model NotificationLog {
+  id            String    @id @default(uuid())
+  eventId       String
+  recipientId   String
+  recipientName String
+  channel       String    // push | sms | email | in_app
+  status        String    // sent | failed | pending
+  sentAt        DateTime?
+  errorMessage  String?
+  createdAt     DateTime  @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+  @@index([status])
+  @@map("notification_logs")
 }
 
 // =============== TIMETABLE MODELS ===============
