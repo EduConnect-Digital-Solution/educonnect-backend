@@ -34,6 +34,11 @@ const validateStudentCreation = [
     .normalizeEmail()
     .withMessage('Please provide a valid email address'),
 
+  body('password')
+    .optional()
+    .isLength({ min: 8 })
+    .withMessage('Password must be at least 8 characters'),
+
   body('classId')
     .optional()
     .isUUID()
@@ -43,6 +48,12 @@ const validateStudentCreation = [
     .optional()
     .isUUID()
     .withMessage('Arm ID must be a valid UUID'),
+
+  body('studentId')
+    .optional()
+    .trim()
+    .isLength({ max: 50 })
+    .withMessage('Student ID cannot exceed 50 characters'),
 
   body('rollNumber')
     .optional()
@@ -96,6 +107,40 @@ const validateStudentCreation = [
     .optional()
     .isUUID()
     .withMessage('Each teacher ID must be a valid UUID'),
+
+  body('guardian')
+    .optional()
+    .isObject()
+    .withMessage('Guardian must be an object'),
+
+  body('guardian.fullName')
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage('Guardian full name cannot exceed 100 characters'),
+
+  body('guardian.relationship')
+    .optional()
+    .trim()
+    .isLength({ max: 50 })
+    .withMessage('Guardian relationship cannot exceed 50 characters'),
+
+  body('guardian.phone')
+    .optional()
+    .isMobilePhone('any', { strictMode: false })
+    .withMessage('Please provide a valid guardian phone number'),
+
+  body('guardian.email')
+    .optional()
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('Please provide a valid guardian email address'),
+
+  body('guardian.address')
+    .optional()
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage('Guardian address cannot exceed 500 characters'),
 ];
 
 /**

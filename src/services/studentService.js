@@ -7,25 +7,30 @@
 
 const { prisma } = require('../config/database');
 const CacheService = require('./cacheService');
+const bcrypt = require('bcrypt');
 const logger = require('../utils/logger');
 
 /**
  * Create Student Service
  * Creates a new student record with unique studentId
+ * Optionally creates a linked User account (role=student) if email+password provided
  */
 const createStudent = async (studentData, schoolId) => {
   const {
     firstName,
     lastName,
     email,
+    password,
     classId: studentClass,
     armId,
+    studentId: admissionNumber,
     rollNumber,
     grade,
     dateOfBirth,
     gender,
     address,
     phone,
+    guardian,
     parentIds = [],
     teacherIds = []
   } = studentData;
@@ -91,12 +96,40 @@ const createStudent = async (studentData, schoolId) => {
     }
   }
 
+  // Optionally create User account if email + password provided
+  let createdUser = null;
+  if (email && password) {
+    const existingUser = await prisma.user.findFirst({
+      where: { schoolId: school.id, email: email.toLowerCase() }
+    });
+    if (existingUser) {
+      throw new Error('A user with this email already exists in this school');
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    createdUser = await prisma.user.create({
+      data: {
+        schoolId: school.id,
+        email: email.toLowerCase(),
+        password: hashedPassword,
+        firstName,
+        lastName,
+        role: 'student',
+        isVerified: true,
+        isActive: true,
+        isTemporaryPassword: false
+      }
+    });
+  }
+
   // Create student record
   const student = await prisma.student.create({
     data: {
       schoolId: school.id,
+      userId: createdUser?.id || undefined,
       firstName,
       lastName,
+      studentId: admissionNumber || undefined,
       email: email ? email.toLowerCase() : undefined,
       classId: studentClass,
       armId,
@@ -106,10 +139,23 @@ const createStudent = async (studentData, schoolId) => {
       gender,
       address,
       phone,
+      guardian: guardian || undefined,
       isActive: true,
       createdAt: new Date()
     }
   });
+
+  // Log activity if user was created
+  if (createdUser) {
+    await prisma.activityLog.create({
+      data: {
+        studentId: student.id,
+        type: 'login',
+        description: 'Student account created',
+        timestamp: new Date()
+      }
+    }).catch(() => {});
+  }
 
   // Create ParentStudent junction records
   if (parentIds.length > 0) {
@@ -154,11 +200,21 @@ const createStudent = async (studentData, schoolId) => {
       gender: student.gender,
       address: student.address,
       phone: student.phone,
+      guardian: student.guardian,
       parentIds: parentIdsRes,
       teacherIds: teacherIdsRes,
+      userId: student.userId,
       isActive: student.isActive,
       createdAt: student.createdAt
-    }
+    },
+    ...(createdUser && {
+      user: {
+        id: createdUser.id,
+        email: createdUser.email,
+        role: createdUser.role,
+        isTemporaryPassword: createdUser.isTemporaryPassword
+      }
+    })
   };
 };
 
@@ -180,7 +236,8 @@ const updateStudent = async (studentId, updateData, schoolId) => {
     address,
     phone,
     parentIds,
-    teacherIds
+    teacherIds,
+    guardian
   } = updateData;
 
   // Get school UUID
@@ -219,12 +276,12 @@ const updateStudent = async (studentId, updateData, schoolId) => {
   }
 
   // Check if roll number is being changed and if new roll number already exists
-  if (rollNumber && (rollNumber !== student.rollNumber || studentClass !== student.classId || section !== student.section)) {
+  if (rollNumber && (rollNumber !== student.rollNumber || studentClass !== student.classId || armId !== student.armId)) {
     const existingRollNumber = await prisma.student.findFirst({
       where: {
         schoolId: schoolIdUuid,
         classId: studentClass || student.classId,
-        section: section || student.section,
+        armId: armId || student.armId,
         rollNumber,
         isActive: true,
         id: { not: studentId }
@@ -271,6 +328,7 @@ const updateStudent = async (studentId, updateData, schoolId) => {
   if (gender !== undefined) updateFields.gender = gender;
   if (address !== undefined) updateFields.address = address;
   if (phone !== undefined) updateFields.phone = phone;
+  if (guardian !== undefined) updateFields.guardian = guardian;
   updateFields.updatedAt = new Date();
 
   const updatedStudent = await prisma.student.update({

@@ -18,6 +18,17 @@ const config = {
     fromEmail: process.env.FROM_EMAIL || 'noreply@educonnect.com'
   },
 
+  cloudinary: {
+    cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+    apiKey: process.env.CLOUDINARY_API_KEY,
+    apiSecret: process.env.CLOUDINARY_API_SECRET,
+    isConfigured: !!(
+      process.env.CLOUDINARY_CLOUD_NAME &&
+      process.env.CLOUDINARY_API_KEY &&
+      process.env.CLOUDINARY_API_SECRET
+    )
+  },
+
   security: {
     bcryptSaltRounds: parseInt(process.env.BCRYPT_SALT_ROUNDS) || 12,
     otpExpiresInMinutes: parseInt(process.env.OTP_EXPIRES_IN_MINUTES) || 10,
@@ -46,7 +57,14 @@ const config = {
       schoolProfile: parseInt(process.env.CACHE_TTL_SCHOOL_PROFILE) || 3600,
       otp: parseInt(process.env.CACHE_TTL_OTP) || 600
     }
-  }
+  },
+
+  locales: [
+    { code: 'en', label: 'English' },
+    { code: 'yo', label: 'Yoruba' },
+    { code: 'ha', label: 'Hausa' },
+    { code: 'ig', label: 'Igbo' }
+  ]
 };
 
 // Validate required environment variables

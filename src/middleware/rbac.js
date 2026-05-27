@@ -7,17 +7,19 @@
  * Role hierarchy and permissions
  */
 const ROLES = {
-  SYSTEM_ADMIN: 'system_admin',  // NEW: Platform-wide access
+  SYSTEM_ADMIN: 'system_admin',
   ADMIN: 'admin',
   TEACHER: 'teacher', 
-  PARENT: 'parent'
+  PARENT: 'parent',
+  STUDENT: 'student'
 };
 
 const ROLE_HIERARCHY = {
-  [ROLES.SYSTEM_ADMIN]: 4,       // NEW: Highest privilege level
-  [ROLES.ADMIN]: 3,
-  [ROLES.TEACHER]: 2,
-  [ROLES.PARENT]: 1
+  [ROLES.SYSTEM_ADMIN]: 5,
+  [ROLES.ADMIN]: 4,
+  [ROLES.TEACHER]: 3,
+  [ROLES.PARENT]: 2,
+  [ROLES.STUDENT]: 1
 };
 
 /**
