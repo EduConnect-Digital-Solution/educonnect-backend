@@ -36,6 +36,7 @@ model User {
   passwordResetExpires DateTime?
   lastLogin            DateTime?
   lastLoginAt          DateTime?
+  settings             Json?
   createdAt            DateTime         @default(now())
   updatedAt            DateTime         @updatedAt
   armClasses           Arm[]               @relation("ArmClassTeacher")
@@ -48,6 +49,7 @@ model User {
   feeStructures        FeeStructure[]      @relation("FeeStructureCreator")
   feeInvoices          FeeInvoice[]        @relation("FeeInvoiceCreator")
   feePayments          FeePayment[]        @relation("FeePaymentReceiver")
+  studentProfile       Student?
 
   @@unique([schoolId, email])
   @@index([schoolId, role])
@@ -99,6 +101,7 @@ model School {
 model Student {
   id                 String           @id @default(uuid())
   schoolId           String
+  userId             String?          @unique
   studentId          String?
   firstName          String
   lastName           String
@@ -113,6 +116,7 @@ model Student {
   profileImage       String?
   currentClass       String?
   academicYear       String?
+  guardian           Json?
   isActive           Boolean          @default(true)
   isEnrolled         Boolean          @default(true)
   deactivatedAt      DateTime?
@@ -132,6 +136,9 @@ model Student {
   classRef           Class?           @relation("StudentClass", fields: [classId], references: [id])
   school             School           @relation(fields: [schoolId], references: [id])
   studentOf          TeacherStudent[] @relation("StudentTeachers")
+  user               User?            @relation(fields: [userId], references: [id])
+  submissions        AssignmentSubmission[]
+  activities         ActivityLog[]
 
   @@unique([schoolId, studentId])
   @@index([schoolId, email])
@@ -741,10 +748,93 @@ model TimetablePublished {
   @@map("timetable_published")
 }
 
+// =============== ASSIGNMENT & SUBMISSION MODELS ===============
+
+model Assignment {
+  id            String                 @id @default(uuid())
+  schoolId      String
+  classId       String?
+  armId         String?
+  subject       String
+  termId        String?
+  teacherId     String
+  title         String
+  description   String?
+  dueAt         DateTime
+  maxScore      Float                  @default(100)
+  attachments   Json?
+  isPublished   Boolean                @default(true)
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+
+  submissions   AssignmentSubmission[]
+
+  @@index([schoolId, dueAt])
+  @@index([schoolId, classId])
+  @@map("assignments")
+}
+
+model AssignmentSubmission {
+  id             String     @id @default(uuid())
+  assignmentId   String
+  studentId      String
+  textResponse   String?
+  attachments    Json?
+  submittedAt    DateTime   @default(now())
+  status         String     @default("submitted")
+  gradePercent   Float?
+  feedback       String?
+  gradedAt       DateTime?
+  gradedById     String?
+
+  assignment     Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  student        Student    @relation(fields: [studentId], references: [id])
+
+  @@unique([assignmentId, studentId])
+  @@index([studentId])
+  @@index([assignmentId])
+  @@map("assignment_submissions")
+}
+
+// =============== NOTIFICATION & ACTIVITY MODELS ===============
+
+model Notification {
+  id          String   @id @default(uuid())
+  schoolId    String
+  userId      String
+  type        String
+  title       String
+  body        String?
+  isRead      Boolean  @default(false)
+  meta        Json?
+  createdAt   DateTime @default(now())
+  readAt      DateTime?
+
+  @@index([schoolId, userId])
+  @@index([schoolId, userId, isRead])
+  @@index([userId, createdAt])
+  @@map("notifications")
+}
+
+model ActivityLog {
+  id          String   @id @default(uuid())
+  studentId   String
+  type        String
+  description String
+  timestamp   DateTime @default(now())
+  meta        Json?
+
+  student     Student  @relation(fields: [studentId], references: [id])
+
+  @@index([studentId, timestamp])
+  @@map("activity_logs")
+}
+
 enum UserRole {
   admin
   teacher
   parent
+  student
 }
 
 enum Gender {

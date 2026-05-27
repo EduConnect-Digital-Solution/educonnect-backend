@@ -2097,7 +2097,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"firstName\": \"Amaka\",\n  \"lastName\": \"Nwosu\",\n  \"class\": \"JSS1\",\n  \"section\": \"A\",\n  \"rollNumber\": \"12\",\n  \"grade\": \"JSS1\",\n  \"gender\": \"female\"\n}",
+              "raw": "{\n  \"firstName\": \"Amaka\",\n  \"lastName\": \"Nwosu\",\n  \"email\": \"amaka.nwosu@school.edu\",\n  \"password\": \"Password123!\",\n  \"classId\": \"{{classId}}\",\n  \"armId\": \"{{armId}}\",\n  \"studentId\": \"STU2024-001\",\n  \"rollNumber\": \"12\",\n  \"grade\": \"JSS1\",\n  \"dateOfBirth\": \"2013-05-15\",\n  \"gender\": \"female\",\n  \"address\": \"12 Palm Avenue, Ikeja, Lagos\",\n  \"phone\": \"+2348023456789\",\n  \"parentIds\": [\n    \"{{parentId}}\"\n  ],\n  \"teacherIds\": [\n    \"{{teacherId}}\"\n  ],\n  \"guardian\": {\n    \"fullName\": \"Mr. Emeka Nwosu\",\n    \"relationship\": \"Father\",\n    \"phone\": \"+2348034567890\",\n    \"email\": \"emeka.nwosu@gmail.com\",\n    \"address\": \"12 Palm Avenue, Ikeja, Lagos\"\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -2943,6 +2943,482 @@
             "url": "{{baseUrl}}/api/system-admin/health"
           },
           "response": []
+        }
+      ]
+    },
+    {
+      "name": "13 - Config (Public)",
+      "item": [
+        {
+          "name": "Get Supported Locales",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/config/locales"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "14 - Student Dashboard",
+      "description": "Endpoints for student-facing dashboard. Requires user with role=student and linked Student profile.",
+      "item": [
+        {
+          "name": "14.0 - Global / Identity",
+          "item": [
+            {
+              "name": "Get Student Identity (/me)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/student/me"
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "14.1 - Notifications",
+          "item": [
+            {
+              "name": "List Notifications",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/student/notifications?page=1&limit=20"
+              },
+              "response": []
+            },
+            {
+              "name": "List Unread Only",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/student/notifications?unread=true&page=1&limit=20"
+              },
+              "response": []
+            },
+            {
+              "name": "Mark All Read",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/student/notifications/read-all"
+              },
+              "response": []
+            },
+            {
+              "name": "Mark Single Read",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/student/notifications/{{notificationId}}/read"
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "14.2 - Dashboard Home",
+          "item": [
+            {
+              "name": "Get Dashboard Overview",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/student/dashboard"
+              },
+              "response": []
+            },
+            {
+              "name": "Get Timetable (Current Week)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/student/timetable"
+              },
+              "response": []
+            },
+            {
+              "name": "Get Timetable (Specific Week)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/student/timetable?week=2025-W28"
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "14.3 - My Academics",
+          "item": [
+            {
+              "name": "Get Terms List",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/student/terms"
+              },
+              "response": []
+            },
+            {
+              "name": "Get Academics (Current Term)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/student/academics?page=1&limit=20"
+              },
+              "response": []
+            },
+            {
+              "name": "Get Academics (Specific Term)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/student/academics?termId={{termId}}&page=1&limit=20"
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "14.4 - Assignments",
+          "item": [
+            {
+              "name": "List All Assignments",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/student/assignments?page=1&limit=20"
+              },
+              "response": []
+            },
+            {
+              "name": "List Pending",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/student/assignments?status=pending&page=1&limit=10"
+              },
+              "response": []
+            },
+            {
+              "name": "List Submitted",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/student/assignments?status=submitted&page=1&limit=20"
+              },
+              "response": []
+            },
+            {
+              "name": "List Graded",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/student/assignments?status=graded&page=1&limit=20"
+              },
+              "response": []
+            },
+            {
+              "name": "List Overdue",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/student/assignments?status=overdue&page=1&limit=20"
+              },
+              "response": []
+            },
+            {
+              "name": "Get Single Assignment",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/student/assignments/{{assignmentId}}"
+              },
+              "response": []
+            },
+            {
+              "name": "Submit Assignment (URLs only)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"textResponse\": \"My essay response here...\",\n  \"attachments\": [\n    {\n      \"fileId\": \"uuid-1\",\n      \"fileName\": \"essay.pdf\",\n      \"fileUrl\": \"https://res.cloudinary.com/.../essay.pdf\",\n      \"mimeType\": \"application/pdf\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{baseUrl}}/api/student/assignments/{{assignmentId}}/submit"
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "14.5 - Teacher Directory",
+          "item": [
+            {
+              "name": "List Teachers",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/student/teachers?page=1&limit=20"
+              },
+              "response": []
+            },
+            {
+              "name": "Search Teachers",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/student/teachers?search=okonkwo&page=1&limit=20"
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "14.6 - Student Profile",
+          "item": [
+            {
+              "name": "Get Profile",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/student/profile"
+              },
+              "response": []
+            },
+            {
+              "name": "Update Profile",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"phone\": \"+2348023456789\",\n  \"address\": \"14 Palm Avenue, Ikeja, Lagos\",\n  \"avatarUrl\": \"https://res.cloudinary.com/.../avatar.jpg\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{baseUrl}}/api/student/profile"
+              },
+              "response": []
+            },
+            {
+              "name": "Get Activity Feed",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/student/activity?page=1&limit=20"
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "14.7 - Account Settings",
+          "item": [
+            {
+              "name": "Get Settings",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/student/settings"
+              },
+              "response": []
+            },
+            {
+              "name": "Update Settings (Partial)",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"notifications\": {\n    \"smsEnabled\": true,\n    \"gradePublished\": false\n  },\n  \"preferences\": {\n    \"darkMode\": true,\n    \"language\": \"yo\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{baseUrl}}/api/student/settings"
+              },
+              "response": []
+            },
+            {
+              "name": "Change Password",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"currentPassword\": \"OldPass@123\",\n  \"newPassword\": \"NewPass@456\",\n  \"confirmPassword\": \"NewPass@456\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{baseUrl}}/api/student/auth/change-password"
+              },
+              "response": []
+            }
+          ]
         }
       ]
     }

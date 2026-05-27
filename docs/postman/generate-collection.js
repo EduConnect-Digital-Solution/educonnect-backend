@@ -208,7 +208,7 @@ const collection = {
     {
       name: '07 - Student Management',
       item: [
-        req({ name: 'Create Student', method: 'POST', url: '/api/students', authType: 'user', body: { firstName: 'Amaka', lastName: 'Nwosu', class: 'JSS1', section: 'A', rollNumber: '12', grade: 'JSS1', gender: 'female' } }),
+        req({ name: 'Create Student', method: 'POST', url: '/api/students', authType: 'user', body: { firstName: 'Amaka', lastName: 'Nwosu', email: 'amaka.nwosu@school.edu', password: 'Password123!', classId: '{{classId}}', armId: '{{armId}}', studentId: 'STU2024-001', rollNumber: '12', grade: 'JSS1', dateOfBirth: '2013-05-15', gender: 'female', address: '12 Palm Avenue, Ikeja, Lagos', phone: '+2348023456789', parentIds: ['{{parentId}}'], teacherIds: ['{{teacherId}}'], guardian: { fullName: 'Mr. Emeka Nwosu', relationship: 'Father', phone: '+2348034567890', email: 'emeka.nwosu@gmail.com', address: '12 Palm Avenue, Ikeja, Lagos' } } }),
         req({ name: 'List Students', method: 'GET', url: '/api/students?class=JSS1&section=A&page=1&limit=20&search=', authType: 'user' }),
         req({ name: 'Get Student Details', method: 'GET', url: '/api/students/{{studentId}}', authType: 'user' }),
         req({ name: 'Update Student', method: 'PUT', url: '/api/students/{{studentId}}', authType: 'user', body: { firstName: 'Amaka', lastName: 'Nwosu', class: 'JSS2', section: 'A' } }),
@@ -258,25 +258,119 @@ const collection = {
         req({ name: 'System Admin Status', method: 'GET', url: '/api/system-admin/auth/status' })
       ]
     },
-    {
-      name: '12 - System Admin Core',
-      item: [
-        req({ name: 'Platform Overview', method: 'GET', url: '/api/system-admin/platform/overview', authType: 'systemAdmin' }),
-        req({ name: 'System Health', method: 'GET', url: '/api/system-admin/system/health', authType: 'systemAdmin' }),
-        req({ name: 'Platform KPIs', method: 'GET', url: '/api/system-admin/platform/kpis?timeRange=30d', authType: 'systemAdmin' }),
-        req({ name: 'Cross School Metrics', method: 'GET', url: '/api/system-admin/metrics/cross-school?metric=overview', authType: 'systemAdmin' }),
-        req({ name: 'School Management', method: 'GET', url: '/api/system-admin/schools/management?page=1&limit=20', authType: 'systemAdmin' }),
-        req({ name: 'Create School', method: 'POST', url: '/api/system-admin/schools', authType: 'systemAdmin', body: { schoolName: 'New Horizon College', email: 'admin@newhorizon.edu', adminFirstName: 'Musa', adminLastName: 'Ali', phone: '+2348000000000', address: 'Abuja' } }),
-        req({ name: 'Update School Config', method: 'PUT', url: '/api/system-admin/schools/{{schoolId}}/config', authType: 'systemAdmin', body: { subscriptionTier: 'premium', limits: { maxUsers: 500, maxStudents: 2000 } } }),
-        req({ name: 'Deactivate School', method: 'PUT', url: '/api/system-admin/schools/{{schoolId}}/deactivate', authType: 'systemAdmin', body: { reason: 'Policy breach' } }),
-        req({ name: 'Reactivate School', method: 'PUT', url: '/api/system-admin/schools/{{schoolId}}/reactivate', authType: 'systemAdmin', body: { reason: 'Issue resolved' } }),
-        req({ name: 'Cross School User Management', method: 'GET', url: '/api/system-admin/users/management?page=1&limit=20', authType: 'systemAdmin' }),
-        req({ name: 'Manage User Access', method: 'PUT', url: '/api/system-admin/users/{{userId}}/access', authType: 'systemAdmin', body: { action: 'suspend', reason: 'Security review' } }),
-        req({ name: 'Security Alerts', method: 'GET', url: '/api/system-admin/security/alerts', authType: 'systemAdmin' }),
-        req({ name: 'System Admin API Health', method: 'GET', url: '/api/system-admin/health', authType: 'systemAdmin' })
-      ]
-    }
-  ],
+     {
+       name: '12 - System Admin Core',
+       item: [
+         req({ name: 'Platform Overview', method: 'GET', url: '/api/system-admin/platform/overview', authType: 'systemAdmin' }),
+         req({ name: 'System Health', method: 'GET', url: '/api/system-admin/system/health', authType: 'systemAdmin' }),
+         req({ name: 'Platform KPIs', method: 'GET', url: '/api/system-admin/platform/kpis?timeRange=30d', authType: 'systemAdmin' }),
+         req({ name: 'Cross School Metrics', method: 'GET', url: '/api/system-admin/metrics/cross-school?metric=overview', authType: 'systemAdmin' }),
+         req({ name: 'School Management', method: 'GET', url: '/api/system-admin/schools/management?page=1&limit=20', authType: 'systemAdmin' }),
+         req({ name: 'Create School', method: 'POST', url: '/api/system-admin/schools', authType: 'systemAdmin', body: { schoolName: 'New Horizon College', email: 'admin@newhorizon.edu', adminFirstName: 'Musa', adminLastName: 'Ali', phone: '+2348000000000', address: 'Abuja' } }),
+         req({ name: 'Update School Config', method: 'PUT', url: '/api/system-admin/schools/{{schoolId}}/config', authType: 'systemAdmin', body: { subscriptionTier: 'premium', limits: { maxUsers: 500, maxStudents: 2000 } } }),
+         req({ name: 'Deactivate School', method: 'PUT', url: '/api/system-admin/schools/{{schoolId}}/deactivate', authType: 'systemAdmin', body: { reason: 'Policy breach' } }),
+         req({ name: 'Reactivate School', method: 'PUT', url: '/api/system-admin/schools/{{schoolId}}/reactivate', authType: 'systemAdmin', body: { reason: 'Issue resolved' } }),
+         req({ name: 'Cross School User Management', method: 'GET', url: '/api/system-admin/users/management?page=1&limit=20', authType: 'systemAdmin' }),
+         req({ name: 'Manage User Access', method: 'PUT', url: '/api/system-admin/users/{{userId}}/access', authType: 'systemAdmin', body: { action: 'suspend', reason: 'Security review' } }),
+         req({ name: 'Security Alerts', method: 'GET', url: '/api/system-admin/security/alerts', authType: 'systemAdmin' }),
+         req({ name: 'System Admin API Health', method: 'GET', url: '/api/system-admin/health', authType: 'systemAdmin' })
+       ]
+     },
+     {
+       name: '13 - Config (Public)',
+       item: [
+         req({ name: 'Get Supported Locales', method: 'GET', url: '/api/config/locales' })
+       ]
+     },
+     {
+       name: '14 - Student Dashboard',
+       description: 'Endpoints for student-facing dashboard. Requires user with role=student and linked Student profile.',
+       item: [
+         {
+           name: '14.0 - Global / Identity',
+           item: [
+             req({ name: 'Get Student Identity (/me)', method: 'GET', url: '/api/student/me', authType: 'user' }),
+           ]
+         },
+         {
+           name: '14.1 - Notifications',
+           item: [
+             req({ name: 'List Notifications', method: 'GET', url: '/api/student/notifications?page=1&limit=20', authType: 'user' }),
+             req({ name: 'List Unread Only', method: 'GET', url: '/api/student/notifications?unread=true&page=1&limit=20', authType: 'user' }),
+             req({ name: 'Mark All Read', method: 'PATCH', url: '/api/student/notifications/read-all', authType: 'user' }),
+             req({ name: 'Mark Single Read', method: 'PATCH', url: '/api/student/notifications/{{notificationId}}/read', authType: 'user' })
+           ]
+         },
+         {
+           name: '14.2 - Dashboard Home',
+           item: [
+             req({ name: 'Get Dashboard Overview', method: 'GET', url: '/api/student/dashboard', authType: 'user' }),
+             req({ name: 'Get Timetable (Current Week)', method: 'GET', url: '/api/student/timetable', authType: 'user' }),
+             req({ name: 'Get Timetable (Specific Week)', method: 'GET', url: '/api/student/timetable?week=2025-W28', authType: 'user' })
+           ]
+         },
+         {
+           name: '14.3 - My Academics',
+           item: [
+             req({ name: 'Get Terms List', method: 'GET', url: '/api/student/terms', authType: 'user' }),
+             req({ name: 'Get Academics (Current Term)', method: 'GET', url: '/api/student/academics?page=1&limit=20', authType: 'user' }),
+             req({ name: 'Get Academics (Specific Term)', method: 'GET', url: '/api/student/academics?termId={{termId}}&page=1&limit=20', authType: 'user' })
+           ]
+         },
+         {
+           name: '14.4 - Assignments',
+           item: [
+             req({ name: 'List All Assignments', method: 'GET', url: '/api/student/assignments?page=1&limit=20', authType: 'user' }),
+             req({ name: 'List Pending', method: 'GET', url: '/api/student/assignments?status=pending&page=1&limit=10', authType: 'user' }),
+             req({ name: 'List Submitted', method: 'GET', url: '/api/student/assignments?status=submitted&page=1&limit=20', authType: 'user' }),
+             req({ name: 'List Graded', method: 'GET', url: '/api/student/assignments?status=graded&page=1&limit=20', authType: 'user' }),
+             req({ name: 'List Overdue', method: 'GET', url: '/api/student/assignments?status=overdue&page=1&limit=20', authType: 'user' }),
+             req({ name: 'Get Single Assignment', method: 'GET', url: '/api/student/assignments/{{assignmentId}}', authType: 'user' }),
+             req({ name: 'Submit Assignment (URLs only)', method: 'POST', url: '/api/student/assignments/{{assignmentId}}/submit', authType: 'user', body: { 
+               textResponse: 'My essay response here...',
+               attachments: [
+                 { fileId: 'uuid-1', fileName: 'essay.pdf', fileUrl: 'https://res.cloudinary.com/.../essay.pdf', mimeType: 'application/pdf' }
+               ]
+             }})
+           ]
+         },
+         {
+           name: '14.5 - Teacher Directory',
+           item: [
+             req({ name: 'List Teachers', method: 'GET', url: '/api/student/teachers?page=1&limit=20', authType: 'user' }),
+             req({ name: 'Search Teachers', method: 'GET', url: '/api/student/teachers?search=okonkwo&page=1&limit=20', authType: 'user' })
+           ]
+         },
+         {
+           name: '14.6 - Student Profile',
+           item: [
+             req({ name: 'Get Profile', method: 'GET', url: '/api/student/profile', authType: 'user' }),
+             req({ name: 'Update Profile', method: 'PATCH', url: '/api/student/profile', authType: 'user', body: {
+               phone: '+2348023456789',
+               address: '14 Palm Avenue, Ikeja, Lagos',
+               avatarUrl: 'https://res.cloudinary.com/.../avatar.jpg'
+             }}),
+             req({ name: 'Get Activity Feed', method: 'GET', url: '/api/student/activity?page=1&limit=20', authType: 'user' })
+           ]
+         },
+         {
+           name: '14.7 - Account Settings',
+           item: [
+             req({ name: 'Get Settings', method: 'GET', url: '/api/student/settings', authType: 'user' }),
+             req({ name: 'Update Settings (Partial)', method: 'PATCH', url: '/api/student/settings', authType: 'user', body: {
+               notifications: { smsEnabled: true, gradePublished: false },
+               preferences: { darkMode: true, language: 'yo' }
+             }}),
+             req({ name: 'Change Password', method: 'POST', url: '/api/student/auth/change-password', authType: 'user', body: {
+               currentPassword: 'OldPass@123',
+               newPassword: 'NewPass@456',
+               confirmPassword: 'NewPass@456'
+             }})
+           ]
+         }
+       ]
+     }
+   ],
   variable: [
     { key: 'baseUrl', value: 'http://localhost:3000', type: 'string' },
     { key: 'accessToken', value: '', type: 'string' },

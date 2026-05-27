@@ -188,6 +188,10 @@ const { adminTimetableRoutes, teacherTimetableRoutes } = require('./routes/timet
 const systemAdminAuthRoutes = require('./routes/systemAdminAuth');
 const systemAdminRoutes = require('./routes/systemAdmin');
 
+// Student Dashboard routes
+const studentDashboardRoutes = require('./routes/studentDashboard');
+const configRoutes = require('./routes/config');
+
 // Import Swagger documentation
 const { specs, swaggerUi, swaggerOptions } = require('./config/swagger');
 
@@ -220,6 +224,10 @@ app.use('/api/teacher/timetable', teacherTimetableRoutes);
 // System Admin routes
 app.use('/api/system-admin/auth', systemAdminAuthRoutes);
 app.use('/api/system-admin', systemAdminRoutes);
+
+// Student Dashboard routes
+app.use('/api/student', studentDashboardRoutes);
+app.use('/api/config', configRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {
