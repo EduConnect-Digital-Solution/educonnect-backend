@@ -20,6 +20,7 @@ const handleValidationErrors = (req, res, next) => {
 
 const validateGetEvents = [
   query('termId')
+    .optional()
     .isUUID()
     .withMessage('termId must be a valid UUID'),
   handleValidationErrors

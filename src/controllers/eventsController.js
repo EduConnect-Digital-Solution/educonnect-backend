@@ -7,15 +7,11 @@ const getEvents = async (req, res) => {
     const { schoolId } = req.user;
     const { termId } = req.query;
 
-    if (!termId) {
-      return res.status(400).json({
-        success: false,
-        error: { code: 'VALIDATION_ERROR', message: 'termId query parameter is required' }
-      });
-    }
+    const where = { schoolId };
+    if (termId) where.termId = termId;
 
     const events = await prisma.event.findMany({
-      where: { schoolId, termId },
+      where,
       orderBy: { date: 'asc' }
     });
 
