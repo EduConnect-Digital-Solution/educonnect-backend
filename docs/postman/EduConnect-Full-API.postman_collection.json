@@ -3676,7 +3676,7 @@
                     }
                   }
                 },
-                "url": "{{baseUrl}}/api/fees/invoices/generate/class"
+                "url": "{{baseUrl}}/api/fees/invoices/generate"
               },
               "response": []
             },
@@ -4026,6 +4026,33 @@
         {
           "name": "H - Reconciliation",
           "item": [
+            {
+              "name": "Import Settlements",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"gateway\": \"paystack\",\n  \"settlements\": [\n    {\n      \"settlementId\": \"sttl_001\",\n      \"amount\": 7500000,\n      \"settledAt\": \"2026-01-16T00:00:00.000Z\"\n    },\n    {\n      \"settlementId\": \"sttl_002\",\n      \"amount\": 5000000,\n      \"settledAt\": \"2026-01-16T00:00:00.000Z\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{baseUrl}}/api/fees/reconciliation/import"
+              },
+              "response": []
+            },
             {
               "name": "List Reconciliation Records",
               "request": {

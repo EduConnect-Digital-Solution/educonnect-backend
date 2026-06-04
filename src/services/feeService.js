@@ -1002,6 +1002,40 @@ const getReconciliation = async (schoolId, { gateway, from, to, status: recStatu
   return { rows, pagination: { page, limit, total, pages: Math.ceil(total / limit) }, summary: { matched, unmatched } };
 };
 
+const importSettlements = async (schoolId, data) => {
+  const { gateway, settlements } = data;
+  if (!settlements || !Array.isArray(settlements) || settlements.length === 0) {
+    throw new Error('At least one settlement entry is required');
+  }
+
+  const existing = await prisma.feeReconciliation.findMany({
+    where: { schoolId, settlementId: { in: settlements.map(s => s.settlementId) } },
+    select: { settlementId: true }
+  });
+  const existingIds = new Set(existing.map(e => e.settlementId));
+
+  const toCreate = settlements
+    .filter(s => !existingIds.has(s.settlementId))
+    .map(s => ({
+      schoolId,
+      settlementId: s.settlementId,
+      gateway: gateway || s.gateway || 'paystack',
+      amount: s.amount,
+      settledAt: new Date(s.settledAt),
+      status: 'unmatched'
+    }));
+
+  if (toCreate.length > 0) {
+    await prisma.feeReconciliation.createMany({ data: toCreate });
+  }
+
+  return {
+    message: `${toCreate.length} settlement(s) imported, ${settlements.length - toCreate.length} skipped (already exist)`,
+    imported: toCreate.length,
+    skipped: settlements.length - toCreate.length
+  };
+};
+
 const reconcileTransaction = async (schoolId, data) => {
   const { settlementId, paymentId } = data;
 

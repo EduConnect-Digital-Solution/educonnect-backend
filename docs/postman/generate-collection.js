@@ -393,7 +393,7 @@ const collection = {
              req({ name: 'List Invoices', method: 'GET', url: '/api/fees/invoices?academicYearId={{academicYearId}}&termId={{termId}}&classId={{classId}}&status=pending&page=1&limit=20', authType: 'user' }),
              req({ name: 'Get Invoice by ID', method: 'GET', url: '/api/fees/invoices/{{invoiceId}}', authType: 'user' }),
              req({ name: 'Create Invoices (Manual)', method: 'POST', url: '/api/fees/invoices', authType: 'user', body: { invoices: [{ feeStructureId: '{{feeStructureId}}', studentId: '{{studentId}}' }] } }),
-             req({ name: 'Generate Invoices for Class', method: 'POST', url: '/api/fees/invoices/generate/class', authType: 'user', body: { feeStructureId: '{{feeStructureId}}', classId: '{{classId}}', armId: '{{armId}}', includeOptional: ['sports'] } }),
+             req({ name: 'Generate Invoices for Class', method: 'POST', url: '/api/fees/invoices/generate', authType: 'user', body: { feeStructureId: '{{feeStructureId}}', classId: '{{classId}}', armId: '{{armId}}', includeOptional: ['sports'] } }),
              req({ name: 'Void Invoice', method: 'PUT', url: '/api/fees/invoices/{{invoiceId}}/void', authType: 'user', body: { reason: 'Invoice issued in error' } }),
              req({ name: 'Get Student Fees', method: 'GET', url: '/api/fees/students/{{studentId}}/fees', authType: 'user' })
            ]
@@ -441,6 +441,7 @@ const collection = {
          {
            name: 'H - Reconciliation',
            item: [
+             req({ name: 'Import Settlements', method: 'POST', url: '/api/fees/reconciliation/import', authType: 'user', body: { gateway: 'paystack', settlements: [{ settlementId: 'sttl_001', amount: 7500000, settledAt: '2026-01-16T00:00:00.000Z' }, { settlementId: 'sttl_002', amount: 5000000, settledAt: '2026-01-16T00:00:00.000Z' }] } }),
              req({ name: 'List Reconciliation Records', method: 'GET', url: '/api/fees/reconciliation?gateway=paystack&from=2025-01-01&to=2025-12-31&status=unmatched&page=1&limit=20', authType: 'user' }),
              req({ name: 'Match Transaction', method: 'POST', url: '/api/fees/reconciliation/match', authType: 'user', body: { settlementId: 'sttl_001', paymentId: '{{paymentId}}' } })
            ]

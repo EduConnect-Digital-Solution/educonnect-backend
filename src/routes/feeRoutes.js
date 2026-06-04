@@ -20,7 +20,7 @@ router.get('/structures/:id/versions', authorize('fees.read'), validation.valida
 router.get('/invoices', authorize('fees.read'), validation.validateGetInvoices, feeController.getInvoices);
 router.get('/invoices/:id', authorize('fees.read'), validation.validateGetInvoiceById, feeController.getInvoiceById);
 router.post('/invoices', authorize('fees.create'), validation.validateCreateInvoices, feeController.createInvoices);
-router.post('/invoices/generate/class', authorize('fees.create'), validation.validateGenerateInvoices, feeController.generateInvoicesForClass);
+router.post('/invoices/generate', authorize('fees.create'), validation.validateGenerateInvoices, feeController.generateInvoicesForClass);
 router.put('/invoices/:id/void', authorize('fees.update'), validation.validateVoidInvoice, feeController.voidInvoice);
 router.get('/students/:studentId/fees', authorize('fees.read'), validation.validateGetStudentFees, feeController.getStudentFees);
 
@@ -51,6 +51,7 @@ router.get('/reports/collections', authorize('fees.read'), validation.validateGe
 
 // H. Reconciliation
 router.get('/reconciliation', authorize('fees.admin'), validation.validateGetReconciliation, feeController.getReconciliation);
+router.post('/reconciliation/import', authorize('fees.admin'), validation.validateImportSettlements, feeController.importSettlements);
 router.post('/reconciliation/match', authorize('fees.admin'), validation.validateReconcileTransaction, feeController.reconcileTransaction);
 
 module.exports = router;
