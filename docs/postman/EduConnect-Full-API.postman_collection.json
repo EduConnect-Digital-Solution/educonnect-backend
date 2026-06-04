@@ -2097,7 +2097,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"firstName\": \"Amaka\",\n  \"lastName\": \"Nwosu\",\n  \"email\": \"amaka.nwosu@school.edu\",\n  \"password\": \"Password123!\",\n  \"classId\": \"{{classId}}\",\n  \"armId\": \"{{armId}}\",\n  \"studentId\": \"STU2024-001\",\n  \"rollNumber\": \"12\",\n  \"grade\": \"JSS1\",\n  \"dateOfBirth\": \"2013-05-15\",\n  \"gender\": \"female\",\n  \"address\": \"12 Palm Avenue, Ikeja, Lagos\",\n  \"phone\": \"+2348023456789\",\n  \"parentIds\": [\n    \"{{parentId}}\"\n  ],\n  \"teacherIds\": [\n    \"{{teacherId}}\"\n  ],\n  \"guardian\": {\n    \"fullName\": \"Mr. Emeka Nwosu\",\n    \"relationship\": \"Father\",\n    \"phone\": \"+2348034567890\",\n    \"email\": \"emeka.nwosu@gmail.com\",\n    \"address\": \"12 Palm Avenue, Ikeja, Lagos\"\n  }\n}",
+              "raw": "{\n  \"firstName\": \"Amaka\",\n  \"lastName\": \"Nwosu\",\n  \"email\": \"amaka.nwosu@school.edu\",\n  \"password\": \"Password123!\",\n  \"classId\": \"{{classId}}\",\n  \"armId\": \"{{armId}}\",\n  \"studentId\": \"STU2024-001\",\n  \"rollNumber\": \"12\",\n  \"dateOfBirth\": \"2013-05-15\",\n  \"gender\": \"female\",\n  \"address\": \"12 Palm Avenue, Ikeja, Lagos\",\n  \"phone\": \"+2348023456789\",\n  \"parentIds\": [\n    \"{{parentId}}\"\n  ],\n  \"teacherIds\": [\n    \"{{teacherId}}\"\n  ],\n  \"guardian\": {\n    \"fullName\": \"Mr. Emeka Nwosu\",\n    \"relationship\": \"Father\",\n    \"phone\": \"+2348034567890\",\n    \"email\": \"emeka.nwosu@gmail.com\",\n    \"address\": \"12 Palm Avenue, Ikeja, Lagos\"\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -2118,7 +2118,7 @@
                 "value": "Bearer {{accessToken}}"
               }
             ],
-            "url": "{{baseUrl}}/api/students?class=JSS1&section=A&page=1&limit=20&search="
+            "url": "{{baseUrl}}/api/students?classId={{classId}}&armId={{armId}}&page=1&limit=20&search="
           },
           "response": []
         },
@@ -2152,7 +2152,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"firstName\": \"Amaka\",\n  \"lastName\": \"Nwosu\",\n  \"class\": \"JSS2\",\n  \"section\": \"A\"\n}",
+              "raw": "{\n  \"firstName\": \"Amaka\",\n  \"lastName\": \"Nwosu\",\n  \"classId\": \"{{classId}}\",\n  \"armId\": \"{{armId}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -3421,6 +3421,655 @@
           ]
         }
       ]
+    },
+    {
+      "name": "15 - Fee Management",
+      "description": "Complete Fee & Payment Management engine (A–H layers, 31 endpoints).",
+      "item": [
+        {
+          "name": "A - Fee Structures",
+          "item": [
+            {
+              "name": "List Fee Structures",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/fees/structures?academicYearId={{academicYearId}}&termId={{termId}}&classId={{classId}}&status=published&page=1&limit=20"
+              },
+              "response": []
+            },
+            {
+              "name": "Get Fee Structure by ID",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/fees/structures/{{feeStructureId}}"
+              },
+              "response": []
+            },
+            {
+              "name": "Create Fee Structure",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"academicYearId\": \"{{academicYearId}}\",\n  \"termId\": \"{{termId}}\",\n  \"classId\": \"{{classId}}\",\n  \"name\": \"2025 Tuition Fee\",\n  \"items\": [\n    {\n      \"feeType\": \"tuition\",\n      \"name\": \"Tuition Fee\",\n      \"amount\": 500000,\n      \"optional\": false\n    },\n    {\n      \"feeType\": \"sports\",\n      \"name\": \"Sports Levy\",\n      \"amount\": 50000,\n      \"optional\": true\n    }\n  ],\n  \"totalAmount\": 550000,\n  \"dueDate\": \"2025-09-15T00:00:00.000Z\",\n  \"paymentType\": \"one-time\",\n  \"installmentPlans\": []\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{baseUrl}}/api/fees/structures"
+              },
+              "response": []
+            },
+            {
+              "name": "Update Fee Structure",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"2025 Tuition Fee (Revised)\",\n  \"totalAmount\": 600000,\n  \"dueDate\": \"2025-10-01T00:00:00.000Z\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{baseUrl}}/api/fees/structures/{{feeStructureId}}"
+              },
+              "response": []
+            },
+            {
+              "name": "Delete Fee Structure",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/fees/structures/{{feeStructureId}}"
+              },
+              "response": []
+            },
+            {
+              "name": "Clone Fee Structure",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"targetAcademicYearId\": \"{{academicYearId}}\",\n  \"targetTermId\": \"{{termId}}\",\n  \"targetClassIds\": [\n    \"{{classId}}\"\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{baseUrl}}/api/fees/structures/{{feeStructureId}}/clone"
+              },
+              "response": []
+            },
+            {
+              "name": "Publish / Revert Fee Structure",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"action\": \"publish\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{baseUrl}}/api/fees/structures/{{feeStructureId}}/transition"
+              },
+              "response": []
+            },
+            {
+              "name": "Get Fee Structure Versions",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/fees/structures/{{feeStructureId}}/versions"
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "B - Invoices",
+          "item": [
+            {
+              "name": "List Invoices",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/fees/invoices?academicYearId={{academicYearId}}&termId={{termId}}&classId={{classId}}&status=pending&page=1&limit=20"
+              },
+              "response": []
+            },
+            {
+              "name": "Get Invoice by ID",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/fees/invoices/{{invoiceId}}"
+              },
+              "response": []
+            },
+            {
+              "name": "Create Invoices (Manual)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"invoices\": [\n    {\n      \"feeStructureId\": \"{{feeStructureId}}\",\n      \"studentId\": \"{{studentId}}\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{baseUrl}}/api/fees/invoices"
+              },
+              "response": []
+            },
+            {
+              "name": "Generate Invoices for Class",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"feeStructureId\": \"{{feeStructureId}}\",\n  \"classId\": \"{{classId}}\",\n  \"armId\": \"{{armId}}\",\n  \"includeOptional\": [\n    \"sports\"\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{baseUrl}}/api/fees/invoices/generate/class"
+              },
+              "response": []
+            },
+            {
+              "name": "Void Invoice",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reason\": \"Invoice issued in error\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{baseUrl}}/api/fees/invoices/{{invoiceId}}/void"
+              },
+              "response": []
+            },
+            {
+              "name": "Get Student Fees",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/fees/students/{{studentId}}/fees"
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "C - Payments",
+          "item": [
+            {
+              "name": "Record Manual Payment",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"amount\": 250000,\n  \"paymentMethod\": \"bank_transfer\",\n  \"referenceNumber\": \"TXN-001\",\n  \"receiptNumber\": \"RCP-001\",\n  \"note\": \"First installment\",\n  \"paidAt\": \"2025-06-01T10:00:00.000Z\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{baseUrl}}/api/fees/invoices/{{invoiceId}}/payments"
+              },
+              "response": []
+            },
+            {
+              "name": "Initialize Gateway Payment",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"gateway\": \"paystack\",\n  \"amount\": 250000,\n  \"email\": \"parent@example.com\",\n  \"callbackUrl\": \"https://school.edu/payment/callback\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{baseUrl}}/api/fees/invoices/{{invoiceId}}/initialize"
+              },
+              "response": []
+            },
+            {
+              "name": "Verify Payment",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reference\": \"paystack_ref_12345\",\n  \"gateway\": \"paystack\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{baseUrl}}/api/fees/payments/verify"
+              },
+              "response": []
+            },
+            {
+              "name": "Get Payment History (by Invoice)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/fees/invoices/{{invoiceId}}/payments"
+              },
+              "response": []
+            },
+            {
+              "name": "Get All Payments",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/fees/payments?from=2025-01-01&to=2025-12-31&method=bank_transfer&status=confirmed&page=1&limit=20"
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "D - Adjustments",
+          "item": [
+            {
+              "name": "Apply Adjustment",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"studentId\": \"{{studentId}}\",\n  \"invoiceId\": \"{{invoiceId}}\",\n  \"type\": \"discount\",\n  \"amount\": 50000,\n  \"reason\": \"Sibling discount 10%\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{baseUrl}}/api/fees/adjustments"
+              },
+              "response": []
+            },
+            {
+              "name": "List Adjustments",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/fees/adjustments?studentId={{studentId}}&type=discount&from=2025-01-01&to=2025-12-31"
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "E - Ledger",
+          "item": [
+            {
+              "name": "Get Student Ledger",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/fees/ledger/students/{{studentId}}?academicYearId={{academicYearId}}&termId={{termId}}"
+              },
+              "response": []
+            },
+            {
+              "name": "Get Ledger Summary",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/fees/ledger/summary?academicYearId={{academicYearId}}&termId={{termId}}"
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "F - Receipts",
+          "item": [
+            {
+              "name": "Get Receipt",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/fees/receipts/{{paymentId}}"
+              },
+              "response": []
+            },
+            {
+              "name": "Send Receipt",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"channel\": \"email\",\n  \"to\": \"parent@example.com\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{baseUrl}}/api/fees/receipts/{{paymentId}}/send"
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "G - Reports",
+          "item": [
+            {
+              "name": "Get Fee Analytics",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/fees/reports/analytics?academicYearId={{academicYearId}}&termId={{termId}}&classId={{classId}}"
+              },
+              "response": []
+            },
+            {
+              "name": "Get Outstanding Balances",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/fees/reports/outstanding?academicYearId={{academicYearId}}&termId={{termId}}&classId={{classId}}&threshold=100000&page=1&limit=20"
+              },
+              "response": []
+            },
+            {
+              "name": "Get Aging Report",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/fees/reports/aging?academicYearId={{academicYearId}}&termId={{termId}}&classId={{classId}}"
+              },
+              "response": []
+            },
+            {
+              "name": "Get Collection Report",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/fees/reports/collections?from=2025-01-01&to=2025-12-31&academicYearId={{academicYearId}}&termId={{termId}}&classId={{classId}}"
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "H - Reconciliation",
+          "item": [
+            {
+              "name": "List Reconciliation Records",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/fees/reconciliation?gateway=paystack&from=2025-01-01&to=2025-12-31&status=unmatched&page=1&limit=20"
+              },
+              "response": []
+            },
+            {
+              "name": "Match Transaction",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"settlementId\": \"sttl_001\",\n  \"paymentId\": \"{{paymentId}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{baseUrl}}/api/fees/reconciliation/match"
+              },
+              "response": []
+            }
+          ]
+        }
+      ]
     }
   ],
   "variable": [
@@ -3516,6 +4165,21 @@
     },
     {
       "key": "eventId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "feeStructureId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "invoiceId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "paymentId",
       "value": "",
       "type": "string"
     }

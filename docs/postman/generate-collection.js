@@ -208,10 +208,10 @@ const collection = {
     {
       name: '07 - Student Management',
       item: [
-        req({ name: 'Create Student', method: 'POST', url: '/api/students', authType: 'user', body: { firstName: 'Amaka', lastName: 'Nwosu', email: 'amaka.nwosu@school.edu', password: 'Password123!', classId: '{{classId}}', armId: '{{armId}}', studentId: 'STU2024-001', rollNumber: '12', grade: 'JSS1', dateOfBirth: '2013-05-15', gender: 'female', address: '12 Palm Avenue, Ikeja, Lagos', phone: '+2348023456789', parentIds: ['{{parentId}}'], teacherIds: ['{{teacherId}}'], guardian: { fullName: 'Mr. Emeka Nwosu', relationship: 'Father', phone: '+2348034567890', email: 'emeka.nwosu@gmail.com', address: '12 Palm Avenue, Ikeja, Lagos' } } }),
-        req({ name: 'List Students', method: 'GET', url: '/api/students?class=JSS1&section=A&page=1&limit=20&search=', authType: 'user' }),
+        req({ name: 'Create Student', method: 'POST', url: '/api/students', authType: 'user', body: { firstName: 'Amaka', lastName: 'Nwosu', email: 'amaka.nwosu@school.edu', password: 'Password123!', classId: '{{classId}}', armId: '{{armId}}', studentId: 'STU2024-001', rollNumber: '12', dateOfBirth: '2013-05-15', gender: 'female', address: '12 Palm Avenue, Ikeja, Lagos', phone: '+2348023456789', parentIds: ['{{parentId}}'], teacherIds: ['{{teacherId}}'], guardian: { fullName: 'Mr. Emeka Nwosu', relationship: 'Father', phone: '+2348034567890', email: 'emeka.nwosu@gmail.com', address: '12 Palm Avenue, Ikeja, Lagos' } } }),
+        req({ name: 'List Students', method: 'GET', url: '/api/students?classId={{classId}}&armId={{armId}}&page=1&limit=20&search=', authType: 'user' }),
         req({ name: 'Get Student Details', method: 'GET', url: '/api/students/{{studentId}}', authType: 'user' }),
-        req({ name: 'Update Student', method: 'PUT', url: '/api/students/{{studentId}}', authType: 'user', body: { firstName: 'Amaka', lastName: 'Nwosu', class: 'JSS2', section: 'A' } }),
+        req({ name: 'Update Student', method: 'PUT', url: '/api/students/{{studentId}}', authType: 'user', body: { firstName: 'Amaka', lastName: 'Nwosu', classId: '{{classId}}', armId: '{{armId}}' } }),
         req({ name: 'Toggle Student Status', method: 'POST', url: '/api/students/toggle-status', authType: 'user', body: { studentId: '{{studentId}}', action: 'deactivate', reason: 'Transferred out' } }),
         req({ name: 'Remove Student', method: 'DELETE', url: '/api/students/remove', authType: 'user', body: { studentId: '{{studentId}}', reason: 'Removed by admin' } })
       ]
@@ -369,6 +369,83 @@ const collection = {
            ]
          }
        ]
+     },
+     {
+       name: '15 - Fee Management',
+       description: 'Complete Fee & Payment Management engine (A–H layers, 31 endpoints).',
+       item: [
+         {
+           name: 'A - Fee Structures',
+           item: [
+             req({ name: 'List Fee Structures', method: 'GET', url: '/api/fees/structures?academicYearId={{academicYearId}}&termId={{termId}}&classId={{classId}}&status=published&page=1&limit=20', authType: 'user' }),
+             req({ name: 'Get Fee Structure by ID', method: 'GET', url: '/api/fees/structures/{{feeStructureId}}', authType: 'user' }),
+             req({ name: 'Create Fee Structure', method: 'POST', url: '/api/fees/structures', authType: 'user', body: { academicYearId: '{{academicYearId}}', termId: '{{termId}}', classId: '{{classId}}', name: '2025 Tuition Fee', items: [{ feeType: 'tuition', name: 'Tuition Fee', amount: 500000, optional: false }, { feeType: 'sports', name: 'Sports Levy', amount: 50000, optional: true }], totalAmount: 550000, dueDate: '2025-09-15T00:00:00.000Z', paymentType: 'one-time', installmentPlans: [] } }),
+             req({ name: 'Update Fee Structure', method: 'PUT', url: '/api/fees/structures/{{feeStructureId}}', authType: 'user', body: { name: '2025 Tuition Fee (Revised)', totalAmount: 600000, dueDate: '2025-10-01T00:00:00.000Z' } }),
+             req({ name: 'Delete Fee Structure', method: 'DELETE', url: '/api/fees/structures/{{feeStructureId}}', authType: 'user' }),
+             req({ name: 'Clone Fee Structure', method: 'POST', url: '/api/fees/structures/{{feeStructureId}}/clone', authType: 'user', body: { targetAcademicYearId: '{{academicYearId}}', targetTermId: '{{termId}}', targetClassIds: ['{{classId}}'] } }),
+             req({ name: 'Publish / Revert Fee Structure', method: 'POST', url: '/api/fees/structures/{{feeStructureId}}/transition', authType: 'user', body: { action: 'publish' } }),
+             req({ name: 'Get Fee Structure Versions', method: 'GET', url: '/api/fees/structures/{{feeStructureId}}/versions', authType: 'user' })
+           ]
+         },
+         {
+           name: 'B - Invoices',
+           item: [
+             req({ name: 'List Invoices', method: 'GET', url: '/api/fees/invoices?academicYearId={{academicYearId}}&termId={{termId}}&classId={{classId}}&status=pending&page=1&limit=20', authType: 'user' }),
+             req({ name: 'Get Invoice by ID', method: 'GET', url: '/api/fees/invoices/{{invoiceId}}', authType: 'user' }),
+             req({ name: 'Create Invoices (Manual)', method: 'POST', url: '/api/fees/invoices', authType: 'user', body: { invoices: [{ feeStructureId: '{{feeStructureId}}', studentId: '{{studentId}}' }] } }),
+             req({ name: 'Generate Invoices for Class', method: 'POST', url: '/api/fees/invoices/generate/class', authType: 'user', body: { feeStructureId: '{{feeStructureId}}', classId: '{{classId}}', armId: '{{armId}}', includeOptional: ['sports'] } }),
+             req({ name: 'Void Invoice', method: 'PUT', url: '/api/fees/invoices/{{invoiceId}}/void', authType: 'user', body: { reason: 'Invoice issued in error' } }),
+             req({ name: 'Get Student Fees', method: 'GET', url: '/api/fees/students/{{studentId}}/fees', authType: 'user' })
+           ]
+         },
+         {
+           name: 'C - Payments',
+           item: [
+             req({ name: 'Record Manual Payment', method: 'POST', url: '/api/fees/invoices/{{invoiceId}}/payments', authType: 'user', body: { amount: 250000, paymentMethod: 'bank_transfer', referenceNumber: 'TXN-001', receiptNumber: 'RCP-001', note: 'First installment', paidAt: '2025-06-01T10:00:00.000Z' } }),
+             req({ name: 'Initialize Gateway Payment', method: 'POST', url: '/api/fees/invoices/{{invoiceId}}/initialize', authType: 'user', body: { gateway: 'paystack', amount: 250000, email: 'parent@example.com', callbackUrl: 'https://school.edu/payment/callback' } }),
+             req({ name: 'Verify Payment', method: 'POST', url: '/api/fees/payments/verify', authType: 'user', body: { reference: 'paystack_ref_12345', gateway: 'paystack' } }),
+             req({ name: 'Get Payment History (by Invoice)', method: 'GET', url: '/api/fees/invoices/{{invoiceId}}/payments', authType: 'user' }),
+             req({ name: 'Get All Payments', method: 'GET', url: '/api/fees/payments?from=2025-01-01&to=2025-12-31&method=bank_transfer&status=confirmed&page=1&limit=20', authType: 'user' })
+           ]
+         },
+         {
+           name: 'D - Adjustments',
+           item: [
+             req({ name: 'Apply Adjustment', method: 'POST', url: '/api/fees/adjustments', authType: 'user', body: { studentId: '{{studentId}}', invoiceId: '{{invoiceId}}', type: 'discount', amount: 50000, reason: 'Sibling discount 10%' } }),
+             req({ name: 'List Adjustments', method: 'GET', url: '/api/fees/adjustments?studentId={{studentId}}&type=discount&from=2025-01-01&to=2025-12-31', authType: 'user' })
+           ]
+         },
+         {
+           name: 'E - Ledger',
+           item: [
+             req({ name: 'Get Student Ledger', method: 'GET', url: '/api/fees/ledger/students/{{studentId}}?academicYearId={{academicYearId}}&termId={{termId}}', authType: 'user' }),
+             req({ name: 'Get Ledger Summary', method: 'GET', url: '/api/fees/ledger/summary?academicYearId={{academicYearId}}&termId={{termId}}', authType: 'user' })
+           ]
+         },
+         {
+           name: 'F - Receipts',
+           item: [
+             req({ name: 'Get Receipt', method: 'GET', url: '/api/fees/receipts/{{paymentId}}', authType: 'user' }),
+             req({ name: 'Send Receipt', method: 'POST', url: '/api/fees/receipts/{{paymentId}}/send', authType: 'user', body: { channel: 'email', to: 'parent@example.com' } })
+           ]
+         },
+         {
+           name: 'G - Reports',
+           item: [
+             req({ name: 'Get Fee Analytics', method: 'GET', url: '/api/fees/reports/analytics?academicYearId={{academicYearId}}&termId={{termId}}&classId={{classId}}', authType: 'user' }),
+             req({ name: 'Get Outstanding Balances', method: 'GET', url: '/api/fees/reports/outstanding?academicYearId={{academicYearId}}&termId={{termId}}&classId={{classId}}&threshold=100000&page=1&limit=20', authType: 'user' }),
+             req({ name: 'Get Aging Report', method: 'GET', url: '/api/fees/reports/aging?academicYearId={{academicYearId}}&termId={{termId}}&classId={{classId}}', authType: 'user' }),
+             req({ name: 'Get Collection Report', method: 'GET', url: '/api/fees/reports/collections?from=2025-01-01&to=2025-12-31&academicYearId={{academicYearId}}&termId={{termId}}&classId={{classId}}', authType: 'user' })
+           ]
+         },
+         {
+           name: 'H - Reconciliation',
+           item: [
+             req({ name: 'List Reconciliation Records', method: 'GET', url: '/api/fees/reconciliation?gateway=paystack&from=2025-01-01&to=2025-12-31&status=unmatched&page=1&limit=20', authType: 'user' }),
+             req({ name: 'Match Transaction', method: 'POST', url: '/api/fees/reconciliation/match', authType: 'user', body: { settlementId: 'sttl_001', paymentId: '{{paymentId}}' } })
+           ]
+         }
+       ]
      }
    ],
   variable: [
@@ -390,7 +467,10 @@ const collection = {
     { key: 'academicYearId', value: '', type: 'string' },
     { key: 'armId', value: '', type: 'string' },
     { key: 'roomId', value: '', type: 'string' },
-    { key: 'eventId', value: '', type: 'string' }
+    { key: 'eventId', value: '', type: 'string' },
+    { key: 'feeStructureId', value: '', type: 'string' },
+    { key: 'invoiceId', value: '', type: 'string' },
+    { key: 'paymentId', value: '', type: 'string' }
   ]
 };
 

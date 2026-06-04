@@ -39,6 +39,12 @@ const validateStudentCreation = [
     .isLength({ min: 8 })
     .withMessage('Password must be at least 8 characters'),
 
+  body('class')
+    .optional()
+    .trim()
+    .isLength({ min: 1, max: 100 })
+    .withMessage('Class name must be between 1 and 100 characters'),
+
   body('classId')
     .optional()
     .isUUID()
@@ -141,6 +147,11 @@ const validateStudentCreation = [
     .trim()
     .isLength({ max: 500 })
     .withMessage('Guardian address cannot exceed 500 characters'),
+
+  body('profileImage')
+    .optional()
+    .isURL()
+    .withMessage('Profile image must be a valid URL'),
 ];
 
 /**
@@ -177,6 +188,12 @@ const validateStudentUpdate = [
     .isEmail()
     .normalizeEmail()
     .withMessage('Please provide a valid email address'),
+
+  body('class')
+    .optional()
+    .trim()
+    .isLength({ min: 1, max: 100 })
+    .withMessage('Class name must be between 1 and 100 characters'),
 
   body('classId')
     .optional()
@@ -219,7 +236,12 @@ const validateStudentUpdate = [
   body('phone')
     .optional()
     .isMobilePhone('any', { strictMode: false })
-    .withMessage('Please provide a valid phone number')
+    .withMessage('Please provide a valid phone number'),
+
+  body('profileImage')
+    .optional()
+    .isURL()
+    .withMessage('Profile image must be a valid URL')
 ];
 
 /**

@@ -68,15 +68,8 @@ class TeacherService {
         },
         isActive: true
       },
-      select: {
-        id: true,
-        studentId: true,
-        firstName: true,
-        lastName: true,
-        section: true,
-        grade: true,
-        classId: true,
-        armId: true
+      include: {
+        arm: { select: { name: true } }
       }
     });
 
@@ -102,15 +95,8 @@ class TeacherService {
               id: { in: directlyAssignedStudents.map(s => s.id) }
             }
           },
-          select: {
-            id: true,
-            studentId: true,
-            firstName: true,
-            lastName: true,
-            section: true,
-            grade: true,
-            classId: true,
-            armId: true
+          include: {
+            arm: { select: { name: true } }
           }
         });
       }
@@ -180,6 +166,7 @@ class TeacherService {
         subjects: teacher.subjects || [],
         classes: teacher.classes || [],
         phone: teacher.phone,
+        profileImage: teacher.profileImage,
         lastLoginAt: teacher.lastLoginAt
       },
       school: {
@@ -194,8 +181,7 @@ class TeacherService {
         studentId: student.studentId,
         name: `${student.firstName} ${student.lastName}`,
         classId: student.classId,
-      armId: student.armId,
-        section: student.section,
+        armId: student.armId,
         classDisplay: student.classId ? `Class ID: ${student.classId}` : 'Not Assigned',
         grade: student.grade,
         isDirectlyAssigned: myStudents.some(ms => ms.id === student.id)
@@ -228,9 +214,9 @@ class TeacherService {
    * @param {Object} options - Query options
    * @returns {Object} Teacher's students data
    */
-  static async getMyStudents(userId, schoolId, { studentClass, section, page = 1, limit = 20 }) {
+  static async getMyStudents(userId, schoolId, { studentClass, page = 1, limit = 20 }) {
     // Create cache key based on query parameters
-    const cacheKey = `students:${userId}:${studentClass || 'all'}:${section || 'all'}:${page}:${limit}`;
+    const cacheKey = `students:${userId}:${studentClass || 'all'}:${page}:${limit}`;
     
     // Try cache first
     const cachedData = await CacheService.get('teacher', cacheKey);
@@ -343,10 +329,6 @@ class TeacherService {
         combinedWhere.classId = classRecord.id;
       }
     }
-    if (section && section !== 'all') {
-      combinedWhere.section = section;
-    }
-
     // Get students with pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const [students, total] = await Promise.all([
@@ -354,12 +336,12 @@ class TeacherService {
         where: combinedWhere,
         orderBy: [
           { classId: 'asc' },
-          { section: 'asc' },
           { firstName: 'asc' }
         ],
         skip,
         take: parseInt(limit),
         include: {
+          arm: { select: { name: true } },
           parentOf: {
             include: {
               parent: {
@@ -388,8 +370,7 @@ class TeacherService {
       email: student.email,
       classId: student.classId,
       armId: student.armId,
-      section: student.section,
-      classDisplay: student.classId ? `Class ID: ${student.classId}` : 'Not Assigned',
+        classDisplay: student.classId ? `Class ID: ${student.classId}` : 'Not Assigned',
       grade: student.grade,
       dateOfBirth: student.dateOfBirth,
       age: student.age,
@@ -416,8 +397,7 @@ class TeacherService {
         pages: Math.ceil(total / parseInt(limit))
       },
       filters: {
-        class: studentClass || 'all',
-        section: section || 'all'
+        class: studentClass || 'all'
       },
       cached: false,
       generatedAt: new Date().toISOString()

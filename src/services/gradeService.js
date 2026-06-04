@@ -238,6 +238,7 @@ class GradeService {
       skip: skip,
       take: parseInt(limit),
       include: {
+        arm: { select: { name: true } },
         parentOf: {
           include: {
             parent: true
@@ -287,7 +288,6 @@ class GradeService {
         fullName: `${student.firstName} ${student.lastName}`,
         classId: student.classId,
       armId: student.armId,
-        section: student.section,
         grade: existingGrade ? {
           id: existingGrade.id,
           totalScore: existingGrade.totalScore,
@@ -573,7 +573,6 @@ class GradeService {
         fullName: `${student.firstName} ${student.lastName}`,
         classId: student.classId,
       armId: student.armId,
-        section: student.section
       },
       academicYear: currentAcademicYear,
       term: term || 'All Terms',

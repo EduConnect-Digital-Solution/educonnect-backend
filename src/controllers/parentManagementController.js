@@ -221,7 +221,7 @@ const getParentDetails = async (req, res) => {
                 firstName: true,
                 lastName: true,
                 classId: true,
-                section: true,
+                armId: true,
                 rollNumber: true,
                 grade: true,
                 dateOfBirth: true,
@@ -230,7 +230,8 @@ const getParentDetails = async (req, res) => {
                 phone: true,
                 isActive: true,
                 isEnrolled: true,
-                createdAt: true
+                createdAt: true,
+                arm: { select: { name: true } }
               }
             }
           }
@@ -283,7 +284,6 @@ const getParentDetails = async (req, res) => {
               fullName: `${child.firstName} ${child.lastName}`,
               classId: child.classId,
               armId: child.armId,
-              section: child.section,
               classDisplay: child.classId ? `Class ID: ${child.classId}` : 'Not Assigned',
               rollNumber: child.rollNumber,
               grade: child.grade,
@@ -429,9 +429,10 @@ const linkParentToStudents = async (req, res) => {
                 firstName: true,
                 lastName: true,
                 classId: true,
-                section: true,
+                armId: true,
                 isActive: true,
-                isEnrolled: true
+                isEnrolled: true,
+                arm: { select: { name: true } }
               }
             }
           }
@@ -455,7 +456,6 @@ const linkParentToStudents = async (req, res) => {
             name: `${pc.student.firstName} ${pc.student.lastName}`,
             classId: pc.student.classId,
             armId: pc.student.armId,
-            section: pc.student.section,
             classDisplay: pc.student.classId ? `Class ID: ${pc.student.classId}` : 'Not Assigned',
             isActive: pc.student.isActive,
             isEnrolled: pc.student.isEnrolled
@@ -556,7 +556,8 @@ const unlinkParentFromStudents = async (req, res) => {
                 armId: true,
                 section: true,
                 isActive: true,
-                isEnrolled: true
+                isEnrolled: true,
+                arm: { select: { name: true } }
               }
             }
           }
@@ -580,7 +581,6 @@ const unlinkParentFromStudents = async (req, res) => {
             name: `${pc.student.firstName} ${pc.student.lastName}`,
             classId: pc.student.classId,
             armId: pc.student.armId,
-            section: pc.student.section,
             classDisplay: pc.student.classId ? `Class ID: ${pc.student.classId}` : 'Not Assigned',
             isActive: pc.student.isActive,
             isEnrolled: pc.student.isEnrolled
