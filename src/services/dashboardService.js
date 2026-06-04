@@ -328,6 +328,7 @@ class DashboardService {
         isTemporaryPassword: true,
         lastLoginAt: true,
         createdAt: true,
+        profileImage: true,
         subjects: true,
         classes: true,
         invitedBy: true
@@ -359,6 +360,7 @@ class DashboardService {
       isTemporaryPassword: user.isTemporaryPassword,
       lastLoginAt: user.lastLoginAt,
       createdAt: user.createdAt,
+      profileImage: user.profileImage,
       invitedBy: user.invitedBy && inviterMap[user.invitedBy] ? {
         name: `${inviterMap[user.invitedBy].firstName} ${inviterMap[user.invitedBy].lastName}`,
         email: inviterMap[user.invitedBy].email
@@ -476,6 +478,7 @@ class DashboardService {
         email: updatedUser.email,
         role: updatedUser.role,
         isActive: updatedUser.isActive,
+        profileImage: updatedUser.profileImage,
         deactivatedAt: updatedUser.deactivatedAt,
         deactivationReason: updatedUser.deactivationReason
       }

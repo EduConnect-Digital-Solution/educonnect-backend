@@ -329,6 +329,7 @@ const getTeacherStudents = async (teacherId, schoolId, pagination = {}) => {
     include: {
       student: {
         include: {
+          arm: { select: { name: true } },
           parentOf: {
             include: {
               parent: true
@@ -368,7 +369,6 @@ const getTeacherStudents = async (teacherId, schoolId, pagination = {}) => {
       email: student.email,
       classId: student.classId,
       armId: student.armId,
-      section: student.section,
       rollNumber: student.rollNumber,
       grade: student.grade,
       parents: student.parentOf ? student.parentOf.map(ps => ({
@@ -417,6 +417,9 @@ const getStudentTeachers = async (studentId, schoolId) => {
       id: studentId,
       schoolId: school.id,
       isActive: true
+    },
+    include: {
+      arm: { select: { name: true } }
     }
   });
 
@@ -452,8 +455,7 @@ const getStudentTeachers = async (studentId, schoolId) => {
       studentId: student.studentId,
       name: `${student.firstName} ${student.lastName}`,
       classId: student.classId,
-      armId: student.armId,
-      section: student.section
+      armId: student.armId
     },
     teachers,
     totalTeachers: teachers.length

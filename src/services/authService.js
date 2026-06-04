@@ -365,7 +365,8 @@ const loginSchool = async (schoolId, email, password) => {
       lastName: adminUser.lastName,
       role: adminUser.role,
       isVerified: adminUser.isVerified,
-      isActive: adminUser.isActive
+      isActive: adminUser.isActive,
+      profileImage: adminUser.profileImage
     },
     school: {
       schoolId: school.schoolId,
@@ -444,7 +445,8 @@ const loginUser = async (email, password, schoolId) => {
         schoolId: user.schoolId,
         schoolName: school ? school.schoolName : null,
         isTemporaryPassword: user.isTemporaryPassword,
-        requiresRegistrationCompletion: true
+        requiresRegistrationCompletion: true,
+        profileImage: user.profileImage
       },
       // Don't provide JWT tokens for temporary password users
       redirectTo: '/complete-registration'
@@ -491,7 +493,8 @@ const loginUser = async (email, password, schoolId) => {
       lastName: user.lastName,
       role: user.role,
       isVerified: user.isVerified,
-      isActive: user.isActive
+      isActive: user.isActive,
+      profileImage: user.profileImage
     },
     school: schoolForResponse ? {
       schoolId: schoolForResponse.schoolId,
@@ -790,7 +793,8 @@ const completeRegistration = async (userData) => {
       role: updatedUser.role,
       schoolId: updatedUser.schoolId,
       isActive: updatedUser.isActive,
-      isTemporaryPassword: updatedUser.isTemporaryPassword
+      isTemporaryPassword: updatedUser.isTemporaryPassword,
+      profileImage: updatedUser.profileImage
     }
   };
 };
@@ -864,7 +868,8 @@ const refreshToken = async (refreshTokenValue, source = 'body') => {
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
-      role: user.role
+      role: user.role,
+      profileImage: user.profileImage
     },
     tokenRefreshedAt: new Date().toISOString(),
     refreshSource: source // Track if refresh came from cookie or body
@@ -879,7 +884,8 @@ const refreshToken = async (refreshTokenValue, source = 'body') => {
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
-      role: user.role
+      role: user.role,
+      profileImage: user.profileImage
     },
     tokens
   };

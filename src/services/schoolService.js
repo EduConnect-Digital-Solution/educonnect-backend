@@ -56,6 +56,7 @@ const getSchoolProfile = async (schoolId) => {
       phone: true,
       role: true,
       isActive: true,
+      profileImage: true,
       createdAt: true,
       lastLoginAt: true
     }
@@ -98,6 +99,7 @@ const getSchoolProfile = async (schoolId) => {
       phone: adminUser.phone,
       role: adminUser.role,
       isActive: adminUser.isActive,
+      profileImage: adminUser.profileImage,
       createdAt: adminUser.createdAt,
       lastLoginAt: adminUser.lastLoginAt
     } : null,
@@ -255,6 +257,7 @@ const updateAdminProfile = async (schoolId, updateData) => {
   if (firstName !== undefined) updateFields.firstName = firstName.trim();
   if (lastName !== undefined) updateFields.lastName = lastName.trim();
   if (phone !== undefined) updateFields.phone = phone.trim();
+  if (updateData.profileImage !== undefined) updateFields.profileImage = updateData.profileImage;
   if (newPassword) {
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     updateFields.password = hashedPassword;
@@ -276,6 +279,7 @@ const updateAdminProfile = async (schoolId, updateData) => {
       phone: true,
       role: true,
       isActive: true,
+      profileImage: true,
       updatedAt: true
     }
   });
@@ -291,6 +295,7 @@ const updateAdminProfile = async (schoolId, updateData) => {
       phone: updatedAdmin.phone,
       role: updatedAdmin.role,
       isActive: updatedAdmin.isActive,
+      profileImage: updatedAdmin.profileImage,
       updatedAt: updatedAdmin.updatedAt
     }
   };

@@ -48,6 +48,12 @@ class ParentDashboardService {
         isActive: true
       },
       include: {
+        arm: {
+          select: { name: true }
+        },
+        classRef: {
+          select: { name: true }
+        },
         studentOf: {
           include: {
             teacher: true
@@ -75,7 +81,6 @@ class ParentDashboardService {
         id: child.id,
         studentId: child.studentId,
         name: `${child.firstName} ${child.lastName}`,
-        section: child.section,
         grade: child.grade,
         age: child.age,
         gender: child.gender,
@@ -149,6 +154,7 @@ class ParentDashboardService {
         occupation: parent.occupation,
         emergencyContact: parent.emergencyContact,
         emergencyPhone: parent.emergencyPhone,
+        profileImage: parent.profileImage,
         lastLoginAt: parent.lastLoginAt
       },
       school: {
@@ -165,8 +171,7 @@ class ParentDashboardService {
         lastName: child.lastName,
         fullName: `${child.firstName} ${child.lastName}`,
         classId: child.classId,
-        section: child.section,
-        classDisplay: child.classId && child.section ? `Class ID: ${child.classId}-${child.section}` : child.classId ? `Class ID: ${child.classId}` : 'Not Assigned',
+        classDisplay: child.classRef?.name && child.arm?.name ? `${child.classRef.name} - ${child.arm.name}` : child.classId ? `Class ID: ${child.classId}` : 'Not Assigned',
         grade: child.grade,
         age: child.age,
         gender: child.gender,
@@ -435,6 +440,7 @@ class ParentDashboardService {
     if (occupation !== undefined) updateData_prisma.occupation = occupation;
     if (emergencyContact !== undefined) updateData_prisma.emergencyContact = emergencyContact;
     if (emergencyPhone !== undefined) updateData_prisma.emergencyPhone = emergencyPhone;
+    if (updateData.profileImage !== undefined) updateData_prisma.profileImage = updateData.profileImage;
 
     // Update parent record
     const updatedParent = await prisma.user.update({
@@ -454,6 +460,7 @@ class ParentDashboardService {
         occupation: updatedParent.occupation,
         emergencyContact: updatedParent.emergencyContact,
         emergencyPhone: updatedParent.emergencyPhone,
+        profileImage: updatedParent.profileImage,
         updatedAt: updatedParent.updatedAt
       }
     };

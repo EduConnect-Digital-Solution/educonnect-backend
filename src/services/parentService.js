@@ -81,7 +81,8 @@ const getParents = async (filters, pagination) => {
                 lastName: true,
                 studentId: true,
                 classId: true,
-                section: true
+                armId: true,
+                arm: { select: { name: true } }
               }
             }
           }
@@ -117,8 +118,7 @@ const getParents = async (filters, pagination) => {
         name: `${ps.student.firstName} ${ps.student.lastName}`,
         studentId: ps.student.studentId,
         classId: ps.student.classId,
-        armId: ps.student.armId,
-        section: ps.student.section
+        armId: ps.student.armId
       }))
   }));
 
@@ -175,18 +175,19 @@ const getParentById = async (parentId, schoolId) => {
     include: {
       parentStudents: {
         include: {
-          student: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              studentId: true,
-              classId: true,
-              section: true,
-              grade: true,
-              dateOfBirth: true,
-              gender: true
-            }
+            student: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                studentId: true,
+                classId: true,
+                armId: true,
+                grade: true,
+                dateOfBirth: true,
+                gender: true,
+                arm: { select: { name: true } }
+              }
           }
         }
       }
@@ -222,7 +223,6 @@ const getParentById = async (parentId, schoolId) => {
           studentId: ps.student.studentId,
           classId: ps.student.classId,
         armId: ps.student.armId,
-          section: ps.student.section,
           grade: ps.student.grade,
           dateOfBirth: ps.student.dateOfBirth,
           gender: ps.student.gender
@@ -301,15 +301,16 @@ const updateParent = async (parentId, updateData, schoolId) => {
     include: {
       parentStudents: {
         include: {
-          student: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              studentId: true,
-              classId: true,
-              section: true
-            }
+            student: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                studentId: true,
+                classId: true,
+                armId: true,
+                arm: { select: { name: true } }
+              }
           }
         }
       }
@@ -341,8 +342,7 @@ const updateParent = async (parentId, updateData, schoolId) => {
           name: `${ps.student.firstName} ${ps.student.lastName}`,
           studentId: ps.student.studentId,
           classId: ps.student.classId,
-        armId: ps.student.armId,
-          section: ps.student.section
+        armId: ps.student.armId
         }))
     }
   };
@@ -389,6 +389,9 @@ const linkParentToStudent = async (parentId, studentId, schoolId) => {
       id: studentId,
       schoolId: school.id,
       isActive: true
+    },
+    include: {
+      arm: { select: { name: true } }
     }
   });
 
@@ -431,8 +434,7 @@ const linkParentToStudent = async (parentId, studentId, schoolId) => {
       id: student.id,
       name: `${student.firstName} ${student.lastName}`,
       studentId: student.studentId,
-      classId: student.classId,
-      section: student.section
+      classId: student.classId
     },
     message: 'Parent linked to student successfully'
   };
@@ -477,25 +479,14 @@ const unlinkParentFromStudent = async (parentId, studentId, schoolId) => {
     where: {
       id: studentId,
       schoolId: school.id
+    },
+    include: {
+      arm: { select: { name: true } }
     }
   });
 
   if (!student) {
     throw new Error('Student not found');
-  }
-
-  // Check if relationship exists
-  const existingRelation = await prisma.parentStudent.findUnique({
-    where: {
-      parentId_studentId: {
-        parentId,
-        studentId
-      }
-    }
-  });
-
-  if (!existingRelation) {
-    throw new Error('Parent is not linked to this student');
   }
 
   // Remove relationship
@@ -521,8 +512,7 @@ const unlinkParentFromStudent = async (parentId, studentId, schoolId) => {
       id: student.id,
       name: `${student.firstName} ${student.lastName}`,
       studentId: student.studentId,
-      classId: student.classId,
-      section: student.section
+      classId: student.classId
     },
     message: 'Parent unlinked from student successfully'
   };

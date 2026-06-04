@@ -21,6 +21,7 @@ const createStudent = async (studentData, schoolId) => {
     lastName,
     email,
     password,
+    class: className,
     classId: studentClass,
     armId,
     studentId: admissionNumber,
@@ -31,9 +32,21 @@ const createStudent = async (studentData, schoolId) => {
     address,
     phone,
     guardian,
+    profileImage,
     parentIds = [],
     teacherIds = []
   } = studentData;
+
+  // Resolve class name → classId UUID
+  let resolvedClassId = studentClass;
+  if (!resolvedClassId && className) {
+    const classRecord = await prisma.class.findFirst({
+      where: { schoolId, name: className, isActive: true }
+    });
+    if (classRecord) resolvedClassId = classRecord.id;
+  }
+
+  let resolvedArmId = armId;
 
   // Check if school exists and is active
   // Find school by either UUID (id) or human-readable schoolId
@@ -131,14 +144,15 @@ const createStudent = async (studentData, schoolId) => {
       lastName,
       studentId: admissionNumber || undefined,
       email: email ? email.toLowerCase() : undefined,
-      classId: studentClass,
-      armId,
+      classId: resolvedClassId,
+      armId: resolvedArmId,
       rollNumber,
       grade,
       dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : undefined,
       gender,
       address,
       phone,
+      profileImage: profileImage || undefined,
       guardian: guardian || undefined,
       isActive: true,
       createdAt: new Date()
@@ -193,13 +207,13 @@ const createStudent = async (studentData, schoolId) => {
       email: student.email,
       classId: student.classId,
       armId: student.armId,
-      section: student.section,
       rollNumber: student.rollNumber,
       grade: student.grade,
       dateOfBirth: student.dateOfBirth,
       gender: student.gender,
       address: student.address,
       phone: student.phone,
+      profileImage: student.profileImage,
       guardian: student.guardian,
       parentIds: parentIdsRes,
       teacherIds: teacherIdsRes,
@@ -212,6 +226,7 @@ const createStudent = async (studentData, schoolId) => {
         id: createdUser.id,
         email: createdUser.email,
         role: createdUser.role,
+        profileImage: createdUser.profileImage,
         isTemporaryPassword: createdUser.isTemporaryPassword
       }
     })
@@ -227,6 +242,7 @@ const updateStudent = async (studentId, updateData, schoolId) => {
     firstName,
     lastName,
     email,
+    class: className,
     classId: studentClass,
     armId,
     rollNumber,
@@ -235,6 +251,7 @@ const updateStudent = async (studentId, updateData, schoolId) => {
     gender,
     address,
     phone,
+    profileImage,
     parentIds,
     teacherIds,
     guardian
@@ -254,6 +271,17 @@ const updateStudent = async (studentId, updateData, schoolId) => {
   }
   if (!school) throw new Error('School not found');
   const schoolIdUuid = school.id;
+
+  // Resolve class name → classId UUID
+  let resolvedClassId = studentClass;
+  if (!resolvedClassId && className) {
+    const classRecord = await prisma.class.findFirst({
+      where: { schoolId: schoolIdUuid, name: className, isActive: true }
+    });
+    if (classRecord) resolvedClassId = classRecord.id;
+  }
+
+  let resolvedArmId = armId;
 
   // Find the student
   const student = await prisma.student.findFirst({
@@ -320,14 +348,15 @@ const updateStudent = async (studentId, updateData, schoolId) => {
   if (firstName !== undefined) updateFields.firstName = firstName;
   if (lastName !== undefined) updateFields.lastName = lastName;
   if (email !== undefined) updateFields.email = email ? email.toLowerCase() : undefined;
-  if (studentClass !== undefined) updateFields.classId = studentClass;
-  if (armId !== undefined) updateFields.armId = armId;
+  if (resolvedClassId !== undefined) updateFields.classId = resolvedClassId;
+  if (resolvedArmId !== undefined) updateFields.armId = resolvedArmId;
   if (rollNumber !== undefined) updateFields.rollNumber = rollNumber;
   if (grade !== undefined) updateFields.grade = grade;
   if (dateOfBirth !== undefined) updateFields.dateOfBirth = dateOfBirth ? new Date(dateOfBirth) : undefined;
   if (gender !== undefined) updateFields.gender = gender;
   if (address !== undefined) updateFields.address = address;
   if (phone !== undefined) updateFields.phone = phone;
+  if (profileImage !== undefined) updateFields.profileImage = profileImage;
   if (guardian !== undefined) updateFields.guardian = guardian;
   updateFields.updatedAt = new Date();
 
@@ -378,13 +407,13 @@ const updateStudent = async (studentId, updateData, schoolId) => {
       email: updatedStudent.email,
       classId: updatedStudent.classId,
       armId: updatedStudent.armId,
-      section: updatedStudent.section,
       rollNumber: updatedStudent.rollNumber,
       grade: updatedStudent.grade,
       dateOfBirth: updatedStudent.dateOfBirth,
       gender: updatedStudent.gender,
       address: updatedStudent.address,
       phone: updatedStudent.phone,
+      profileImage: updatedStudent.profileImage,
       parentIds: parentIdsRes,
       teacherIds: teacherIdsRes,
       isActive: updatedStudent.isActive,
@@ -478,14 +507,14 @@ const getStudents = async (filters, pagination) => {
     fullName: `${student.firstName} ${student.lastName}`,
     email: student.email,
     classId: student.classId,
-      armId: student.armId,
-    section: student.section,
+    armId: student.armId,
     rollNumber: student.rollNumber,
     grade: student.grade,
     dateOfBirth: student.dateOfBirth,
     gender: student.gender,
     address: student.address,
     phone: student.phone,
+    profileImage: student.profileImage,
     isActive: student.isActive,
     createdAt: student.createdAt,
     updatedAt: student.updatedAt,
@@ -584,13 +613,13 @@ const getStudentById = async (studentId, schoolId) => {
       email: student.email,
       classId: student.classId,
       armId: student.armId,
-      section: student.section,
       rollNumber: student.rollNumber,
       grade: student.grade,
       dateOfBirth: student.dateOfBirth,
       gender: student.gender,
       address: student.address,
       phone: student.phone,
+      profileImage: student.profileImage,
       isActive: student.isActive,
       createdAt: student.createdAt,
       updatedAt: student.updatedAt,

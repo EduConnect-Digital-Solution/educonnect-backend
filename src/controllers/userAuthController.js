@@ -344,6 +344,7 @@ const getMe = catchAsync(async (req, res) => {
           fullName: `${req.user.firstName || 'School'} ${req.user.lastName || 'Admin'}`,
           role: 'admin',
           schoolId: school.schoolId,
+          profileImage: req.user.profileImage || null,
           school: {
             id: school.id,
             schoolName: school.schoolName,
