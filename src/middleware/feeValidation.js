@@ -226,6 +226,14 @@ const validateReconcileTransaction = [
   body('paymentId').isUUID().withMessage('Valid payment ID is required')
 ];
 
+const validateImportSettlements = [
+  body('gateway').optional().isIn(['paystack', 'flutterwave']).withMessage('Gateway must be paystack or flutterwave'),
+  body('settlements').isArray({ min: 1 }).withMessage('At least one settlement is required'),
+  body('settlements.*.settlementId').isString().notEmpty().withMessage('Settlement ID is required'),
+  body('settlements.*.amount').isInt({ min: 1 }).withMessage('Amount must be a positive integer'),
+  body('settlements.*.settledAt').isISO8601().withMessage('Valid settlement date is required')
+];
+
 module.exports = {
   validateGetFeeStructures,
   validateGetFeeStructureById,
@@ -257,5 +265,6 @@ module.exports = {
   validateGetAgingReport,
   validateGetCollectionReport,
   validateGetReconciliation,
-  validateReconcileTransaction
+  validateReconcileTransaction,
+  validateImportSettlements
 };

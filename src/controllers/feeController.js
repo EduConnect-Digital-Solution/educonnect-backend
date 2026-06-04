@@ -306,6 +306,15 @@ const reconcileTransaction = async (req, res) => {
   } catch (error) { handleError(res, error, 'reconcileTransaction'); }
 };
 
+const importSettlements = async (req, res) => {
+  const err = handleValidation(req, res);
+  if (err) return;
+  try {
+    const result = await feeService.importSettlements(req.user.schoolId, req.body);
+    res.json({ success: true, ...result });
+  } catch (error) { handleError(res, error, 'importSettlements'); }
+};
+
 module.exports = {
   getFeeStructures,
   getFeeStructureById,
@@ -337,5 +346,6 @@ module.exports = {
   getAgingReport,
   getCollectionReport,
   getReconciliation,
-  reconcileTransaction
+  reconcileTransaction,
+  importSettlements
 };
