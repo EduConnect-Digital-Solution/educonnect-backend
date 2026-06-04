@@ -566,58 +566,73 @@ model AttendanceRecord {
 model FeeStructure {
   id               String   @id @default(uuid())
   schoolId         String
-  name             String
-  description      String?
-  amount           Float
-  feeType          String // "tuition", "development", "exam", "extracurricular", "other"
-  paymentFrequency String // "termly", "monthly", "annually", "once"
-  applicableTo     String? // "all", "class", "arm", "individual"
+  academicYearId   String?
+  termId           String?
   classId          String?
   armId            String?
+  name             String
+  items            Json     // [{feeType, name, amount (Int, kobo), optional}]
+  totalAmount      Int      // sum of all item amounts in kobo
+  dueDate          DateTime
+  paymentType      String   @default("one-time") // "one-time" | "installment"
+  installmentPlans Json?    // [{label, percentage, dueDate}] — percentages must sum to 100
+  status           String   @default("draft") // "draft" | "published"
+  version          Int      @default(1)
   isActive         Boolean  @default(true)
   createdBy        String
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt()
 
-  // Relations
-  school   School       @relation(fields: [schoolId], references: [id])
-  class    Class?       @relation(fields: [classId], references: [id])
-  arm      Arm?         @relation(fields: [armId], references: [id])
-  creator  User         @relation("FeeStructureCreator", fields: [createdBy], references: [id])
-  invoices FeeInvoice[]
+  school School @relation(fields: [schoolId], references: [id])
+  class  Class? @relation(fields: [classId], references: [id])
+  arm    Arm?   @relation(fields: [armId], references: [id])
+  creator User @relation("FeeStructureCreator", fields: [createdBy], references: [id])
 
   @@index([schoolId])
-  @@index([feeType])
-  @@index([isActive])
+  @@index([status])
+  @@index([academicYearId])
+  @@index([classId])
   @@map("fee_structures")
 }
 
-model FeeInvoice {
+model FeeStructureVersion {
   id             String   @id @default(uuid())
-  schoolId       String
-  studentId      String
   feeStructureId String
-  invoiceNumber  String   @unique
-  amountDue      Float
-  amountPaid     Float    @default(0)
-  balance        Float
-  dueDate        DateTime
-  status         String   @default("pending") // "pending", "partial", "paid", "overdue", "cancelled"
-  academicYearId String?
-  academicTermId String?
-  description    String?
-  isActive       Boolean  @default(true)
-  createdBy      String
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt()
+  version        Int
+  snapshot       Json     // full fee structure at that version
+  changedBy      String
+  changedAt      DateTime @default(now())
 
-  // Relations
+  @@unique([feeStructureId, version])
+  @@index([feeStructureId])
+  @@map("fee_structure_versions")
+}
+
+model FeeInvoice {
+  id               String   @id @default(uuid())
+  schoolId         String
+  studentId        String
+  studentName      String?
+  className        String?
+  feeStructureId   String
+  feeStructureName String?
+  invoiceNumber    String   @unique
+  amount           Int      // total billed in kobo
+  amountPaid       Int      @default(0)
+  amountDue        Int
+  dueDate          DateTime
+  status           String   @default("pending") // "pending" | "partial" | "paid" | "overdue" | "void"
+  academicYearId   String?
+  termId           String?
+  isActive         Boolean  @default(true)
+  createdBy        String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt()
+
   school       School        @relation(fields: [schoolId], references: [id])
-  feeStructure FeeStructure  @relation(fields: [feeStructureId], references: [id])
   academicYear AcademicYear? @relation(fields: [academicYearId], references: [id])
-  academicTerm AcademicTerm? @relation(fields: [academicTermId], references: [id])
+  term         AcademicTerm? @relation(fields: [termId], references: [id])
   creator      User          @relation("FeeInvoiceCreator", fields: [createdBy], references: [id])
-  payments     FeePayment[]
 
   @@unique([schoolId, invoiceNumber])
   @@index([schoolId])
@@ -628,30 +643,103 @@ model FeeInvoice {
 }
 
 model FeePayment {
-  id             String   @id @default(uuid())
-  schoolId       String
-  invoiceId      String
-  amount         Float
-  paymentMethod  String // "cash", "bank_transfer", "card", "mobile_money", "other"
-  transactionRef String?
-  paymentDate    DateTime
-  receiptNumber  String?  @unique
-  status         String   @default("completed") // "pending", "completed", "failed", "refunded"
-  remarks        String?
-  receivedBy     String
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt()
+  id               String   @id @default(uuid())
+  schoolId         String
+  invoiceId        String
+  amount           Int      // in kobo
+  paymentMethod    String   // "cash" | "bank_transfer" | "pos" | "cheque" | "card" | "mobile_money"
+  gateway          String?  // "paystack" | "flutterwave"
+  gatewayReference String?
+  authorizationUrl String?
+  accessCode       String?
+  referenceNumber  String?
+  receiptNumber    String?  @unique
+  note             String?
+  status           String   @default("pending") // "pending" | "confirmed" | "failed"
+  paidAt           DateTime?
+  receivedBy       String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt()
 
-  // Relations
-  school   School     @relation(fields: [schoolId], references: [id])
-  invoice  FeeInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  receiver User       @relation("FeePaymentReceiver", fields: [receivedBy], references: [id])
+  school   School @relation(fields: [schoolId], references: [id])
+  receiver User   @relation("FeePaymentReceiver", fields: [receivedBy], references: [id])
 
   @@index([schoolId])
   @@index([invoiceId])
-  @@index([paymentDate])
   @@index([status])
+  @@index([paidAt])
   @@map("fee_payments")
+}
+
+model FeeAdjustment {
+  id         String   @id @default(uuid())
+  schoolId   String
+  studentId  String
+  invoiceId  String?
+  type       String   // "discount" | "waiver" | "scholarship" | "correction"
+  amount     Int      // in kobo (positive = reduction)
+  reason     String
+  approvedBy String
+  createdAt  DateTime @default(now())
+
+  @@index([schoolId])
+  @@index([studentId])
+  @@index([type])
+  @@map("fee_adjustments")
+}
+
+model FeeLedgerEntry {
+  id          String   @id @default(uuid())
+  schoolId    String
+  studentId   String
+  type        String   // "debit" | "credit" | "adjustment"
+  amount      Int      // in kobo
+  balance     Int      // running balance (kobo)
+  description String
+  reference   String?  // invoiceId / paymentId / adjustmentId
+  account     String   @default("receivable") // "receivable" | "revenue"
+  entryDate   DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  @@index([schoolId])
+  @@index([studentId])
+  @@index([entryDate])
+  @@map("fee_ledger_entries")
+}
+
+model FeeReceipt {
+  id            String   @id @default(uuid())
+  paymentId     String   @unique
+  receiptNumber String   @unique
+  schoolInfo    Json     // {name, logoUrl, address}
+  studentInfo   Json     // {name, className}
+  items         Json     // [{name, amount}]
+  amountPaid    Int
+  balance       Int
+  method        String
+  reference     String?
+  paidAt        DateTime
+  issuedBy      String
+  createdAt     DateTime @default(now())
+
+  @@map("fee_receipts")
+}
+
+model FeeReconciliation {
+  id           String    @id @default(uuid())
+  schoolId     String
+  settlementId String
+  gateway      String    // "paystack" | "flutterwave"
+  amount       Int
+  settledAt    DateTime
+  paymentId    String?
+  status       String    @default("unmatched") // "matched" | "unmatched"
+  matchedAt    DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([schoolId])
+  @@index([status])
+  @@map("fee_reconciliations")
 }
 
 // =============== EVENTS & NOTIFICATIONS MODELS ===============

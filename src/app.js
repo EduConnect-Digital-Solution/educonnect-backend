@@ -188,6 +188,9 @@ const { adminTimetableRoutes, teacherTimetableRoutes } = require('./routes/timet
 const systemAdminAuthRoutes = require('./routes/systemAdminAuth');
 const systemAdminRoutes = require('./routes/systemAdmin');
 
+// Fee Management routes
+const feeRoutes = require('./routes/feeRoutes');
+
 // Student Dashboard routes
 const studentDashboardRoutes = require('./routes/studentDashboard');
 const configRoutes = require('./routes/config');
@@ -224,6 +227,9 @@ app.use('/api/teacher/timetable', teacherTimetableRoutes);
 // System Admin routes
 app.use('/api/system-admin/auth', systemAdminAuthRoutes);
 app.use('/api/system-admin', systemAdminRoutes);
+
+// Fee Management routes
+app.use('/api/fees', feeRoutes);
 
 // Student Dashboard routes
 app.use('/api/student', studentDashboardRoutes);
