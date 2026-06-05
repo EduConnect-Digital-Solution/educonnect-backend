@@ -28,6 +28,9 @@ model User {
   subjects             String[]
   classes              String[]
   isActive             Boolean          @default(true)
+  deactivatedAt        DateTime?
+  deactivatedBy        String?
+  deactivationReason   String?
   isVerified           Boolean          @default(false)
   invitationToken      String?
   invitationExpires    DateTime?
