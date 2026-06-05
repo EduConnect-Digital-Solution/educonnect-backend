@@ -151,6 +151,7 @@ const createTeacherInvitation = async (invitationData, schoolId, adminUserId) =>
   );
 
   return {
+    schoolId: school.schoolId,
     invitation: {
       id: invitation.id,
       email: invitation.email,
@@ -335,6 +336,7 @@ const createParentInvitation = async (invitationData, schoolId, adminUserId) => 
   );
 
   return {
+    schoolId: school.schoolId,
     invitation: {
       id: invitation.id,
       email: invitation.email,

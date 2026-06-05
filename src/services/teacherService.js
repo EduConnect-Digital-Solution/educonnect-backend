@@ -171,7 +171,7 @@ class TeacherService {
       },
       school: {
         id: school.id,
-        schoolId: school.id,
+        schoolId: school.schoolId,
         schoolName: school.schoolName,
         email: school.email
       },

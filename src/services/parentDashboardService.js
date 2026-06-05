@@ -159,7 +159,7 @@ class ParentDashboardService {
       },
       school: {
         id: school.id,
-        schoolId: school.id,
+        schoolId: school.schoolId,
         schoolName: school.schoolName,
         email: school.email
       },
@@ -399,7 +399,7 @@ class ParentDashboardService {
         childrenCount: childrenCount
       },
       school: {
-        schoolId: school.id,
+        schoolId: school.schoolId,
         schoolName: school.schoolName,
         email: school.email
       }

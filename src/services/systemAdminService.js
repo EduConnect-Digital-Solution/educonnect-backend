@@ -367,7 +367,7 @@ class SystemAdminService {
       return {
         school: {
           id: school.id,
-          schoolId: school.id,
+          schoolId: school.schoolId,
           schoolName: school.schoolName,
           email: school.email,
           isActive: school.isActive,
@@ -632,7 +632,7 @@ class SystemAdminService {
 
       return {
         school: {
-          schoolId: school.id,
+          schoolId: school.schoolId,
           schoolName: school.schoolName,
           isActive: false,
           deactivatedAt: new Date(),
@@ -743,7 +743,7 @@ class SystemAdminService {
 
       return {
         school: {
-          schoolId: school.id,
+          schoolId: school.schoolId,
           schoolName: school.schoolName,
           isActive: true,
           reactivatedAt: reactivatedAt || new Date(),
