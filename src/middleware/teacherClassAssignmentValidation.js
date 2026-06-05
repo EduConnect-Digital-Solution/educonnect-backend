@@ -11,8 +11,8 @@ const validateAssignClasses = [
   body('teacherId')
     .notEmpty()
     .withMessage('Teacher ID is required')
-    .isMongoId()
-    .withMessage('Teacher ID must be a valid MongoDB ObjectId'),
+    .isUUID()
+    .withMessage('Teacher ID must be a valid UUID'),
     
   body('classes')
     .isArray({ min: 1 })
@@ -37,8 +37,8 @@ const validateAssignSubjects = [
   body('teacherId')
     .notEmpty()
     .withMessage('Teacher ID is required')
-    .isMongoId()
-    .withMessage('Teacher ID must be a valid MongoDB ObjectId'),
+    .isUUID()
+    .withMessage('Teacher ID must be a valid UUID'),
     
   body('subjects')
     .isArray({ min: 1 })
@@ -63,8 +63,8 @@ const validateRemoveClasses = [
   body('teacherId')
     .notEmpty()
     .withMessage('Teacher ID is required')
-    .isMongoId()
-    .withMessage('Teacher ID must be a valid MongoDB ObjectId'),
+    .isUUID()
+    .withMessage('Teacher ID must be a valid UUID'),
     
   body('classes')
     .isArray({ min: 1 })
@@ -89,8 +89,8 @@ const validateTeacherId = [
   param('teacherId')
     .notEmpty()
     .withMessage('Teacher ID is required')
-    .isMongoId()
-    .withMessage('Teacher ID must be a valid MongoDB ObjectId')
+    .isUUID()
+    .withMessage('Teacher ID must be a valid UUID')
 ];
 
 module.exports = {

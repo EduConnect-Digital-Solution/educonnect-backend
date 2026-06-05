@@ -60,9 +60,9 @@ const commonValidations = {
     .matches(/^\+?[\d\s\-\(\)]+$/)
     .withMessage('Phone number format is invalid'),
 
-  // MongoDB ObjectId validation
-  mongoId: (field) => param(field)
-    .isMongoId()
+  // UUID validation
+  uuid: (field) => param(field)
+    .isUUID()
     .withMessage(`Invalid ${field} format`),
 
   // School ID validation
@@ -191,9 +191,11 @@ const customValidations = {
   // Validate unique email (requires database check)
   uniqueEmail: (model) => {
     return body('email').custom(async (email, { req }) => {
-      const existingUser = await model.findOne({ 
-        email: email.toLowerCase(),
-        schoolId: req.body.schoolId 
+      const existingUser = await model.findFirst({
+        where: {
+          email: email.toLowerCase(),
+          schoolId: req.body.schoolId
+        }
       });
       if (existingUser) {
         throw new Error('Email already exists in this school');
@@ -209,7 +211,7 @@ const Joi = require('joi');
 const commonSchemas = {
   email: Joi.string().email().required(),
   password: Joi.string().min(8).pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/).required(),
-  objectId: Joi.string().pattern(/^[0-9a-fA-F]{24}$/).required(),
+  uuid: Joi.string().uuid().required(),
   role: Joi.string().valid('admin', 'teacher', 'parent').required(),
   page: Joi.number().integer().min(1).default(1),
   limit: Joi.number().integer().min(1).max(100).default(10),

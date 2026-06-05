@@ -1214,7 +1214,7 @@ const impersonateUser = async (systemAdminEmail, targetUserId, reason = 'support
 
     // Find target user's school
     const school = await prisma.school.findFirst({
-      where: { schoolId: targetUser.schoolId },
+      where: { id: targetUser.schoolId },
       select: { schoolId: true, schoolName: true }
     });
 

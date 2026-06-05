@@ -40,22 +40,7 @@ const inviteParent = catchAsync(async (req, res) => {
       });
     }
 
-    // Get admin user for invitation tracking
-    const adminUser = await prisma.user.findFirst({ 
-      where: { 
-        schoolId: targetSchoolId, 
-        role: 'admin' 
-      } 
-    });
-
-    if (!adminUser) {
-      return res.status(400).json({
-        success: false,
-        message: 'No admin user found for this school'
-      });
-    }
-
-    const result = await invitationService.createParentInvitation(req.body, targetSchoolId, adminUser.id);
+    const result = await invitationService.createParentInvitation(req.body, targetSchoolId, req.user.userId);
 
     res.status(201).json({
       success: true,

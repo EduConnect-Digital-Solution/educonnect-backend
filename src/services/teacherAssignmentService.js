@@ -15,9 +15,16 @@ const logger = require('../utils/logger');
  */
 const assignTeacherToStudents = async (teacherId, studentIds, schoolId, adminUserId) => {
   // Validate school exists and get UUID
-  const school = await prisma.school.findFirst({
-    where: { schoolId, isActive: true, isVerified: true }
+  // Find school by either UUID (id) or human-readable schoolId
+  let school = await prisma.school.findFirst({
+    where: { id: schoolId, isActive: true, isVerified: true }
   });
+  
+  if (!school) {
+    school = await prisma.school.findFirst({
+      where: { schoolId: schoolId, isActive: true, isVerified: true }
+    });
+  }
   
   if (!school) {
     throw new Error('School not found or inactive');
@@ -128,9 +135,15 @@ const assignTeacherToStudents = async (teacherId, studentIds, schoolId, adminUse
  */
 const assignTeachersBulk = async (assignments, schoolId, adminUserId) => {
   // Validate school exists
-  const school = await prisma.school.findFirst({
-    where: { schoolId, isActive: true, isVerified: true }
+  let school = await prisma.school.findFirst({
+    where: { id: schoolId, isActive: true, isVerified: true }
   });
+  
+  if (!school) {
+    school = await prisma.school.findFirst({
+      where: { schoolId: schoolId, isActive: true, isVerified: true }
+    });
+  }
   
   if (!school) {
     throw new Error('School not found or inactive');
@@ -177,9 +190,16 @@ const assignTeachersBulk = async (assignments, schoolId, adminUserId) => {
  */
 const unassignTeacherFromStudents = async (teacherId, studentIds, schoolId, adminUserId) => {
   // Validate school exists and get UUID
-  const school = await prisma.school.findFirst({
-    where: { schoolId, isActive: true, isVerified: true }
+  // Find school by either UUID (id) or human-readable schoolId
+  let school = await prisma.school.findFirst({
+    where: { id: schoolId, isActive: true, isVerified: true }
   });
+  
+  if (!school) {
+    school = await prisma.school.findFirst({
+      where: { schoolId: schoolId, isActive: true, isVerified: true }
+    });
+  }
   
   if (!school) {
     throw new Error('School not found or inactive');
@@ -292,10 +312,17 @@ const getTeacherStudents = async (teacherId, schoolId, pagination = {}) => {
   const { page = 1, limit = 20 } = pagination;
 
   // Validate school exists and get UUID
-  const school = await prisma.school.findFirst({
-    where: { schoolId, isActive: true, isVerified: true }
+  // Find school by either UUID (id) or human-readable schoolId
+  let school = await prisma.school.findFirst({
+    where: { id: schoolId, isActive: true, isVerified: true }
   });
-
+  
+  if (!school) {
+    school = await prisma.school.findFirst({
+      where: { schoolId: schoolId, isActive: true, isVerified: true }
+    });
+  }
+  
   if (!school) {
     throw new Error('School not found or inactive');
   }
@@ -403,10 +430,17 @@ const getTeacherStudents = async (teacherId, schoolId, pagination = {}) => {
  */
 const getStudentTeachers = async (studentId, schoolId) => {
   // Validate school exists and get UUID
-  const school = await prisma.school.findFirst({
-    where: { schoolId, isActive: true, isVerified: true }
+  // Find school by either UUID (id) or human-readable schoolId
+  let school = await prisma.school.findFirst({
+    where: { id: schoolId, isActive: true, isVerified: true }
   });
-
+  
+  if (!school) {
+    school = await prisma.school.findFirst({
+      where: { schoolId: schoolId, isActive: true, isVerified: true }
+    });
+  }
+  
   if (!school) {
     throw new Error('School not found or inactive');
   }
