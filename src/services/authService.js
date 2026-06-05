@@ -715,11 +715,14 @@ const completeRegistration = async (userData) => {
 
   // Update invitation status to 'accepted' when user completes registration
   try {
+    // Use school.id (UUID) since invitations store schoolId as UUID
+    const schoolUuid = school.id;
+
     // First try to find by exact match
     let invitation = await prisma.invitation.findFirst({
       where: {
         email: email.toLowerCase(),
-        schoolId,
+        schoolId: schoolUuid,
         role: user.role,
         status: 'pending'
       }
@@ -730,7 +733,7 @@ const completeRegistration = async (userData) => {
       invitation = await prisma.invitation.findFirst({
         where: {
           email: email.toLowerCase(),
-          schoolId,
+          schoolId: schoolUuid,
           role: user.role
         },
         orderBy: { createdAt: 'desc' }
@@ -756,11 +759,11 @@ const completeRegistration = async (userData) => {
 
       // Invalidate invitation-related caches
       const { invalidateInvitationCaches } = require('./invitationService');
-      await invalidateInvitationCaches(schoolId);
+      await invalidateInvitationCaches(schoolUuid);
 
       // Also directly invalidate dashboard cache to ensure immediate update
       const DashboardService = require('./dashboardService');
-      await DashboardService.invalidateDashboardCache(schoolId);
+      await DashboardService.invalidateDashboardCache(schoolUuid);
     } else {
       logger.info(`⚠️ No invitation found for ${email} in school ${schoolId} with role ${user.role}`);
 
