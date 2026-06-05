@@ -139,7 +139,7 @@ const createTeacherInvitation = async (invitationData, schoolId, adminUserId) =>
     {
       teacherName: `${firstName} ${lastName}`,
       schoolName: school.schoolName,
-      schoolId: school.id,
+      schoolId: school.schoolId,
       email: email.toLowerCase(),
       tempPassword,
       loginUrl: `${process.env.FRONTEND_URL || 'https://educonnect-frontend-one.vercel.app'}/login`,
@@ -324,7 +324,7 @@ const createParentInvitation = async (invitationData, schoolId, adminUserId) => 
     {
       parentName: `${firstName} ${lastName}`,
       schoolName: school.schoolName,
-      schoolId: school.id,
+      schoolId: school.schoolId,
       email: email.toLowerCase(),
       tempPassword,
       loginUrl: `${process.env.FRONTEND_URL || 'https://educonnect.com.ng'}/login`,
@@ -421,7 +421,7 @@ const resendInvitation = async (invitationId, schoolId) => {
     {
       [`${invitation.role}Name`]: `${invitation.firstName || ''} ${invitation.lastName || ''}`.trim(),
       schoolName: school.schoolName,
-      schoolId: school.id,
+      schoolId: school.schoolId,
       email: invitation.email,
       loginUrl: `${process.env.FRONTEND_URL || 'https://educonnect.com.ng'}/login`,
       completeRegistrationUrl: `${process.env.FRONTEND_URL || 'https://educonnect.com.ng'}/complete-registration?role=${invitation.role}`,
