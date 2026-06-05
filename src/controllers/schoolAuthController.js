@@ -148,7 +148,7 @@ const loginSchoolAdmin = catchAsync(async (req, res) => {
       data: {
         user: {
           id: result.user.id,
-          schoolId: result.user.schoolId,
+          schoolId: result.school.schoolId,
           schoolName: result.school.schoolName,
           email: result.user.email,
           firstName: result.user.firstName,
@@ -493,7 +493,7 @@ const createTeacherInvitation = catchAsync(async (req, res) => {
         email: result.user.email,
         role: result.user.role,
         tempPassword: result.temporaryPassword, // Include for testing only - remove in production
-        schoolId: targetSchoolId,
+        schoolId: result.schoolId,
         isActive: result.user.isActive,
         isTemporaryPassword: result.user.isTemporaryPassword,
         expiresAt: result.invitation.expiresAt,
@@ -574,7 +574,7 @@ const createParentInvitation = catchAsync(async (req, res) => {
         email: result.user.email,
         role: result.user.role,
         tempPassword: result.temporaryPassword, // Include for testing only - remove in production
-        schoolId: targetSchoolId,
+        schoolId: result.schoolId,
         studentIds: result.user.studentIds,
         linkedStudents: result.students,
         isActive: result.user.isActive,

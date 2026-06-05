@@ -47,7 +47,7 @@ const inviteParent = catchAsync(async (req, res) => {
       message: 'Parent invitation sent successfully. User account created with temporary password.',
       data: {
         loginCredentials: {
-          schoolId: targetSchoolId,
+          schoolId: result.schoolId,
           email: result.user.email,
           temporaryPassword: result.temporaryPassword,
           children: result.students
@@ -197,7 +197,7 @@ const getParentDetails = async (req, res) => {
             email: true
           }
         },
-        parentOf: {
+        parentStudents: {
           include: {
             student: {
               select: {
@@ -259,7 +259,7 @@ const getParentDetails = async (req, res) => {
             name: `${parent.invitedBy.firstName} ${parent.invitedBy.lastName}`,
             email: parent.invitedBy.email
           } : null,
-          children: parent.parentOf.map(pc => {
+          children: parent.parentStudents.map(pc => {
             const child = pc.student;
             return {
               id: child.id,
@@ -282,7 +282,7 @@ const getParentDetails = async (req, res) => {
               createdAt: child.createdAt
             };
           }),
-          childrenCount: parent.parentOf.length
+          childrenCount: parent.parentStudents.length
         }
       }
     });
@@ -337,7 +337,7 @@ const linkParentToStudents = async (req, res) => {
         role: 'parent'
       },
       include: {
-        parentOf: {
+        parentStudents: {
           include: {
             student: {
               select: { id: true }
@@ -378,20 +378,17 @@ const linkParentToStudents = async (req, res) => {
     });
 
     // Add students to parent's children array (avoid duplicates)
-    const existingStudentIds = parent.parentOf.map(pc => pc.student.id);
+    const existingStudentIds = parent.parentStudents.map(pc => pc.student.id);
     const newStudentIds = studentIds.filter(studentId => 
       !existingStudentIds.includes(studentId)
     );
 
     if (newStudentIds.length > 0) {
       // Create parent-child relationships
-      await prisma.parentChild.createMany({
+      await prisma.parentStudent.createMany({
         data: newStudentIds.map(studentId => ({
           parentId: parentId,
-          studentId: studentId,
-          relationship: 'parent',
-          isActive: true,
-          createdById: adminUser?.id
+          studentId: studentId
         })),
         skipDuplicates: true
       });
@@ -405,7 +402,7 @@ const linkParentToStudents = async (req, res) => {
         firstName: true,
         lastName: true,
         email: true,
-        parentOf: {
+        parentStudents: {
           include: {
             student: {
               select: {
@@ -434,8 +431,8 @@ const linkParentToStudents = async (req, res) => {
           firstName: updatedParent.firstName,
           lastName: updatedParent.lastName,
           email: updatedParent.email,
-          childrenCount: updatedParent.parentOf.length,
-          children: updatedParent.parentOf.map(pc => ({
+          childrenCount: updatedParent.parentStudents.length,
+          children: updatedParent.parentStudents.map(pc => ({
             id: pc.student.id,
             studentId: pc.student.studentId,
             name: `${pc.student.firstName} ${pc.student.lastName}`,
@@ -447,7 +444,7 @@ const linkParentToStudents = async (req, res) => {
           }))
         },
         linkedStudents: newStudentIds.length,
-        totalChildren: updatedParent.parentOf.length
+        totalChildren: updatedParent.parentStudents.length
       }
     });
 
@@ -529,7 +526,7 @@ const unlinkParentFromStudents = async (req, res) => {
         firstName: true,
         lastName: true,
         email: true,
-        parentOf: {
+        parentStudents: {
           include: {
             student: {
               select: {
@@ -559,8 +556,8 @@ const unlinkParentFromStudents = async (req, res) => {
           firstName: updatedParent.firstName,
           lastName: updatedParent.lastName,
           email: updatedParent.email,
-          childrenCount: updatedParent.parentOf.length,
-          children: updatedParent.parentOf.map(pc => ({
+          childrenCount: updatedParent.parentStudents.length,
+          children: updatedParent.parentStudents.map(pc => ({
             id: pc.student.id,
             studentId: pc.student.studentId,
             name: `${pc.student.firstName} ${pc.student.lastName}`,
@@ -572,7 +569,7 @@ const unlinkParentFromStudents = async (req, res) => {
           }))
         },
         unlinkedStudents: studentIds.length,
-        remainingChildren: updatedParent.parentOf.length
+        remainingChildren: updatedParent.parentStudents.length
       }
     });
 
@@ -622,7 +619,7 @@ const removeParent = async (req, res) => {
         role: 'parent'
       },
       include: {
-        parentOf: {
+        parentStudents: {
           include: {
             student: {
               select: {
@@ -668,16 +665,16 @@ const removeParent = async (req, res) => {
       email: parent.email,
       phone: parent.phone,
       isActive: parent.isActive,
-      children: parent.parentOf.map(pc => ({
+      children: parent.parentStudents.map(pc => ({
         id: pc.student.id,
         studentId: pc.student.studentId,
         name: `${pc.student.firstName} ${pc.student.lastName}`
       })),
-      childrenCount: parent.parentOf.length
+      childrenCount: parent.parentStudents.length
     };
 
     // Remove parent from all students' parentIds arrays (delete parentChild records)
-    if (parent.parentOf && parent.parentOf.length > 0) {
+    if (parent.parentStudents && parent.parentStudents.length > 0) {
       await prisma.parentChild.deleteMany({
         where: {
           parentId: parentId

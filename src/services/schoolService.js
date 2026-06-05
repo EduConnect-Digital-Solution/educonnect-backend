@@ -75,7 +75,7 @@ const getSchoolProfile = async (schoolId) => {
   const profileData = {
     school: {
       id: school.id,
-      schoolId: school.id,
+      schoolId: school.schoolId,
       schoolName: school.schoolName,
       email: school.email,
       phone: school.phone,
