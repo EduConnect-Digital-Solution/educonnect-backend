@@ -58,17 +58,17 @@ describe('Validation Middleware', () => {
       });
     });
 
-    test('should validate ObjectId format', () => {
-      const validIds = ['507f1f77bcf86cd799439011', '507f191e810c19729de860ea'];
-      const invalidIds = ['invalid-id', '123', 'short'];
+    test('should validate UUID format', () => {
+      const validIds = ['550e8400-e29b-41d4-a716-446655440000', '6ba7b810-9dad-11d1-80b4-00c04fd430c8'];
+      const invalidIds = ['invalid-id', '123', 'short', '550e8400-e29b-41d4-a716-44665544000G'];
 
       validIds.forEach(id => {
-        const { error } = commonSchemas.objectId.validate(id);
+        const { error } = commonSchemas.uuid.validate(id);
         expect(error).toBeUndefined();
       });
 
       invalidIds.forEach(id => {
-        const { error } = commonSchemas.objectId.validate(id);
+        const { error } = commonSchemas.uuid.validate(id);
         expect(error).toBeDefined();
       });
     });
@@ -263,11 +263,11 @@ describe('Validation Middleware', () => {
 
     test('validateParams should validate request parameters', () => {
       req.params = {
-        id: '507f1f77bcf86cd799439011'
+        id: '550e8400-e29b-41d4-a716-446655440000'
       };
 
       const paramSchema = require('joi').object({
-        id: commonSchemas.objectId.required()
+        id: commonSchemas.uuid.required()
       });
 
       const middleware = validateParams(paramSchema);
@@ -299,14 +299,14 @@ describe('Validation Middleware', () => {
 
     test('validateRequest should combine multiple validations', () => {
       req.body = { email: 'test@example.com' };
-      req.params = { id: '507f1f77bcf86cd799439011' };
+      req.params = { id: '550e8400-e29b-41d4-a716-446655440000' };
       req.query = { page: '1' };
 
       const bodySchema = require('joi').object({
         email: commonSchemas.email.required()
       });
       const paramSchema = require('joi').object({
-        id: commonSchemas.objectId.required()
+        id: commonSchemas.uuid.required()
       });
       const querySchema = require('joi').object({
         page: commonSchemas.page

@@ -10,7 +10,7 @@ const { body, param, query } = require('express-validator');
  */
 const validateTeacherAssignment = [
   body('teacherId')
-    .isMongoId()
+    .isUUID()
     .withMessage('Invalid teacher ID format'),
 
   body('studentIds')
@@ -18,8 +18,8 @@ const validateTeacherAssignment = [
     .withMessage('Student IDs must be a non-empty array'),
 
   body('studentIds.*')
-    .isMongoId()
-    .withMessage('Each student ID must be a valid MongoDB ObjectId'),
+    .isUUID()
+    .withMessage('Each student ID must be a valid UUID'),
 
   body('schoolId')
     .optional()
@@ -36,7 +36,7 @@ const validateBulkTeacherAssignment = [
     .withMessage('Assignments must be a non-empty array'),
 
   body('assignments.*.teacherId')
-    .isMongoId()
+    .isUUID()
     .withMessage('Each assignment must have a valid teacher ID'),
 
   body('assignments.*.studentIds')
@@ -44,8 +44,8 @@ const validateBulkTeacherAssignment = [
     .withMessage('Each assignment must have a non-empty array of student IDs'),
 
   body('assignments.*.studentIds.*')
-    .isMongoId()
-    .withMessage('Each student ID must be a valid MongoDB ObjectId'),
+    .isUUID()
+    .withMessage('Each student ID must be a valid UUID'),
 
   body('schoolId')
     .optional()
@@ -58,7 +58,7 @@ const validateBulkTeacherAssignment = [
  */
 const validateTeacherUnassignment = [
   body('teacherId')
-    .isMongoId()
+    .isUUID()
     .withMessage('Invalid teacher ID format'),
 
   body('studentIds')
@@ -66,8 +66,8 @@ const validateTeacherUnassignment = [
     .withMessage('Student IDs must be a non-empty array'),
 
   body('studentIds.*')
-    .isMongoId()
-    .withMessage('Each student ID must be a valid MongoDB ObjectId'),
+    .isUUID()
+    .withMessage('Each student ID must be a valid UUID'),
 
   body('schoolId')
     .optional()
@@ -80,11 +80,11 @@ const validateTeacherUnassignment = [
  */
 const validateTeacherStudentParams = [
   param('teacherId')
-    .isMongoId()
+    .isUUID()
     .withMessage('Invalid teacher ID format'),
 
   param('studentId')
-    .isMongoId()
+    .isUUID()
     .withMessage('Invalid student ID format'),
 
   query('schoolId')
@@ -98,7 +98,7 @@ const validateTeacherStudentParams = [
  */
 const validateGetTeacherStudents = [
   param('teacherId')
-    .isMongoId()
+    .isUUID()
     .withMessage('Invalid teacher ID format'),
 
   query('schoolId')
@@ -122,7 +122,7 @@ const validateGetTeacherStudents = [
  */
 const validateGetStudentTeachers = [
   param('studentId')
-    .isMongoId()
+    .isUUID()
     .withMessage('Invalid student ID format'),
 
   query('schoolId')

@@ -246,8 +246,8 @@ const validateParentInvitation = [
     .withMessage('At least one student ID is required')
     .custom((studentIds) => {
       for (const studentId of studentIds) {
-        if (!studentId || typeof studentId !== 'string' || studentId.length !== 24) {
-          throw new Error('Each student ID must be a valid MongoDB ObjectId');
+        if (!studentId || typeof studentId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(studentId)) {
+          throw new Error('Each student ID must be a valid UUID');
         }
       }
       return true;
@@ -296,7 +296,7 @@ const validateRateLimit = (req, res, next) => {
  */
 const validateInvitationResend = [
   body('invitationId')
-    .isMongoId()
+    .isUUID()
     .withMessage('Invalid invitation ID format'),
 
   body('schoolId')
@@ -310,7 +310,7 @@ const validateInvitationResend = [
  */
 const validateInvitationCancel = [
   body('invitationId')
-    .isMongoId()
+    .isUUID()
     .withMessage('Invalid invitation ID format'),
 
   body('reason')

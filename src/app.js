@@ -152,7 +152,7 @@ app.get('/debug', (req, res) => {
     env: {
       nodeEnv: process.env.NODE_ENV,
       port: process.env.PORT,
-      mongoUri: process.env.MONGODB_URI ? 'Set' : 'Not set',
+      databaseUrl: process.env.DATABASE_URL ? 'Set' : 'Not set',
       jwtSecret: process.env.JWT_SECRET ? 'Set' : 'Not set',
       redisUrl: process.env.REDIS_URL ? 'Set' : 'Not set'
     }

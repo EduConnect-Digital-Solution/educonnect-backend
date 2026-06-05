@@ -56,7 +56,7 @@ const validateUserManagementQuery = [
  */
 const validateUserStatusToggle = [
   body('userId')
-    .isMongoId()
+    .isUUID()
     .withMessage('Invalid user ID format'),
 
   body('action')
@@ -80,7 +80,7 @@ const validateUserStatusToggle = [
  */
 const validateUserRemoval = [
   body('userId')
-    .isMongoId()
+    .isUUID()
     .withMessage('Invalid user ID format'),
 
   body('reason')

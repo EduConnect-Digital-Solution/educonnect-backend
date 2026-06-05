@@ -225,7 +225,7 @@ const validateSystemAdminAction = (actionType) => {
         
         body('userId')
           .optional()
-          .isMongoId()
+          .isUUID()
           .withMessage('Valid user ID required'),
         
         body('isActive')
@@ -245,7 +245,7 @@ const validateSystemAdminAction = (actionType) => {
         body('targetUserId')
           .notEmpty()
           .withMessage('Target user ID is required')
-          .isMongoId()
+          .isUUID()
           .withMessage('Valid user ID required'),
         
         body('reason')

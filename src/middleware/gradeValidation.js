@@ -184,8 +184,8 @@ const validateStudentId = [
   param('studentId')
     .notEmpty()
     .withMessage('Student ID is required')
-    .isMongoId()
-    .withMessage('Student ID must be a valid MongoDB ObjectId')
+    .isUUID()
+    .withMessage('Student ID must be a valid UUID')
 ];
 
 /**
@@ -195,8 +195,8 @@ const validateGradeId = [
   param('gradeId')
     .notEmpty()
     .withMessage('Grade ID is required')
-    .isMongoId()
-    .withMessage('Grade ID must be a valid MongoDB ObjectId')
+    .isUUID()
+    .withMessage('Grade ID must be a valid UUID')
 ];
 
 /**
