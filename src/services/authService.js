@@ -671,8 +671,7 @@ const completeRegistration = async (userData) => {
     where: {
       email: email.toLowerCase(),
       schoolId: school.id,  // Use UUID for foreign key lookup
-      isTemporaryPassword: true,
-      isActive: false
+      isTemporaryPassword: true
     },
     select: { id: true, password: true, role: true, subjects: true, firstName: true, lastName: true }
   });
