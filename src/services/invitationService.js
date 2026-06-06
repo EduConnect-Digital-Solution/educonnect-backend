@@ -95,7 +95,7 @@ const createTeacherInvitation = async (invitationData, schoolId, adminUserId) =>
       password: hashedPassword,
       role: 'teacher',
       isVerified: true,
-      isActive: false,
+      isActive: true,
       isTemporaryPassword: true,
       subjects: subjects || [],
       classes: [], // Teachers do not get classes automatically
@@ -274,7 +274,7 @@ const createParentInvitation = async (invitationData, schoolId, adminUserId) => 
       password: hashedPassword,
       role: 'parent',
       isVerified: true,
-      isActive: false,
+      isActive: true,
       isTemporaryPassword: true,
       invitedBy: adminUser.id
     }
