@@ -491,8 +491,8 @@ const listInvitations = async (filters, pagination) => {
     throw new Error('School not found');
   }
 
-  // Build query using human-readable schoolId for Invitation model
-  const where = { schoolId: school.schoolId };
+  // Build query using school UUID (Invitation.schoolId stores the UUID)
+  const where = { schoolId: school.id };
   if (status) where.status = status;
   if (role) where.role = role;
 
