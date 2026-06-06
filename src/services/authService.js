@@ -442,7 +442,7 @@ const loginUser = async (email, password, schoolId) => {
         lastName: user.lastName,
         email: user.email,
         role: user.role,
-        schoolId: user.schoolId,
+      schoolId: school.schoolId,
         schoolName: school ? school.schoolName : null,
         isTemporaryPassword: user.isTemporaryPassword,
         requiresRegistrationCompletion: true,
@@ -850,7 +850,7 @@ const refreshToken = async (refreshTokenValue, source = 'body') => {
   console.log('Auth Service: Looking up school with ID:', decoded.schoolId);
   const school = await prisma.school.findFirst({
     where: { id: decoded.schoolId },
-    select: { id: true, isActive: true }
+    select: { id: true, schoolId: true, isActive: true }
   });
   
   console.log('Auth Service: School lookup result:', !!school, 'isActive:', school?.isActive);
