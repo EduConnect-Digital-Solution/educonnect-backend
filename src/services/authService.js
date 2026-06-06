@@ -850,7 +850,7 @@ const refreshToken = async (refreshTokenValue, source = 'body') => {
   console.log('Auth Service: Looking up school with ID:', decoded.schoolId);
   const school = await prisma.school.findFirst({
     where: { id: decoded.schoolId },
-    select: { id: true, schoolId: true, isActive: true }
+    select: { id: true, schoolId: true, schoolName: true, isActive: true }
   });
   
   console.log('Auth Service: School lookup result:', !!school, 'isActive:', school?.isActive);
@@ -874,6 +874,10 @@ const refreshToken = async (refreshTokenValue, source = 'body') => {
       role: user.role,
       profileImage: user.profileImage
     },
+    school: {
+      schoolId: school.schoolId,
+      schoolName: school.schoolName
+    },
     tokenRefreshedAt: new Date().toISOString(),
     refreshSource: source // Track if refresh came from cookie or body
   });
@@ -883,7 +887,8 @@ const refreshToken = async (refreshTokenValue, source = 'body') => {
   return {
     user: {
       id: user.id,
-      schoolId: user.schoolId,
+      schoolId: school.schoolId,
+      schoolName: school.schoolName,
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
