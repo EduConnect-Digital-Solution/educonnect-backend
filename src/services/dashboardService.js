@@ -8,6 +8,7 @@
 const { prisma } = require('../config/database');
 const CacheService = require('./cacheService');
 const logger = require('../utils/logger');
+const { AppError } = require('../utils/AppError');
 
 class DashboardService {
   /**
@@ -32,7 +33,7 @@ class DashboardService {
     }
     
     if (!school) {
-      throw new Error('School not found');
+      throw new AppError('School not found', 404);
     }
 
     // Get user statistics by role using Prisma (user.schoolId is UUID)
@@ -284,7 +285,7 @@ class DashboardService {
     }
     
     if (!school) {
-      throw new Error('School not found');
+      throw new AppError('School not found', 404);
     }
     
     const where = { schoolId: school.id };
@@ -415,7 +416,7 @@ class DashboardService {
     });
 
     if (!user) {
-      throw new Error('User not found');
+      throw new AppError('User not found', 404);
     }
 
     // Get admin user for tracking
@@ -427,7 +428,7 @@ class DashboardService {
     });
 
     if (!adminUser) {
-      throw new Error('No admin user found for this school');
+      throw new AppError('No admin user found for this school', 404);
     }
 
     // Perform the action
@@ -435,7 +436,7 @@ class DashboardService {
 
     if (action === 'activate') {
       if (user.isActive) {
-        throw new Error('User is already active');
+        throw new AppError('User is already active', 400);
       }
 
       updateData = {
@@ -447,11 +448,11 @@ class DashboardService {
 
     } else if (action === 'deactivate') {
       if (!user.isActive) {
-        throw new Error('User is already inactive');
+        throw new AppError('User is already inactive', 400);
       }
 
       if (user.isTemporaryPassword) {
-        throw new Error('Cannot deactivate user with pending registration. Cancel their invitation instead.');
+        throw new AppError('Cannot deactivate user with pending registration. Cancel their invitation instead.', 400);
       }
 
       updateData = {
@@ -462,7 +463,7 @@ class DashboardService {
       };
 
     } else {
-      throw new Error('Invalid action. Must be "activate" or "deactivate"');
+      throw new AppError('Invalid action. Must be "activate" or "deactivate"', 400);
     }
 
     const updatedUser = await prisma.user.update({
@@ -502,12 +503,12 @@ class DashboardService {
     });
 
     if (!user) {
-      throw new Error('User not found');
+      throw new AppError('User not found', 404);
     }
 
     // Prevent removal of admin users
     if (user.role === 'admin') {
-      throw new Error('Cannot remove admin users');
+      throw new AppError('Cannot remove admin users', 400);
     }
 
     // Get admin user for tracking
@@ -519,7 +520,7 @@ class DashboardService {
     });
 
     if (!adminUser) {
-      throw new Error('No admin user found for this school');
+      throw new AppError('No admin user found for this school', 404);
     }
 
     // Store user info for response before deletion
@@ -584,7 +585,7 @@ class DashboardService {
     });
 
     if (!recentSchool) {
-      throw new Error('No active school found');
+      throw new AppError('No active school found', 404);
     }
 
     return recentSchool.schoolId;
