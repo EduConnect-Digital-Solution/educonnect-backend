@@ -38,6 +38,17 @@ class ParentDashboardService {
       throw new Error('School not found');
     }
 
+    // Get current academic year and term
+    const currentAcademicYear = await prisma.academicYear.findFirst({
+      where: { schoolId: school.id, isCurrent: true },
+      select: { id: true, year: true, name: true }
+    });
+
+    const currentAcademicTerm = await prisma.academicTerm.findFirst({
+      where: { schoolId: school.id, isCurrent: true },
+      select: { id: true, name: true, term: true }
+    });
+
     // Get children (students linked to this parent)
     const children = await prisma.student.findMany({
       where: {
@@ -161,7 +172,9 @@ class ParentDashboardService {
         id: school.id,
         schoolId: school.schoolId,
         schoolName: school.schoolName,
-        email: school.email
+        email: school.email,
+        currentAcademicYear: currentAcademicYear || null,
+        currentAcademicTerm: currentAcademicTerm || null
       },
       statistics: stats,
       children: children.map(child => ({
