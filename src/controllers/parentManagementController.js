@@ -152,114 +152,118 @@ const getParents = catchAsync(async (req, res) => {
  * Get detailed information about a specific parent including children
  * Requirements: 4.4, 4.5
  */
-const getParentDetails = async (req, res) => {
-  try {
-    const { parentId } = req.params;
-    
-    // Use authenticated user's schoolId from JWT token
-    let targetSchoolId = req.user.schoolId;
-    
-    if (!targetSchoolId) {
-      return res.status(400).json({
-        success: false,
-        message: 'School ID not found in authentication token'
-      });
-    }
+const getParentDetails = catchAsync(async (req, res) => {
+  const { parentId } = req.params;
+  
+  // Use authenticated user's schoolId from JWT token
+  let targetSchoolId = req.user.schoolId;
+  
+  if (!targetSchoolId) {
+    return res.status(400).json({
+      success: false,
+      message: 'School ID not found in authentication token'
+    });
+  }
 
-    // Find the parent with all relationships using Prisma
-    const parent = await prisma.user.findFirst({
-      where: {
-        id: parentId,
-        schoolId: targetSchoolId,
-        role: 'parent'
-      },
-      select: {
-        id: true,
-        firstName: true,
-        lastName: true,
-        email: true,
-        phone: true,
-        address: true,
-        occupation: true,
-        emergencyContact: true,
-        emergencyPhone: true,
-        isActive: true,
-        isVerified: true,
-        isTemporaryPassword: true,
-        lastLoginAt: true,
-        createdAt: true,
-        updatedAt: true,
-        invitedById: true,
-        invitedBy: {
-          select: {
-            firstName: true,
-            lastName: true,
-            email: true
-          }
-        },
-        parentStudents: {
-          include: {
-            student: {
-              select: {
-                id: true,
-                studentId: true,
-                firstName: true,
-                lastName: true,
-                classId: true,
-                armId: true,
-                rollNumber: true,
-                grade: true,
-                dateOfBirth: true,
-                gender: true,
-                address: true,
-                phone: true,
-                isActive: true,
-                isEnrolled: true,
-                createdAt: true,
-                arm: { select: { name: true } }
-              }
+  // Find the parent with all relationships using Prisma
+  const parent = await prisma.user.findFirst({
+    where: {
+      id: parentId,
+      schoolId: targetSchoolId,
+      role: 'parent'
+    },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      email: true,
+      phone: true,
+      address: true,
+      occupation: true,
+      emergencyContact: true,
+      emergencyPhone: true,
+      isActive: true,
+      isVerified: true,
+      isTemporaryPassword: true,
+      lastLoginAt: true,
+      createdAt: true,
+      updatedAt: true,
+      invitedBy: true,
+      parentStudents: {
+        include: {
+          student: {
+            select: {
+              id: true,
+              studentId: true,
+              firstName: true,
+              lastName: true,
+              classId: true,
+              armId: true,
+              rollNumber: true,
+              grade: true,
+              dateOfBirth: true,
+              gender: true,
+              address: true,
+              phone: true,
+              isActive: true,
+              isEnrolled: true,
+              createdAt: true,
+              arm: { select: { name: true } }
             }
           }
         }
       }
-    });
-
-    if (!parent) {
-      return res.status(404).json({
-        success: false,
-        message: 'Parent not found'
-      });
     }
+  });
 
-    res.status(200).json({
-      success: true,
-      message: 'Parent details retrieved successfully',
-      data: {
-        parent: {
-          id: parent.id,
-          firstName: parent.firstName,
-          lastName: parent.lastName,
-          fullName: `${parent.firstName} ${parent.lastName}`,
-          email: parent.email,
-          phone: parent.phone,
-          address: parent.address,
-          occupation: parent.occupation,
-          emergencyContact: parent.emergencyContact,
-          emergencyPhone: parent.emergencyPhone,
-          isActive: parent.isActive,
-          isVerified: parent.isVerified,
-          isTemporaryPassword: parent.isTemporaryPassword,
-          lastLoginAt: parent.lastLoginAt,
-          createdAt: parent.createdAt,
-          updatedAt: parent.updatedAt,
-          statusDisplay: parent.isActive ? 
-            (parent.isTemporaryPassword ? 'Pending Registration' : 'Active') : 
-            'Inactive',
-          invitedBy: parent.invitedBy ? {
-            name: `${parent.invitedBy.firstName} ${parent.invitedBy.lastName}`,
-            email: parent.invitedBy.email
-          } : null,
-          children: parent.parentStudents.map(pc => {
+  if (!parent) {
+    return res.status(404).json({
+      success: false,
+      message: 'Parent not found'
+    });
+  }
+
+  // Fetch inviting user info if invitedBy is set (it's a String? storing user ID)
+  let invitedByInfo = null;
+  if (parent.invitedBy) {
+    const invitingUser = await prisma.user.findUnique({
+      where: { id: parent.invitedBy },
+      select: { firstName: true, lastName: true, email: true }
+    });
+    if (invitingUser) {
+      invitedByInfo = {
+        name: `${invitingUser.firstName} ${invitingUser.lastName}`,
+        email: invitingUser.email
+      };
+    }
+  }
+
+  res.status(200).json({
+    success: true,
+    message: 'Parent details retrieved successfully',
+    data: {
+      parent: {
+        id: parent.id,
+        firstName: parent.firstName,
+        lastName: parent.lastName,
+        fullName: `${parent.firstName} ${parent.lastName}`,
+        email: parent.email,
+        phone: parent.phone,
+        address: parent.address,
+        occupation: parent.occupation,
+        emergencyContact: parent.emergencyContact,
+        emergencyPhone: parent.emergencyPhone,
+        isActive: parent.isActive,
+        isVerified: parent.isVerified,
+        isTemporaryPassword: parent.isTemporaryPassword,
+        lastLoginAt: parent.lastLoginAt,
+        createdAt: parent.createdAt,
+        updatedAt: parent.updatedAt,
+        statusDisplay: parent.isActive ? 
+          (parent.isTemporaryPassword ? 'Pending Registration' : 'Active') : 
+          'Inactive',
+        invitedBy: invitedByInfo,
+        children: parent.parentStudents.map(pc => {
             const child = pc.student;
             return {
               id: child.id,
@@ -286,19 +290,7 @@ const getParentDetails = async (req, res) => {
         }
       }
     });
-
-  } catch (error) {
-    logger.error('Get parent details error:', error);
-    logger.error('Error stack:', error.stack);
-    logger.error('Parent ID:', req.params.parentId);
-    
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error while retrieving parent details',
-      ...(process.env.NODE_ENV === 'development' && { error: error.message })
-    });
-  }
-};
+});
 
 /**
  * Link Parent to Students
@@ -511,7 +503,7 @@ const unlinkParentFromStudents = async (req, res) => {
     });
 
     // Remove parent-child relationships
-    await prisma.parentChild.deleteMany({
+    await prisma.parentStudent.deleteMany({
       where: {
         parentId: parentId,
         studentId: { in: studentIds }
@@ -673,9 +665,9 @@ const removeParent = async (req, res) => {
       childrenCount: parent.parentStudents.length
     };
 
-    // Remove parent from all students' parentIds arrays (delete parentChild records)
+    // Remove parent from all students' parentIds arrays (delete parentStudent records)
     if (parent.parentStudents && parent.parentStudents.length > 0) {
-      await prisma.parentChild.deleteMany({
+      await prisma.parentStudent.deleteMany({
         where: {
           parentId: parentId
         }
