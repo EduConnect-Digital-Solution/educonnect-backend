@@ -184,6 +184,9 @@ const eventsRoutes = require('./routes/events');
 // Timetable routes
 const { adminTimetableRoutes, teacherTimetableRoutes } = require('./routes/timetable');
 
+// Grading Scale routes
+const { gradingScaleRoutes } = require('./routes/gradingScale');
+
 // System Admin routes
 const systemAdminAuthRoutes = require('./routes/systemAdminAuth');
 const systemAdminRoutes = require('./routes/systemAdmin');
@@ -223,6 +226,9 @@ app.use('/api/admin', eventsRoutes);
 // Timetable routes
 app.use('/api/admin/timetable', adminTimetableRoutes);
 app.use('/api/teacher/timetable', teacherTimetableRoutes);
+
+// Grading Scale routes
+app.use('/api/admin/grading-scales', gradingScaleRoutes);
 
 // System Admin routes
 app.use('/api/system-admin/auth', systemAdminAuthRoutes);

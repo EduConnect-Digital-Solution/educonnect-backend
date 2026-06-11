@@ -54,6 +54,7 @@ const assignClassesToTeacher = catchAsync(async (req, res) => {
   // Add new classes (avoid duplicates)
   const existingClasses = teacher.classes || [];
   const newClasses = classes.filter(cls => !existingClasses.includes(cls));
+  let autoAssignedCount = 0;
 
   if (newClasses.length > 0) {
     const updatedClasses = [...existingClasses, ...newClasses];
@@ -62,6 +63,36 @@ const assignClassesToTeacher = catchAsync(async (req, res) => {
       data: { classes: updatedClasses }
     });
     teacher.classes = updatedClasses;
+
+    // Auto-assign teacher to all students in newly assigned classes
+    const classRecords = await prisma.class.findMany({
+      where: { schoolId: targetSchoolId, name: { in: newClasses } },
+      select: { id: true, name: true }
+    });
+
+    if (classRecords.length > 0) {
+      const classIds = classRecords.map(c => c.id);
+      const students = await prisma.student.findMany({
+        where: { classId: { in: classIds }, isActive: true },
+        select: { id: true, classId: true }
+      });
+
+      if (students.length > 0) {
+        const classMap = {};
+        classRecords.forEach(c => { classMap[c.id] = c.name; });
+
+        const { count } = await prisma.teacherStudent.createMany({
+          data: students.map(s => ({
+            teacherId,
+            studentId: s.id,
+            class: classMap[s.classId] || null,
+            isActive: true
+          })),
+          skipDuplicates: true
+        });
+        autoAssignedCount = count;
+      }
+    }
   }
 
   // Always invalidate caches to ensure fresh data on teacher dashboard
@@ -81,7 +112,8 @@ const assignClassesToTeacher = catchAsync(async (req, res) => {
         subjects: teacher.subjects
       },
       assignedClasses: newClasses,
-      totalClasses: teacher.classes.length
+      totalClasses: teacher.classes.length,
+      autoAssignedStudents: autoAssignedCount
     }
   });
 });
@@ -209,6 +241,33 @@ const removeClassesFromTeacher = catchAsync(async (req, res) => {
     data: { classes: updatedClasses }
   });
   teacher.classes = updatedClasses;
+
+  // Clean up TeacherStudent records for students in the removed classes
+  const removedClassNames = originalClasses.filter(cls => classes.includes(cls));
+  if (removedClassNames.length > 0) {
+    const classRecords = await prisma.class.findMany({
+      where: { schoolId: targetSchoolId, name: { in: removedClassNames } },
+      select: { id: true }
+    });
+
+    if (classRecords.length > 0) {
+      const studentIds = (
+        await prisma.student.findMany({
+          where: { classId: { in: classRecords.map(c => c.id) }, isActive: true },
+          select: { id: true }
+        })
+      ).map(s => s.id);
+
+      if (studentIds.length > 0) {
+        await prisma.teacherStudent.deleteMany({
+          where: {
+            teacherId,
+            studentId: { in: studentIds }
+          }
+        });
+      }
+    }
+  }
 
   // Invalidate teacher caches after class removal
   await TeacherService.invalidateTeacherCaches(targetSchoolId, teacherId);
