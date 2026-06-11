@@ -155,7 +155,21 @@ const collection = {
       ]
     },
     {
-      name: '03.10 - Events & Notifications',
+      name: '03.11 - Grading Scales',
+      item: [
+        req({ name: 'List Grading Scales', method: 'GET', url: '/api/admin/grading-scales', authType: 'user' }),
+        req({ name: 'Create Grading Scale with Bands', method: 'POST', url: '/api/admin/grading-scales', authType: 'user', body: { name: 'Standard', description: 'Default grading scale', bands: [{ label: 'A+', minPercent: 97, maxPercent: 100, gradePoints: 4.0, sortOrder: 0 }, { label: 'A', minPercent: 90, maxPercent: 96, gradePoints: 3.7, sortOrder: 1 }, { label: 'A-', minPercent: 85, maxPercent: 89, gradePoints: 3.3, sortOrder: 2 }, { label: 'B+', minPercent: 80, maxPercent: 84, gradePoints: 3.0, sortOrder: 3 }, { label: 'B', minPercent: 75, maxPercent: 79, gradePoints: 2.7, sortOrder: 4 }, { label: 'B-', minPercent: 70, maxPercent: 74, gradePoints: 2.3, sortOrder: 5 }, { label: 'C+', minPercent: 65, maxPercent: 69, gradePoints: 2.0, sortOrder: 6 }, { label: 'C', minPercent: 60, maxPercent: 64, gradePoints: 1.7, sortOrder: 7 }, { label: 'C-', minPercent: 55, maxPercent: 59, gradePoints: 1.3, sortOrder: 8 }, { label: 'D+', minPercent: 50, maxPercent: 54, gradePoints: 1.0, sortOrder: 9 }, { label: 'D', minPercent: 45, maxPercent: 49, gradePoints: 0.7, sortOrder: 10 }, { label: 'F', minPercent: 0, maxPercent: 44, gradePoints: 0.0, sortOrder: 11 }] } }),
+        req({ name: 'Get Grading Scale', method: 'GET', url: '/api/admin/grading-scales/{{gradingScaleId}}', authType: 'user' }),
+        req({ name: 'Update Grading Scale', method: 'PUT', url: '/api/admin/grading-scales/{{gradingScaleId}}', authType: 'user', body: { name: 'Standard v2', description: 'Updated description' } }),
+        req({ name: 'Delete Grading Scale', method: 'DELETE', url: '/api/admin/grading-scales/{{gradingScaleId}}', authType: 'user' }),
+        req({ name: 'Set Default Grading Scale', method: 'POST', url: '/api/admin/grading-scales/{{gradingScaleId}}/set-default', authType: 'user' }),
+        req({ name: 'Add Grade Band', method: 'POST', url: '/api/admin/grading-scales/{{gradingScaleId}}/bands', authType: 'user', body: { label: 'A*', minPercent: 98, maxPercent: 100, gradePoints: 4.5, sortOrder: 0 } }),
+        req({ name: 'Update Grade Band', method: 'PUT', url: '/api/admin/grading-scales/{{gradingScaleId}}/bands/{{bandId}}', authType: 'user', body: { label: 'A*', minPercent: 95, maxPercent: 100, gradePoints: 4.5, sortOrder: 0 } }),
+        req({ name: 'Delete Grade Band', method: 'DELETE', url: '/api/admin/grading-scales/{{gradingScaleId}}/bands/{{bandId}}', authType: 'user' })
+      ]
+    },
+    {
+      name: '03.12 - Events & Notifications',
       item: [
         req({ name: 'Get Events', method: 'GET', url: '/api/admin/events?termId={{termId}}', authType: 'user' }),
         req({ name: 'Create Event', method: 'POST', url: '/api/admin/events', authType: 'user', body: { termId: '{{termId}}', name: 'Mid-Term Break', date: '2025-03-10T00:00:00.000Z', endDate: '2025-03-14T00:00:00.000Z', type: 'holiday', notifications: { enabled: true, targets: { roles: ['teacher', 'parent'], classIds: [], userIds: [] }, channels: ['push', 'sms'], schedule: { type: 'scheduled', sendAt: '2025-03-07T08:00:00.000Z' } } } }),
@@ -471,7 +485,9 @@ const collection = {
     { key: 'eventId', value: '', type: 'string' },
     { key: 'feeStructureId', value: '', type: 'string' },
     { key: 'invoiceId', value: '', type: 'string' },
-    { key: 'paymentId', value: '', type: 'string' }
+    { key: 'paymentId', value: '', type: 'string' },
+    { key: 'gradingScaleId', value: '', type: 'string' },
+    { key: 'bandId', value: '', type: 'string' }
   ]
 };
 
