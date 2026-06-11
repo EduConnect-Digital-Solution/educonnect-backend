@@ -59,6 +59,15 @@ router.get('/students',
  */
 router.get('/profile', teacherDashboardController.getTeacherProfile);
 
+/**
+ * @route   PUT /api/teacher/profile
+ * @desc    Update teacher profile information
+ * @access  Teacher
+ */
+router.put('/profile',
+  teacherDashboardController.updateTeacherProfile
+);
+
 // ============================================================================
 // GRADES MANAGEMENT ROUTES
 // ============================================================================

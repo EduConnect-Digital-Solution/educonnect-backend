@@ -538,6 +538,61 @@ class TeacherService {
       logger.error(`❌ Failed to warm up teacher caches for ${teacherId}:`, error.message);
     }
   }
+
+  /**
+   * Update teacher profile
+   * @param {string} userId - Teacher user ID
+   * @param {Object} updateData - Profile update data
+   * @returns {Object} Updated teacher profile
+   */
+  static async updateTeacherProfile(userId, updateData) {
+    const {
+      firstName,
+      lastName,
+      phone,
+      address,
+      occupation
+    } = updateData;
+
+    const teacher = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+    if (!teacher || teacher.role !== 'teacher') {
+      throw new Error('Access denied. Teacher role required.');
+    }
+
+    const updateData_prisma = {};
+    if (firstName !== undefined) updateData_prisma.firstName = firstName;
+    if (lastName !== undefined) updateData_prisma.lastName = lastName;
+    if (phone !== undefined) updateData_prisma.phone = phone;
+    if (address !== undefined) updateData_prisma.address = address;
+    if (occupation !== undefined) updateData_prisma.occupation = occupation;
+    if (updateData.profileImage !== undefined) updateData_prisma.profileImage = updateData.profileImage;
+
+    const updatedTeacher = await prisma.user.update({
+      where: { id: userId },
+      data: updateData_prisma
+    });
+
+    await CacheService.del('teacher', `profile:${userId}`);
+
+    return {
+      teacher: {
+        id: updatedTeacher.id,
+        firstName: updatedTeacher.firstName,
+        lastName: updatedTeacher.lastName,
+        fullName: `${updatedTeacher.firstName} ${updatedTeacher.lastName}`,
+        email: updatedTeacher.email,
+        phone: updatedTeacher.phone,
+        address: updatedTeacher.address,
+        occupation: updatedTeacher.occupation,
+        subjects: updatedTeacher.subjects || [],
+        classes: updatedTeacher.classes || [],
+        profileImage: updatedTeacher.profileImage,
+        updatedAt: updatedTeacher.updatedAt
+      }
+    };
+  }
 }
 
 module.exports = TeacherService;

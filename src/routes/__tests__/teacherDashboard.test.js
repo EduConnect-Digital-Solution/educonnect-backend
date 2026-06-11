@@ -12,7 +12,8 @@ const teacherDashboardController = require('../../controllers/teacherDashboardCo
 jest.mock('../../controllers/teacherDashboardController', () => ({
   getTeacherDashboard: jest.fn(),
   getMyStudents: jest.fn(),
-  getTeacherProfile: jest.fn()
+  getTeacherProfile: jest.fn(),
+  updateTeacherProfile: jest.fn()
 }));
 
 jest.mock('../../middleware/dashboardValidation', () => ({
