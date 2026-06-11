@@ -6,6 +6,7 @@
 
 const { prisma } = require('../config/database');
 const CacheService = require('./cacheService');
+const GradingScaleService = require('./gradingScaleService');
 const logger = require('../utils/logger');
 
 const mapTermToPrisma = (term) => {
@@ -398,12 +399,33 @@ class GradeService {
       include: { assessments: true }
     });
 
+    const totalScore = assessments ? assessments.reduce((sum, a) => sum + (a.score || 0), 0) : undefined;
+    const totalMaxScore = assessments ? assessments.reduce((sum, a) => sum + (a.maxScore || 0), 0) : undefined;
+    const percentage = totalScore !== undefined && totalMaxScore > 0
+      ? Math.round((totalScore / totalMaxScore) * 100 * 100) / 100
+      : undefined;
+
+    let gradeLabel = null;
+    let gradePoints = null;
+    if (percentage !== undefined) {
+      const resolved = await GradingScaleService.resolveGrade(teacher.schoolId, percentage);
+      if (resolved) {
+        gradeLabel = resolved.label;
+        gradePoints = resolved.gradePoints;
+      }
+    }
+
     if (existingGrade) {
       await prisma.grade.update({
         where: { id: existingGrade.id },
         data: {
           remarks: remarks || existingGrade.remarks,
           section: section || existingGrade.section,
+          totalScore: totalScore ?? existingGrade.totalScore,
+          totalMaxScore: totalMaxScore ?? existingGrade.totalMaxScore,
+          percentage: percentage ?? existingGrade.percentage,
+          gradeLabel: gradeLabel || existingGrade.gradeLabel,
+          gradePoints: gradePoints ?? existingGrade.gradePoints,
           updatedBy: teacherId
         }
       });
@@ -444,6 +466,11 @@ class GradeService {
           section: section,
           term: prismaTerm,
           academicYear: currentAcademicYear,
+          totalScore,
+          totalMaxScore,
+          percentage,
+          gradeLabel,
+          gradePoints,
           remarks: remarks,
           createdBy: teacherId,
           updatedBy: teacherId,

@@ -195,6 +195,9 @@ const feeRoutes = require('./routes/feeRoutes');
 const studentDashboardRoutes = require('./routes/studentDashboard');
 const configRoutes = require('./routes/config');
 
+// Grading Scale routes
+const gradingScaleRoutes = require('./routes/gradingScale');
+
 // Import Swagger documentation
 const { specs, swaggerUi, swaggerOptions } = require('./config/swagger');
 
@@ -234,6 +237,9 @@ app.use('/api/fees', feeRoutes);
 // Student Dashboard routes
 app.use('/api/student', studentDashboardRoutes);
 app.use('/api/config', configRoutes);
+
+// Grading Scale routes
+app.use('/api/admin', gradingScaleRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {

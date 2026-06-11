@@ -1651,6 +1651,189 @@
       ]
     },
     {
+      "name": "03.11 - Grading Scales",
+      "item": [
+        {
+          "name": "Create Grading Scale",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Standard\",\n  \"description\": \"Standard grading scale\",\n  \"isDefault\": true,\n  \"bands\": [\n    {\n      \"label\": \"A\",\n      \"minPercent\": 70,\n      \"maxPercent\": 100,\n      \"gradePoints\": 4\n    },\n    {\n      \"label\": \"B\",\n      \"minPercent\": 60,\n      \"maxPercent\": 69,\n      \"gradePoints\": 3\n    },\n    {\n      \"label\": \"C\",\n      \"minPercent\": 50,\n      \"maxPercent\": 59,\n      \"gradePoints\": 2\n    },\n    {\n      \"label\": \"D\",\n      \"minPercent\": 40,\n      \"maxPercent\": 49,\n      \"gradePoints\": 1\n    },\n    {\n      \"label\": \"F\",\n      \"minPercent\": 0,\n      \"maxPercent\": 39,\n      \"gradePoints\": 0\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/admin/grading-scales"
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Grading Scales",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/grading-scales"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Grading Scale By ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/grading-scales/{{gradingScaleId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Grading Scale",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Standard (Updated)\",\n  \"description\": \"Updated description\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/admin/grading-scales/{{gradingScaleId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Set Default Grading Scale",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/grading-scales/{{gradingScaleId}}/default"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Grading Scale",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/grading-scales/{{gradingScaleId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Add Grade Band",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"label\": \"A+\",\n  \"minPercent\": 90,\n  \"maxPercent\": 100,\n  \"gradePoints\": 4.5,\n  \"description\": \"Excellent\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/admin/grading-scales/{{gradingScaleId}}/bands"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Grade Band",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"label\": \"A+\",\n  \"minPercent\": 85,\n  \"maxPercent\": 100,\n  \"gradePoints\": 4.5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/admin/grading-scales/{{gradingScaleId}}/bands/{{bandId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Grade Band",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/grading-scales/{{gradingScaleId}}/bands/{{bandId}}"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
       "name": "04 - Teacher Dashboard & Grades",
       "item": [
         {
@@ -2548,7 +2731,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"teacherId\": \"{{teacherId}}\",\n  \"subjects\": [\n    \"Mathematics\",\n    \"English\"\n  ]\n}",
+              "raw": "{\n  \"teacherId\": \"{{teacherId}}\",\n  \"subjects\": [\n    \"{{subjectId}}\",\n    \"{{subjectId1}}\"\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4207,6 +4390,16 @@
     },
     {
       "key": "paymentId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "gradingScaleId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "bandId",
       "value": "",
       "type": "string"
     }

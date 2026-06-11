@@ -96,9 +96,47 @@ model School {
   feePayments          FeePayment[]
   feeInvoices          FeeInvoice[]
   
+  gradingScales         GradingScale[]      @relation("SchoolGradingScales")
+  defaultGradingScaleId String? @unique
+  defaultGradingScale  GradingScale?       @relation("DefaultGradingScale", fields: [defaultGradingScaleId], references: [id])
+
   @@index([schoolId])
   @@index([email])
   @@map("schools")
+}
+
+model GradingScale {
+  id            String      @id @default(uuid())
+  schoolId      String
+  name          String
+  description   String?
+  isDefault     Boolean     @default(false)
+  bands         GradeBand[]
+  school             School      @relation("SchoolGradingScales", fields: [schoolId], references: [id])
+  defaultForSchool   School?     @relation("DefaultGradingScale")
+  createdAt          DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([schoolId, name])
+  @@index([schoolId])
+  @@map("grading_scales")
+}
+
+model GradeBand {
+  id             String       @id @default(uuid())
+  gradingScaleId String
+  label          String
+  minPercent     Float
+  maxPercent     Float
+  gradePoints    Float?
+  description    String?
+  gradingScale   GradingScale @relation(fields: [gradingScaleId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([gradingScaleId, label])
+  @@index([gradingScaleId])
+  @@map("grade_bands")
 }
 
 model Student {
@@ -149,20 +187,22 @@ model Student {
 }
 
 model Grade {
-  id            String       @id @default(uuid())
-  schoolId      String
-  teacherId     String
-  studentId     String
-  subject       String
-  section       String?
-  term          Term
-  academicYear  String
-  totalScore    Float?
-  totalMaxScore Float?
-  percentage    Float?
-  letterGrade   LetterGrade?
-  gradePoints   Float?
-  remarks       String?
+  id              String       @id @default(uuid())
+  schoolId        String
+  teacherId       String
+  studentId       String
+  subject         String
+  section         String?
+  term            Term
+  academicYear    String
+  totalScore      Float?
+  totalMaxScore   Float?
+  percentage      Float?
+  letterGrade     LetterGrade?
+  gradePoints     Float?
+  gradeLabel      String?
+  gradingScaleId  String?
+  remarks         String?
   isPublished   Boolean      @default(false)
   publishedAt   DateTime?
   publishedBy   String?

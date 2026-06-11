@@ -168,6 +168,20 @@ const collection = {
       ]
     },
     {
+      name: '03.11 - Grading Scales',
+      item: [
+        req({ name: 'Create Grading Scale', method: 'POST', url: '/api/admin/grading-scales', authType: 'user', body: { name: 'Standard', description: 'Standard grading scale', isDefault: true, bands: [{ label: 'A', minPercent: 70, maxPercent: 100, gradePoints: 4.0 }, { label: 'B', minPercent: 60, maxPercent: 69, gradePoints: 3.0 }, { label: 'C', minPercent: 50, maxPercent: 59, gradePoints: 2.0 }, { label: 'D', minPercent: 40, maxPercent: 49, gradePoints: 1.0 }, { label: 'F', minPercent: 0, maxPercent: 39, gradePoints: 0 }] } }),
+        req({ name: 'Get All Grading Scales', method: 'GET', url: '/api/admin/grading-scales', authType: 'user' }),
+        req({ name: 'Get Grading Scale By ID', method: 'GET', url: '/api/admin/grading-scales/{{gradingScaleId}}', authType: 'user' }),
+        req({ name: 'Update Grading Scale', method: 'PUT', url: '/api/admin/grading-scales/{{gradingScaleId}}', authType: 'user', body: { name: 'Standard (Updated)', description: 'Updated description' } }),
+        req({ name: 'Set Default Grading Scale', method: 'PUT', url: '/api/admin/grading-scales/{{gradingScaleId}}/default', authType: 'user' }),
+        req({ name: 'Delete Grading Scale', method: 'DELETE', url: '/api/admin/grading-scales/{{gradingScaleId}}', authType: 'user' }),
+        req({ name: 'Add Grade Band', method: 'POST', url: '/api/admin/grading-scales/{{gradingScaleId}}/bands', authType: 'user', body: { label: 'A+', minPercent: 90, maxPercent: 100, gradePoints: 4.5, description: 'Excellent' } }),
+        req({ name: 'Update Grade Band', method: 'PUT', url: '/api/admin/grading-scales/{{gradingScaleId}}/bands/{{bandId}}', authType: 'user', body: { label: 'A+', minPercent: 85, maxPercent: 100, gradePoints: 4.5 } }),
+        req({ name: 'Delete Grade Band', method: 'DELETE', url: '/api/admin/grading-scales/{{gradingScaleId}}/bands/{{bandId}}', authType: 'user' })
+      ]
+    },
+    {
       name: '04 - Teacher Dashboard & Grades',
       item: [
         req({ name: 'Teacher Dashboard', method: 'GET', url: '/api/teacher/dashboard', authType: 'user' }),
@@ -243,7 +257,7 @@ const collection = {
       name: '10 - Teacher Class Assignment',
       item: [
         req({ name: 'Assign Classes To Teacher', method: 'POST', url: '/api/admin/teachers/assign-classes', authType: 'user', body: { teacherId: '{{teacherId}}', classes: ['JSS1', 'JSS2'] } }),
-        req({ name: 'Assign Subjects To Teacher', method: 'POST', url: '/api/admin/teachers/assign-subjects', authType: 'user', body: { teacherId: '{{teacherId}}', subjects: ['Mathematics', 'English'] } }),
+        req({ name: 'Assign Subjects To Teacher', method: 'POST', url: '/api/admin/teachers/assign-subjects', authType: 'user', body: { teacherId: '{{teacherId}}', subjects: ['{{subjectId}}', '{{subjectId1}}'] } }),
         req({ name: 'Remove Classes From Teacher', method: 'DELETE', url: '/api/admin/teachers/remove-classes', authType: 'user', body: { teacherId: '{{teacherId}}', classes: ['JSS1'] } }),
         req({ name: 'Get Teacher Assignments', method: 'GET', url: '/api/admin/teachers/{{teacherId}}/assignments', authType: 'user' })
       ]
@@ -471,7 +485,9 @@ const collection = {
     { key: 'eventId', value: '', type: 'string' },
     { key: 'feeStructureId', value: '', type: 'string' },
     { key: 'invoiceId', value: '', type: 'string' },
-    { key: 'paymentId', value: '', type: 'string' }
+    { key: 'paymentId', value: '', type: 'string' },
+    { key: 'gradingScaleId', value: '', type: 'string' },
+    { key: 'bandId', value: '', type: 'string' }
   ]
 };
 
