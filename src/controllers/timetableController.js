@@ -12,46 +12,22 @@ const getDraft = async (req, res) => {
     if (termId) where.termId = termId;
     if (armId) where.armId = armId;
 
-    if (classId) {
-      const draft = await prisma.timetableDraft.findFirst({ where });
+    const draft = await prisma.timetableDraft.findFirst({ where });
 
-      logger.info(`Retrieved timetable draft for class ${classId}, term ${termId}`);
-
-      return res.json({
-        success: true,
-        data: {
-          draft: draft ? {
-            id: draft.id,
-            classId: draft.classId,
-            termId: draft.termId,
-            armId: draft.armId,
-            periods: draft.periods,
-            schedules: draft.schedules,
-            updatedAt: draft.updatedAt.toISOString()
-          } : null
-        }
-      });
-    }
-
-    const drafts = await prisma.timetableDraft.findMany({
-      where,
-      orderBy: { updatedAt: 'desc' }
-    });
-
-    logger.info(`Retrieved ${drafts.length} timetable drafts`);
+    logger.info(`Retrieved timetable draft for class ${classId || 'any'}, term ${termId || 'any'}`);
 
     res.json({
       success: true,
       data: {
-        drafts: drafts.map(d => ({
-          id: d.id,
-          classId: d.classId,
-          termId: d.termId,
-          armId: d.armId,
-          periods: d.periods,
-          schedules: d.schedules,
-          updatedAt: d.updatedAt.toISOString()
-        }))
+        draft: draft ? {
+          id: draft.id,
+          classId: draft.classId,
+          termId: draft.termId,
+          armId: draft.armId,
+          periods: draft.periods,
+          schedules: draft.schedules,
+          updatedAt: draft.updatedAt.toISOString()
+        } : null
       }
     });
   } catch (error) {
@@ -285,51 +261,29 @@ const getPublished = async (req, res) => {
     const { schoolId } = req.user;
     const { classId, termId, armId } = req.query;
 
-    const where = { schoolId };
-    if (classId) where.classId = classId;
-    if (termId) where.termId = termId;
-    if (armId) where.armId = armId;
-
-    if (classId) {
-      const published = await prisma.timetablePublished.findFirst({ where });
-
-      logger.info(`Retrieved published timetable for class ${classId}, term ${termId}`);
-
-      return res.json({
-        success: true,
-        data: {
-          timetable: published ? {
-            id: published.id,
-            classId: published.classId,
-            termId: published.termId,
-            armId: published.armId,
-            publishedAt: published.publishedAt.toISOString(),
-            periods: published.periods,
-            schedules: published.schedules
-          } : null
-        }
-      });
-    }
-
-    const publishedList = await prisma.timetablePublished.findMany({
-      where,
-      orderBy: { publishedAt: 'desc' }
+    const published = await prisma.timetablePublished.findFirst({
+      where: {
+        schoolId,
+        classId,
+        termId,
+        armId: armId || null
+      }
     });
 
-    logger.info(`Retrieved ${publishedList.length} published timetables`);
+    logger.info(`Retrieved published timetable for class ${classId}, term ${termId}`);
 
     res.json({
       success: true,
       data: {
-        timetables: publishedList.map(p => ({
-          id: p.id,
-          classId: p.classId,
-          termId: p.termId,
-          armId: p.armId,
-          publishedAt: p.publishedAt.toISOString(),
-          periods: p.periods,
-          schedules: p.schedules
-        }))
+        timetable: published ? {
+          id: published.id,
+          classId: published.classId,
+          termId: published.termId,
+          armId: published.armId,
+          publishedAt: published.publishedAt.toISOString(),
+          periods: published.periods,
+          schedules: published.schedules
+        } : null
       }
     });
   } catch (error) {
