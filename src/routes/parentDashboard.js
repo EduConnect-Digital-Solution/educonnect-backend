@@ -46,6 +46,26 @@ router.get('/children/:childId',
 );
 
 /**
+ * @route   GET /api/parent/children/:childId/grades
+ * @desc    Get grades for a child
+ * @access  Parent
+ */
+router.get('/children/:childId/grades',
+  validateChildId,
+  parentDashboardController.getChildGrades
+);
+
+/**
+ * @route   GET /api/parent/children/:childId/attendance
+ * @desc    Get attendance for a child
+ * @access  Parent
+ */
+router.get('/children/:childId/attendance',
+  validateChildId,
+  parentDashboardController.getChildAttendance
+);
+
+/**
  * @route   GET /api/parent/profile
  * @desc    Get parent profile information
  * @access  Parent

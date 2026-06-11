@@ -41,6 +41,42 @@ const getMyChildren = catchAsync(async (req, res) => {
 });
 
 /**
+ * Get Child Grades
+ * Retrieves grades for a specific child
+ */
+const getChildGrades = catchAsync(async (req, res) => {
+  const { userId, schoolId } = req.user;
+  const { childId } = req.params;
+  const { term, academicYear } = req.query;
+
+  const data = await ParentDashboardService.getChildGrades(userId, schoolId, childId, { term, academicYear });
+
+  res.status(200).json({
+    success: true,
+    message: 'Child grades retrieved successfully',
+    data
+  });
+});
+
+/**
+ * Get Child Attendance
+ * Retrieves attendance records for a specific child
+ */
+const getChildAttendance = catchAsync(async (req, res) => {
+  const { userId, schoolId } = req.user;
+  const { childId } = req.params;
+  const { startDate, endDate } = req.query;
+
+  const data = await ParentDashboardService.getChildAttendance(userId, schoolId, childId, { startDate, endDate });
+
+  res.status(200).json({
+    success: true,
+    message: 'Child attendance retrieved successfully',
+    data
+  });
+});
+
+/**
  * Get Parent Profile
  * Retrieves parent's profile information
  */
@@ -84,6 +120,8 @@ const updateParentProfile = catchAsync(async (req, res) => {
 module.exports = {
   getParentDashboard,
   getMyChildren,
+  getChildGrades,
+  getChildAttendance,
   getParentProfile,
   updateParentProfile
 };

@@ -12,6 +12,8 @@ const parentDashboardController = require('../../controllers/parentDashboardCont
 jest.mock('../../controllers/parentDashboardController', () => ({
   getParentDashboard: jest.fn(),
   getMyChildren: jest.fn(),
+  getChildGrades: jest.fn(),
+  getChildAttendance: jest.fn(),
   updateParentProfile: jest.fn(),
   getParentProfile: jest.fn()
 }));
