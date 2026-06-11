@@ -7,16 +7,14 @@ const getDraft = async (req, res) => {
     const { schoolId } = req.user;
     const { classId, termId, armId } = req.query;
 
-    const draft = await prisma.timetableDraft.findFirst({
-      where: {
-        schoolId,
-        classId,
-        termId,
-        armId: armId || null
-      }
-    });
+    const where = { schoolId };
+    if (classId) where.classId = classId;
+    if (termId) where.termId = termId;
+    if (armId) where.armId = armId;
 
-    logger.info(`Retrieved timetable draft for class ${classId}, term ${termId}`);
+    const draft = await prisma.timetableDraft.findFirst({ where });
+
+    logger.info(`Retrieved timetable draft for class ${classId || 'any'}, term ${termId || 'any'}`);
 
     res.json({
       success: true,
