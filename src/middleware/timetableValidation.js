@@ -20,9 +20,11 @@ const handleValidationErrors = (req, res, next) => {
 
 const validateCompositeKey = [
   query('classId')
+    .optional()
     .isUUID()
     .withMessage('classId must be a valid UUID'),
   query('termId')
+    .optional()
     .isUUID()
     .withMessage('termId must be a valid UUID'),
   query('armId')
