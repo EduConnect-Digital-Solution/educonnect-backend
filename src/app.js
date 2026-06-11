@@ -184,9 +184,6 @@ const eventsRoutes = require('./routes/events');
 // Timetable routes
 const { adminTimetableRoutes, teacherTimetableRoutes } = require('./routes/timetable');
 
-// Grading Scale routes
-const { gradingScaleRoutes } = require('./routes/gradingScale');
-
 // System Admin routes
 const systemAdminAuthRoutes = require('./routes/systemAdminAuth');
 const systemAdminRoutes = require('./routes/systemAdmin');
@@ -197,6 +194,9 @@ const feeRoutes = require('./routes/feeRoutes');
 // Student Dashboard routes
 const studentDashboardRoutes = require('./routes/studentDashboard');
 const configRoutes = require('./routes/config');
+
+// Grading Scale routes
+const gradingScaleRoutes = require('./routes/gradingScale');
 
 // Import Swagger documentation
 const { specs, swaggerUi, swaggerOptions } = require('./config/swagger');
@@ -227,9 +227,6 @@ app.use('/api/admin', eventsRoutes);
 app.use('/api/admin/timetable', adminTimetableRoutes);
 app.use('/api/teacher/timetable', teacherTimetableRoutes);
 
-// Grading Scale routes
-app.use('/api/admin/grading-scales', gradingScaleRoutes);
-
 // System Admin routes
 app.use('/api/system-admin/auth', systemAdminAuthRoutes);
 app.use('/api/system-admin', systemAdminRoutes);
@@ -240,6 +237,9 @@ app.use('/api/fees', feeRoutes);
 // Student Dashboard routes
 app.use('/api/student', studentDashboardRoutes);
 app.use('/api/config', configRoutes);
+
+// Grading Scale routes
+app.use('/api/admin', gradingScaleRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {

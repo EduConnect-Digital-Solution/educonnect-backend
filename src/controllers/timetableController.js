@@ -15,7 +15,7 @@ const getDraft = async (req, res) => {
     if (classId) {
       const draft = await prisma.timetableDraft.findFirst({ where });
 
-      logger.info(`Retrieved timetable draft for class ${classId}, term ${termId}`);
+      logger.info(`Retrieved timetable draft for class ${classId}, term ${termId || 'any'}`);
 
       return res.json({
         success: true,
@@ -55,10 +55,10 @@ const getDraft = async (req, res) => {
       }
     });
   } catch (error) {
-    logger.error('Error fetching timetable draft:', error);
+    logger.error('Error fetching timetable drafts:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch timetable draft',
+      message: 'Failed to fetch timetable drafts',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
@@ -291,7 +291,14 @@ const getPublished = async (req, res) => {
     if (armId) where.armId = armId;
 
     if (classId) {
-      const published = await prisma.timetablePublished.findFirst({ where });
+      const published = await prisma.timetablePublished.findFirst({
+        where: {
+          schoolId,
+          classId,
+          termId,
+          armId: armId || null
+        }
+      });
 
       logger.info(`Retrieved published timetable for class ${classId}, term ${termId}`);
 
@@ -311,32 +318,32 @@ const getPublished = async (req, res) => {
       });
     }
 
-    const publishedList = await prisma.timetablePublished.findMany({
+    const timetables = await prisma.timetablePublished.findMany({
       where,
       orderBy: { publishedAt: 'desc' }
     });
 
-    logger.info(`Retrieved ${publishedList.length} published timetables`);
+    logger.info(`Retrieved ${timetables.length} published timetables`);
 
     res.json({
       success: true,
       data: {
-        timetables: publishedList.map(p => ({
-          id: p.id,
-          classId: p.classId,
-          termId: p.termId,
-          armId: p.armId,
-          publishedAt: p.publishedAt.toISOString(),
-          periods: p.periods,
-          schedules: p.schedules
+        timetables: timetables.map(t => ({
+          id: t.id,
+          classId: t.classId,
+          termId: t.termId,
+          armId: t.armId,
+          publishedAt: t.publishedAt.toISOString(),
+          periods: t.periods,
+          schedules: t.schedules
         }))
       }
     });
   } catch (error) {
-    logger.error('Error fetching published timetable:', error);
+    logger.error('Error fetching published timetables:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch published timetable',
+      message: 'Failed to fetch published timetables',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }

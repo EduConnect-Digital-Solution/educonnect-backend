@@ -44,8 +44,14 @@ const validateAssignSubjects = [
     .isArray({ min: 1 })
     .withMessage('Subjects must be a non-empty array')
     .custom((subjects) => {
-      if (!subjects.every(subj => typeof subj === 'string' && subj.trim().length > 0)) {
-        throw new Error('All subjects must be non-empty strings');
+      if (!subjects.every(subj => typeof subj === 'string')) {
+        throw new Error('All subjects must be valid strings');
+      }
+      return true;
+    })
+    .custom((subjects) => {
+      if (!subjects.every(subj => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(subj))) {
+        throw new Error('All subjects must be valid UUIDs');
       }
       return true;
     }),

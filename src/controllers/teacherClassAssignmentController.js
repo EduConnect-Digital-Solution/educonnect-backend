@@ -54,7 +54,6 @@ const assignClassesToTeacher = catchAsync(async (req, res) => {
   // Add new classes (avoid duplicates)
   const existingClasses = teacher.classes || [];
   const newClasses = classes.filter(cls => !existingClasses.includes(cls));
-  let autoAssignedCount = 0;
 
   if (newClasses.length > 0) {
     const updatedClasses = [...existingClasses, ...newClasses];
@@ -64,34 +63,23 @@ const assignClassesToTeacher = catchAsync(async (req, res) => {
     });
     teacher.classes = updatedClasses;
 
-    // Auto-assign teacher to all students in newly assigned classes
+    // Auto-create TeacherStudent records for active students in newly assigned classes
     const classRecords = await prisma.class.findMany({
-      where: { schoolId: targetSchoolId, name: { in: newClasses } },
-      select: { id: true, name: true }
+      where: { schoolId: targetSchoolId, name: { in: newClasses }, isActive: true }
     });
-
-    if (classRecords.length > 0) {
-      const classIds = classRecords.map(c => c.id);
-      const students = await prisma.student.findMany({
-        where: { classId: { in: classIds }, isActive: true },
-        select: { id: true, classId: true }
+    const classIds = classRecords.map(c => c.id);
+    const activeStudents = await prisma.student.findMany({
+      where: { schoolId: targetSchoolId, classId: { in: classIds }, isActive: true, isEnrolled: true },
+      select: { id: true }
+    });
+    if (activeStudents.length > 0) {
+      await prisma.teacherStudent.createMany({
+        data: activeStudents.map(s => ({
+          teacherId,
+          studentId: s.id
+        })),
+        skipDuplicates: true
       });
-
-      if (students.length > 0) {
-        const classMap = {};
-        classRecords.forEach(c => { classMap[c.id] = c.name; });
-
-        const { count } = await prisma.teacherStudent.createMany({
-          data: students.map(s => ({
-            teacherId,
-            studentId: s.id,
-            class: classMap[s.classId] || null,
-            isActive: true
-          })),
-          skipDuplicates: true
-        });
-        autoAssignedCount = count;
-      }
     }
   }
 
@@ -112,8 +100,7 @@ const assignClassesToTeacher = catchAsync(async (req, res) => {
         subjects: teacher.subjects
       },
       assignedClasses: newClasses,
-      totalClasses: teacher.classes.length,
-      autoAssignedStudents: autoAssignedCount
+      totalClasses: teacher.classes.length
     }
   });
 });
@@ -160,12 +147,29 @@ const assignSubjectsToTeacher = catchAsync(async (req, res) => {
     });
   }
 
+  // Resolve subject IDs to names
+  const subjectRecords = await prisma.subject.findMany({
+    where: { id: { in: subjects }, schoolId: targetSchoolId, isActive: true },
+    select: { id: true, name: true }
+  });
+
+  if (subjectRecords.length !== subjects.length) {
+    const foundIds = subjectRecords.map(s => s.id);
+    const invalidIds = subjects.filter(id => !foundIds.includes(id));
+    return res.status(400).json({
+      success: false,
+      message: `Invalid subject IDs: ${invalidIds.join(', ')}`
+    });
+  }
+
+  const subjectNames = subjectRecords.map(s => s.name);
+
   // Add new subjects (avoid duplicates)
   const existingSubjects = teacher.subjects || [];
-  const newSubjects = subjects.filter(subj => !existingSubjects.includes(subj));
+  const newSubjectNames = subjectNames.filter(name => !existingSubjects.includes(name));
 
-  if (newSubjects.length > 0) {
-    const updatedSubjects = [...existingSubjects, ...newSubjects];
+  if (newSubjectNames.length > 0) {
+    const updatedSubjects = [...existingSubjects, ...newSubjectNames];
     await prisma.user.update({
       where: { id: teacherId },
       data: { subjects: updatedSubjects }
@@ -175,7 +179,7 @@ const assignSubjectsToTeacher = catchAsync(async (req, res) => {
 
   res.status(200).json({
     success: true,
-    message: `Teacher assigned to ${newSubjects.length} new subject(s) successfully`,
+    message: newSubjectNames.length > 0 ? `Teacher assigned to ${newSubjectNames.length} new subject(s) successfully` : 'No new subjects to assign',
     data: {
       teacher: {
         id: teacher.id,
@@ -185,7 +189,7 @@ const assignSubjectsToTeacher = catchAsync(async (req, res) => {
         classes: teacher.classes,
         subjects: teacher.subjects
       },
-      assignedSubjects: newSubjects,
+      assignedSubjectNames: newSubjectNames,
       totalSubjects: teacher.subjects.length
     }
   });
@@ -242,31 +246,22 @@ const removeClassesFromTeacher = catchAsync(async (req, res) => {
   });
   teacher.classes = updatedClasses;
 
-  // Clean up TeacherStudent records for students in the removed classes
-  const removedClassNames = originalClasses.filter(cls => classes.includes(cls));
-  if (removedClassNames.length > 0) {
-    const classRecords = await prisma.class.findMany({
-      where: { schoolId: targetSchoolId, name: { in: removedClassNames } },
-      select: { id: true }
-    });
-
-    if (classRecords.length > 0) {
-      const studentIds = (
-        await prisma.student.findMany({
-          where: { classId: { in: classRecords.map(c => c.id) }, isActive: true },
-          select: { id: true }
-        })
-      ).map(s => s.id);
-
-      if (studentIds.length > 0) {
-        await prisma.teacherStudent.deleteMany({
-          where: {
-            teacherId,
-            studentId: { in: studentIds }
-          }
-        });
+  // Delete TeacherStudent records for students in removed classes
+  const classRecords = await prisma.class.findMany({
+    where: { schoolId: targetSchoolId, name: { in: classes }, isActive: true }
+  });
+  const classIds = classRecords.map(c => c.id);
+  const studentsInRemovedClasses = await prisma.student.findMany({
+    where: { schoolId: targetSchoolId, classId: { in: classIds }, isActive: true },
+    select: { id: true }
+  });
+  if (studentsInRemovedClasses.length > 0) {
+    await prisma.teacherStudent.deleteMany({
+      where: {
+        teacherId,
+        studentId: { in: studentsInRemovedClasses.map(s => s.id) }
       }
-    }
+    });
   }
 
   // Invalidate teacher caches after class removal

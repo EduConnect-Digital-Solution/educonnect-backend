@@ -87,7 +87,6 @@ model School {
   subjects             Subject[]
   arms                 Arm[]
   grades               Grade[]
-  gradingScales        GradingScale[]
   auditLogs            PlatformAuditLog[]
   academicYears        AcademicYear[]
   academicTerms        AcademicTerm[]
@@ -97,9 +96,47 @@ model School {
   feePayments          FeePayment[]
   feeInvoices          FeeInvoice[]
   
+  gradingScales         GradingScale[]      @relation("SchoolGradingScales")
+  defaultGradingScaleId String? @unique
+  defaultGradingScale  GradingScale?       @relation("DefaultGradingScale", fields: [defaultGradingScaleId], references: [id])
+
   @@index([schoolId])
   @@index([email])
   @@map("schools")
+}
+
+model GradingScale {
+  id            String      @id @default(uuid())
+  schoolId      String
+  name          String
+  description   String?
+  isDefault     Boolean     @default(false)
+  bands         GradeBand[]
+  school             School      @relation("SchoolGradingScales", fields: [schoolId], references: [id])
+  defaultForSchool   School?     @relation("DefaultGradingScale")
+  createdAt          DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([schoolId, name])
+  @@index([schoolId])
+  @@map("grading_scales")
+}
+
+model GradeBand {
+  id             String       @id @default(uuid())
+  gradingScaleId String
+  label          String
+  minPercent     Float
+  maxPercent     Float
+  gradePoints    Float?
+  description    String?
+  gradingScale   GradingScale @relation(fields: [gradingScaleId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([gradingScaleId, label])
+  @@index([gradingScaleId])
+  @@map("grade_bands")
 }
 
 model Student {
@@ -150,22 +187,22 @@ model Student {
 }
 
 model Grade {
-  id            String       @id @default(uuid())
-  schoolId      String
-  teacherId     String
-  studentId     String
-  subject       String
-  section       String?
-  term          Term
-  academicYear  String
-  totalScore    Float?
-  totalMaxScore Float?
-  percentage    Float?
-  letterGrade   LetterGrade?
-  gradeLabel    String?
-  gradePoints   Float?
-  gradingScaleId String?
-  remarks       String?
+  id              String       @id @default(uuid())
+  schoolId        String
+  teacherId       String
+  studentId       String
+  subject         String
+  section         String?
+  term            Term
+  academicYear    String
+  totalScore      Float?
+  totalMaxScore   Float?
+  percentage      Float?
+  letterGrade     LetterGrade?
+  gradePoints     Float?
+  gradeLabel      String?
+  gradingScaleId  String?
+  remarks         String?
   isPublished   Boolean      @default(false)
   publishedAt   DateTime?
   publishedBy   String?
@@ -175,7 +212,6 @@ model Grade {
   updatedAt     DateTime     @updatedAt
   classId       String?
   assessments   Assessment[]
-  gradingScale  GradingScale? @relation(fields: [gradingScaleId], references: [id])
   classRef      Class?       @relation("GradeClass", fields: [classId], references: [id])
   school        School       @relation(fields: [schoolId], references: [id])
   student       Student      @relation(fields: [studentId], references: [id])
@@ -841,44 +877,6 @@ model TimetablePublished {
   @@index([schoolId])
   @@index([termId])
   @@map("timetable_published")
-}
-
-// =============== GRADING SCALE MODELS ===============
-
-model GradingScale {
-  id          String      @id @default(uuid())
-  schoolId    String
-  name        String
-  description String?
-  isDefault   Boolean     @default(false)
-  isActive    Boolean     @default(true)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-
-  bands       GradeBand[]
-  grades      Grade[]
-  school      School      @relation(fields: [schoolId], references: [id])
-
-  @@index([schoolId])
-  @@map("grading_scales")
-}
-
-model GradeBand {
-  id             String       @id @default(uuid())
-  gradingScaleId String
-  label          String
-  minPercent     Float
-  maxPercent     Float
-  gradePoints    Float?
-  sortOrder      Int          @default(0)
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-
-  gradingScale   GradingScale @relation(fields: [gradingScaleId], references: [id])
-
-  @@unique([gradingScaleId, minPercent])
-  @@index([gradingScaleId])
-  @@map("grade_bands")
 }
 
 // =============== ASSIGNMENT & SUBMISSION MODELS ===============

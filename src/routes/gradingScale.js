@@ -1,28 +1,28 @@
 const express = require('express');
 const router = express.Router();
-
-const gradingScaleController = require('../controllers/gradingScaleController');
-const {
-  validateCreateScale,
-  validateUpdateScale,
-  validateScaleId,
-  validateAddBand,
-  validateUpdateBand
-} = require('../middleware/gradingScaleValidation');
 const { authenticateToken } = require('../middleware/auth');
 const { requireRole } = require('../middleware/rbac');
+const {
+  createScale, getScales, getScaleById, updateScale, deleteScale, setDefaultScale,
+  addBand, updateBand, deleteBand
+} = require('../controllers/gradingScaleController');
+const {
+  createScaleValidation, updateScaleValidation,
+  addBandValidation, updateBandValidation
+} = require('../middleware/gradingScaleValidation');
 
 router.use(authenticateToken);
 router.use(requireRole(['admin']));
 
-router.get('/', gradingScaleController.getScales);
-router.post('/', validateCreateScale, gradingScaleController.createScale);
-router.get('/:id', validateScaleId, gradingScaleController.getScale);
-router.put('/:id', validateUpdateScale, gradingScaleController.updateScale);
-router.delete('/:id', validateScaleId, gradingScaleController.deleteScale);
-router.post('/:id/set-default', validateScaleId, gradingScaleController.setDefaultScale);
-router.post('/:id/bands', validateAddBand, gradingScaleController.addBand);
-router.put('/:id/bands/:bandId', validateUpdateBand, gradingScaleController.updateBand);
-router.delete('/:id/bands/:bandId', validateScaleId, gradingScaleController.deleteBand);
+router.post('/grading-scales', createScaleValidation, createScale);
+router.get('/grading-scales', getScales);
+router.get('/grading-scales/:scaleId', getScaleById);
+router.put('/grading-scales/:scaleId', updateScaleValidation, updateScale);
+router.delete('/grading-scales/:scaleId', deleteScale);
+router.put('/grading-scales/:scaleId/default', setDefaultScale);
 
-module.exports = { gradingScaleRoutes: router };
+router.post('/grading-scales/:scaleId/bands', addBandValidation, addBand);
+router.put('/grading-scales/:scaleId/bands/:bandId', updateBandValidation, updateBand);
+router.delete('/grading-scales/:scaleId/bands/:bandId', deleteBand);
+
+module.exports = router;
