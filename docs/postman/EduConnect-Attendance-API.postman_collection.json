@@ -1,0 +1,272 @@
+{
+  "info": {
+    "name": "EduConnect - Teacher Attendance API",
+    "description": "Teacher attendance module endpoints. All require teacher JWT token.\n\nBase URL: {{baseUrl}}\nAuth: Bearer {{accessToken}}",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Get Teacher Schedule",
+      "event": [],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/teacher/attendance/schedule?date={{todayDate}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "teacher", "attendance", "schedule"],
+          "query": [
+            {
+              "key": "date",
+              "value": "{{todayDate}}",
+              "description": "YYYY-MM-DD (optional, defaults to today)"
+            },
+            {
+              "key": "armId",
+              "value": "{{armId}}",
+              "description": "UUID — filter to specific arm (optional)",
+              "disabled": true
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "2. Get Session Students",
+      "event": [],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/teacher/attendance/sessions/{{scheduleId}}/students?className={{className}}&subjectName={{subject}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "teacher", "attendance", "sessions", "{{scheduleId}}", "students"],
+          "query": [
+            {
+              "key": "className",
+              "value": "{{className}}",
+              "description": "Class name — helps resolve the student list (optional)"
+            },
+            {
+              "key": "subjectName",
+              "value": "{{subject}}",
+              "description": "Subject name — helps resolve the student list (optional)"
+            },
+            {
+              "key": "armId",
+              "value": "{{armId}}",
+              "description": "Arm UUID — narrow to specific arm (optional)",
+              "disabled": true
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "3. Save Draft Attendance",
+      "event": [],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"academicYearId\": \"{{academicYearId}}\",\n  \"termId\": \"{{termId}}\",\n  \"scheduleId\": \"{{scheduleId}}\",\n  \"classId\": \"{{classId}}\",\n  \"armId\": \"{{armId}}\",\n  \"subjectId\": \"{{subjectId}}\",\n  \"periodId\": \"per_001\",\n  \"teacherId\": \"{{teacherId}}\",\n  \"date\": \"{{todayDate}}\",\n  \"attendanceId\": null,\n  \"attendances\": [\n    {\n      \"studentId\": \"{{studentId_1}}\",\n      \"status\": \"present\",\n      \"reason\": \"\",\n      \"lateArrivalTime\": \"\"\n    },\n    {\n      \"studentId\": \"{{studentId_2}}\",\n      \"status\": \"absent\",\n      \"reason\": \"Sick leave\",\n      \"lateArrivalTime\": \"\"\n    }\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/teacher/attendance/draft",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "teacher", "attendance", "draft"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "4. Submit Attendance",
+      "event": [],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"academicYearId\": \"{{academicYearId}}\",\n  \"termId\": \"{{termId}}\",\n  \"scheduleId\": \"{{scheduleId}}\",\n  \"classId\": \"{{classId}}\",\n  \"armId\": \"{{armId}}\",\n  \"subjectId\": \"{{subjectId}}\",\n  \"periodId\": \"per_001\",\n  \"teacherId\": \"{{teacherId}}\",\n  \"date\": \"{{todayDate}}\",\n  \"attendanceId\": \"{{attendanceId}}\",\n  \"attendances\": [\n    {\n      \"studentId\": \"{{studentId_1}}\",\n      \"status\": \"present\",\n      \"reason\": \"\",\n      \"lateArrivalTime\": \"\"\n    },\n    {\n      \"studentId\": \"{{studentId_2}}\",\n      \"status\": \"absent\",\n      \"reason\": \"Sick leave\",\n      \"lateArrivalTime\": \"\"\n    },\n    {\n      \"studentId\": \"{{studentId_3}}\",\n      \"status\": \"late\",\n      \"reason\": \"Bus delay\",\n      \"lateArrivalTime\": \"08:20\"\n    }\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/teacher/attendance/submit",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "teacher", "attendance", "submit"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "5. Update / Edit Attendance",
+      "event": [],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"editReason\": \"Correcting an entry marked incorrectly during the session\",\n  \"armId\": \"{{armId}}\",\n  \"attendances\": [\n    {\n      \"studentId\": \"{{studentId_1}}\",\n      \"status\": \"absent\",\n      \"reason\": \"Medical appointment\",\n      \"lateArrivalTime\": \"\"\n    },\n    {\n      \"studentId\": \"{{studentId_2}}\",\n      \"status\": \"present\",\n      \"reason\": \"\",\n      \"lateArrivalTime\": \"\"\n    }\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/teacher/attendance/{{attendanceId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "teacher", "attendance", "{{attendanceId}}"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "6. Get Attendance History",
+      "event": [],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/teacher/attendance/history?page=1&limit=20&status=submitted",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "teacher", "attendance", "history"],
+          "query": [
+            { "key": "page", "value": "1" },
+            { "key": "limit", "value": "20" },
+            { "key": "status", "value": "submitted", "description": "submitted | draft | all" },
+            { "key": "classId", "value": "{{classId}}", "disabled": true },
+            { "key": "armId", "value": "{{armId}}", "disabled": true },
+            { "key": "subjectId", "value": "{{subjectId}}", "disabled": true },
+            { "key": "startDate", "value": "2026-06-01", "disabled": true },
+            { "key": "endDate", "value": "2026-06-30", "disabled": true }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "7. Get Attendance Records by Date",
+      "event": [],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/teacher/attendance/date/{{pastDate}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "teacher", "attendance", "date", "{{pastDate}}"],
+          "query": [
+            {
+              "key": "armId",
+              "value": "{{armId}}",
+              "description": "UUID — filter to specific arm (optional)",
+              "disabled": true
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "8. Get Attendance Summary",
+      "event": [],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/teacher/attendance/summary/{{scheduleId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "teacher", "attendance", "summary", "{{scheduleId}}"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Environments",
+      "description": "Required Postman variables:\n\n- `baseUrl` — e.g. http://localhost:3000\n- `accessToken` — teacher JWT after login\n- `todayDate` — YYYY-MM-DD (e.g. 2026-06-14)\n- `pastDate` — YYYY-MM-DD\n- `scheduleId` — from endpoint 1 response\n- `attendanceId` — from endpoint 3/4 response\n- `classId` — class UUID\n- `className` — e.g. SSS2\n- `subjectId` — subject UUID\n- `subject` — e.g. Mathematics\n- `armId` — arm UUID\n- `academicYearId` — academic year UUID\n- `termId` — term UUID\n- `teacherId` — teacher UUID\n- `studentId_1`, `studentId_2`, `studentId_3` — student UUIDs",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "",
+          "host": []
+        }
+      }
+    }
+  ]
+}

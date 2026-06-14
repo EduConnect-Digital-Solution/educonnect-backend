@@ -7,7 +7,9 @@ const {
   validateCompositeKey,
   validateDraftSave,
   validateConflictCheck,
-  validatePublish
+  validatePublish,
+  validatePublishedId,
+  validatePublishedUpdate
 } = require('../middleware/timetableValidation');
 const { authenticateToken } = require('../middleware/auth');
 const { requireRole } = require('../middleware/rbac');
@@ -43,6 +45,16 @@ adminRouter.post('/publish',
 adminRouter.get('/published',
   validateCompositeKey,
   timetableController.getPublished
+);
+
+adminRouter.put('/published/:id',
+  validatePublishedUpdate,
+  timetableController.updatePublishedTimetable
+);
+
+adminRouter.delete('/published/:id',
+  validatePublishedId,
+  timetableController.deletePublished
 );
 
 teacherRouter.use(authenticateToken);

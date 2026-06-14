@@ -198,6 +198,9 @@ const configRoutes = require('./routes/config');
 // Grading Scale routes
 const gradingScaleRoutes = require('./routes/gradingScale');
 
+// Teacher Attendance routes
+const teacherAttendanceRoutes = require('./routes/teacherAttendance');
+
 // Import Swagger documentation
 const { specs, swaggerUi, swaggerOptions } = require('./config/swagger');
 
@@ -240,6 +243,9 @@ app.use('/api/config', configRoutes);
 
 // Grading Scale routes
 app.use('/api/admin', gradingScaleRoutes);
+
+// Teacher Attendance routes
+app.use('/api/teacher', teacherAttendanceRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {

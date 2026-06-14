@@ -1,4 +1,4 @@
-const { query, body, validationResult } = require('express-validator');
+const { query, body, param, validationResult } = require('express-validator');
 
 const handleValidationErrors = (req, res, next) => {
   const errors = validationResult(req);
@@ -103,10 +103,42 @@ const validatePublish = [
   handleValidationErrors
 ];
 
+const validatePublishedId = [
+  param('id')
+    .isUUID()
+    .withMessage('Published timetable ID must be a valid UUID'),
+  handleValidationErrors
+];
+
+const validatePublishedUpdate = [
+  param('id')
+    .isUUID()
+    .withMessage('Published timetable ID must be a valid UUID'),
+  body('periods')
+    .optional()
+    .isArray()
+    .withMessage('periods must be an array'),
+  body('schedules')
+    .optional()
+    .isArray()
+    .withMessage('schedules must be an array'),
+  body('academicYearId')
+    .optional()
+    .isUUID()
+    .withMessage('academicYearId must be a valid UUID'),
+  body('armId')
+    .optional({ values: 'null' })
+    .isUUID()
+    .withMessage('armId must be a valid UUID'),
+  handleValidationErrors
+];
+
 module.exports = {
   validateCompositeKey,
   validateDraftSave,
   validateConflictCheck,
   validatePublish,
+  validatePublishedId,
+  validatePublishedUpdate,
   handleValidationErrors
 };
