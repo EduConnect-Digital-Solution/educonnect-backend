@@ -8,6 +8,7 @@ const { prisma } = require('../config/database');
 const CacheService = require('./cacheService');
 const GradingScaleService = require('./gradingScaleService');
 const logger = require('../utils/logger');
+const { AppError, AuthorizationError, NotFoundError } = require('../utils/AppError');
 
 const mapTermToPrisma = (term) => {
   const termMap = {
@@ -47,7 +48,7 @@ class GradeService {
 
     const teacher = await prisma.user.findUnique({ where: { id: teacherId } });
     if (!teacher || teacher.role !== 'teacher') {
-      throw new Error('Access denied. Teacher role required.');
+      throw new AuthorizationError('Access denied. Teacher role required.');
     }
 
     logger.info(`👨‍🏫 Teacher found: ${teacher.firstName} ${teacher.lastName}`);
@@ -117,11 +118,11 @@ class GradeService {
 
     const teacher = await prisma.user.findUnique({ where: { id: teacherId } });
     if (!teacher || teacher.role !== 'teacher') {
-      throw new Error('Access denied. Teacher role required.');
+      throw new AuthorizationError('Access denied. Teacher role required.');
     }
 
     if (!teacher.classes || !teacher.classes.includes(className)) {
-      throw new Error('Access denied. You do not teach this class.');
+      throw new AuthorizationError('Access denied. You do not teach this class.');
     }
 
     const subjects = teacher.subjects || [];
@@ -199,11 +200,11 @@ class GradeService {
 
     const teacher = await prisma.user.findUnique({ where: { id: teacherId } });
     if (!teacher || teacher.role !== 'teacher') {
-      throw new Error('Access denied. Teacher role required.');
+      throw new AuthorizationError('Access denied. Teacher role required.');
     }
 
     if (!teacher.classes?.includes(className) || !teacher.subjects?.includes(subject)) {
-      throw new Error('Access denied. You do not teach this subject in this class.');
+      throw new AuthorizationError('Access denied. You do not teach this subject in this class.');
     }
 
     const currentAcademicYear = academicYear || (() => {
@@ -221,7 +222,7 @@ class GradeService {
     });
 
     if (!classRecord) {
-      throw new Error(`Class ${className} not found`);
+      throw new NotFoundError(`Class ${className} not found`);
     }
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -359,12 +360,12 @@ class GradeService {
 
     const teacher = await prisma.user.findUnique({ where: { id: teacherId } });
     if (!teacher || teacher.role !== 'teacher') {
-      throw new Error('Access denied. Teacher role required.');
+      throw new AuthorizationError('Access denied. Teacher role required.');
     }
 
     const student = await prisma.student.findUnique({ where: { id: studentId } });
     if (!student || student.schoolId !== teacher.schoolId) {
-      throw new Error('Student not found or not in your school.');
+      throw new NotFoundError('Student not found or not in your school.');
     }
 
     // Get student's class to verify
@@ -373,11 +374,11 @@ class GradeService {
     });
     
     if (!studentClass || studentClass.name !== className) {
-      throw new Error('Student is not in the specified class.');
+      throw new AppError('Student is not in the specified class.', 400);
     }
 
     if (!teacher.subjects?.includes(subject) || !teacher.classes?.includes(className)) {
-      throw new Error('Access denied. You do not teach this subject in this class.');
+      throw new AuthorizationError('Access denied. You do not teach this subject in this class.');
     }
 
     const currentAcademicYear = academicYear || (() => {
@@ -524,12 +525,12 @@ class GradeService {
 
     const teacher = await prisma.user.findUnique({ where: { id: teacherId } });
     if (!teacher || teacher.role !== 'teacher') {
-      throw new Error('Access denied. Teacher role required.');
+      throw new AuthorizationError('Access denied. Teacher role required.');
     }
 
     const student = await prisma.student.findUnique({ where: { id: studentId } });
     if (!student || student.schoolId !== teacher.schoolId) {
-      throw new Error('Student not found or not in your school.');
+      throw new NotFoundError('Student not found or not in your school.');
     }
 
     const currentAcademicYear = academicYear || (() => {
@@ -641,11 +642,11 @@ class GradeService {
     });
 
     if (!grade) {
-      throw new Error('Grade not found.');
+      throw new NotFoundError('Grade not found.');
     }
 
     if (grade.teacherId !== teacherId) {
-      throw new Error('Access denied. You can only view your own grades.');
+      throw new AuthorizationError('Access denied. You can only view your own grades.');
     }
 
     return grade;
@@ -661,15 +662,15 @@ class GradeService {
     const grade = await prisma.grade.findUnique({ where: { id: gradeId } });
 
     if (!grade) {
-      throw new Error('Grade not found.');
+      throw new NotFoundError('Grade not found.');
     }
 
     if (grade.teacherId !== teacherId) {
-      throw new Error('Access denied. You can only delete your own grades.');
+      throw new AuthorizationError('Access denied. You can only delete your own grades.');
     }
 
     if (grade.isPublished) {
-      throw new Error('Cannot delete published grades. Unpublish first.');
+      throw new AppError('Cannot delete published grades. Unpublish first.', 400);
     }
 
     await prisma.assessment.deleteMany({ where: { gradeId: gradeId } });
@@ -700,12 +701,12 @@ class GradeService {
       const teacher = await prisma.user.findUnique({ where: { id: teacherId } });
       if (!teacher || teacher.role !== 'teacher') {
         logger.error(`❌ Teacher verification failed for ${teacherId}: ${teacher ? 'Invalid role' : 'Teacher not found'}`);
-        throw new Error('Access denied. Teacher role required.');
+        throw new AuthorizationError('Access denied. Teacher role required.');
       }
 
       if (!teacher.classes?.includes(className) || !teacher.subjects?.includes(subject)) {
         logger.error(`❌ Teacher ${teacherId} does not teach ${subject} in ${className}`);
-        throw new Error('Access denied. You do not teach this subject in this class.');
+        throw new AuthorizationError('Access denied. You do not teach this subject in this class.');
       }
 
       // Get class record by name
@@ -718,7 +719,7 @@ class GradeService {
       });
 
       if (!classRecord) {
-        throw new Error(`Class ${className} not found`);
+        throw new NotFoundError(`Class ${className} not found`);
       }
 
       const currentAcademicYear = academicYear || (() => {
@@ -745,7 +746,7 @@ class GradeService {
 
       if (existingGrades.length === 0) {
         logger.error(`❌ No grades found for publishing: ${subject} in ${className} for ${currentTerm} ${currentAcademicYear}`);
-        throw new Error(`No grades found for ${subject} in ${className} for ${currentTerm} ${currentAcademicYear}`);
+        throw new NotFoundError(`No grades found for ${subject} in ${className} for ${currentTerm} ${currentAcademicYear}`);
       }
 
       const publishedCount = existingGrades.filter(g => g.isPublished).length;
@@ -775,7 +776,7 @@ class GradeService {
 
       if (result.count === 0) {
         logger.error(`❌ No grades matched the update criteria`);
-        throw new Error(`No grades found matching the specified criteria. Please verify the class, subject, term, and academic year.`);
+        throw new NotFoundError(`No grades found matching the specified criteria. Please verify the class, subject, term, and academic year.`);
       }
 
       await this.invalidateGradeCaches(teacher.schoolId, teacherId, className, subject);
@@ -809,7 +810,7 @@ class GradeService {
       });
       
       if (!error.message.includes('Access denied') && !error.message.includes('No grades found')) {
-        throw new Error(`Failed to publish grades: ${error.message}`);
+        throw new AppError(`Failed to publish grades: ${error.message}`, 500);
       }
       
       throw error;
@@ -835,7 +836,7 @@ class GradeService {
 
     const teacher = await prisma.user.findUnique({ where: { id: teacherId } });
     if (!teacher || teacher.role !== 'teacher') {
-      throw new Error('Access denied. Teacher role required.');
+      throw new AuthorizationError('Access denied. Teacher role required.');
     }
 
     const prismaTerm = mapTermToPrisma(term);
@@ -850,7 +851,7 @@ class GradeService {
     });
 
     if (!classRecord) {
-      throw new Error(`Class ${className} not found`);
+      throw new NotFoundError(`Class ${className} not found`);
     }
 
     const grades = await prisma.grade.findMany({
