@@ -555,6 +555,11 @@ model AttendanceSession {
   academicTermId String?
   classId        String?
   armId          String?
+  subjectId      String?
+  periodId       String?
+  periodNumber   Int?
+  scheduleId     String?
+  status         String    @default("draft")
   date           DateTime
   sessionType    String // "morning", "afternoon", "full_day"
   startTime      DateTime?

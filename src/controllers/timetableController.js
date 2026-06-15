@@ -119,6 +119,111 @@ const saveDraft = async (req, res) => {
   }
 };
 
+const updatePublishedTimetable = async (req, res) => {
+  try {
+    const { schoolId } = req.user;
+    const { id } = req.params;
+    const { periods, schedules, academicYearId, armId } = req.body;
+
+    const existing = await prisma.timetablePublished.findUnique({
+      where: { id }
+    });
+
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        message: 'Published timetable not found'
+      });
+    }
+
+    if (existing.schoolId !== schoolId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Timetable belongs to a different school.'
+      });
+    }
+
+    const updateData = {};
+    if (periods !== undefined) updateData.periods = periods;
+    if (schedules !== undefined) updateData.schedules = schedules;
+    if (academicYearId !== undefined) updateData.academicYearId = academicYearId;
+    if (armId !== undefined) updateData.armId = armId;
+
+    const updated = await prisma.timetablePublished.update({
+      where: { id },
+      data: updateData
+    });
+
+    logger.info(`Updated published timetable ${id}`);
+
+    res.json({
+      success: true,
+      data: {
+        timetable: {
+          id: updated.id,
+          classId: updated.classId,
+          termId: updated.termId,
+          armId: updated.armId,
+          publishedAt: updated.publishedAt.toISOString(),
+          periods: updated.periods,
+          schedules: updated.schedules,
+          updatedAt: updated.updatedAt.toISOString()
+        }
+      }
+    });
+  } catch (error) {
+    logger.error('Error updating published timetable:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update published timetable',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+const deletePublished = async (req, res) => {
+  try {
+    const { schoolId } = req.user;
+    const { id } = req.params;
+
+    const existing = await prisma.timetablePublished.findUnique({
+      where: { id }
+    });
+
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        message: 'Published timetable not found'
+      });
+    }
+
+    if (existing.schoolId !== schoolId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Timetable belongs to a different school.'
+      });
+    }
+
+    await prisma.timetablePublished.delete({
+      where: { id }
+    });
+
+    logger.info(`Deleted published timetable ${id} for class ${existing.classId}, term ${existing.termId}`);
+
+    res.json({
+      success: true,
+      message: 'Published timetable deleted successfully'
+    });
+  } catch (error) {
+    logger.error('Error deleting published timetable:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete published timetable',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
 const deleteDraft = async (req, res) => {
   try {
     const { schoolId } = req.user;
@@ -386,6 +491,8 @@ module.exports = {
   getDraft,
   saveDraft,
   deleteDraft,
+  deletePublished,
+  updatePublishedTimetable,
   checkConflicts,
   publishTimetable,
   getPublished,

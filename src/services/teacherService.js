@@ -47,6 +47,17 @@ class TeacherService {
       throw new Error('School not found');
     }
 
+    // Get current academic year and term
+    const currentAcademicYear = await prisma.academicYear.findFirst({
+      where: { schoolId: school.id, isCurrent: true },
+      select: { id: true, year: true, name: true }
+    });
+
+    const currentAcademicTerm = await prisma.academicTerm.findFirst({
+      where: { schoolId: school.id, isCurrent: true },
+      select: { id: true, name: true, term: true }
+    });
+
     // Get teacher information
     const teacher = await prisma.user.findUnique({
       where: { id: userId }
@@ -173,7 +184,9 @@ class TeacherService {
         id: school.id,
         schoolId: school.schoolId,
         schoolName: school.schoolName,
-        email: school.email
+        email: school.email,
+        currentAcademicYear: currentAcademicYear || null,
+        currentAcademicTerm: currentAcademicTerm || null
       },
       statistics: stats,
       myStudents: allStudents.map(student => ({
