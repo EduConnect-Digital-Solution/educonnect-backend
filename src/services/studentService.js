@@ -518,18 +518,22 @@ const getStudents = async (filters, pagination) => {
     isActive: student.isActive,
     createdAt: student.createdAt,
     updatedAt: student.updatedAt,
-    parents: student.parentOf.map(p => ({
-      id: p.parent.id,
-      name: `${p.parent.firstName} ${p.parent.lastName}`,
-      email: p.parent.email,
-      phone: p.parent.phone
-    })),
-    teachers: student.studentOf.map(t => ({
-      id: t.teacher.id,
-      name: `${t.teacher.firstName} ${t.teacher.lastName}`,
-      email: t.teacher.email,
-      subjects: t.teacher.subjects
-    }))
+    parents: (student.parentOf || [])
+      .filter(p => p.parent)
+      .map(p => ({
+        id: p.parent.id,
+        name: `${p.parent.firstName} ${p.parent.lastName}`,
+        email: p.parent.email,
+        phone: p.parent.phone
+      })),
+    teachers: (student.studentOf || [])
+      .filter(t => t.teacher)
+      .map(t => ({
+        id: t.teacher.id,
+        name: `${t.teacher.firstName} ${t.teacher.lastName}`,
+        email: t.teacher.email,
+        subjects: t.teacher.subjects
+      }))
   }));
 
   const studentsData = {
@@ -623,18 +627,22 @@ const getStudentById = async (studentId, schoolId) => {
       isActive: student.isActive,
       createdAt: student.createdAt,
       updatedAt: student.updatedAt,
-      parents: student.parentOf.map(p => ({
-        id: p.parent.id,
-        name: `${p.parent.firstName} ${p.parent.lastName}`,
-        email: p.parent.email,
-        phone: p.parent.phone
-      })),
-      teachers: student.studentOf.map(t => ({
-        id: t.teacher.id,
-        name: `${t.teacher.firstName} ${t.teacher.lastName}`,
-        email: t.teacher.email,
-        subjects: t.teacher.subjects
-      }))
+      parents: (student.parentOf || [])
+        .filter(p => p.parent)
+        .map(p => ({
+          id: p.parent.id,
+          name: `${p.parent.firstName} ${p.parent.lastName}`,
+          email: p.parent.email,
+          phone: p.parent.phone
+        })),
+      teachers: (student.studentOf || [])
+        .filter(t => t.teacher)
+        .map(t => ({
+          id: t.teacher.id,
+          name: `${t.teacher.firstName} ${t.teacher.lastName}`,
+          email: t.teacher.email,
+          subjects: t.teacher.subjects
+        }))
     },
     cached: false,
     generatedAt: new Date().toISOString()

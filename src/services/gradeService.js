@@ -303,11 +303,13 @@ class GradeService {
         } : null,
         hasGrade: !!existingGrade,
         hasPublishedGrade: existingGrade ? existingGrade.isPublished : false,
-        parents: student.parentOf.map(ps => ({
-          id: ps.parent.id,
-          name: `${ps.parent.firstName} ${ps.parent.lastName}`,
-          email: ps.parent.email
-        }))
+        parents: (student.parentOf || [])
+          .filter(ps => ps.parent)
+          .map(ps => ({
+            id: ps.parent.id,
+            name: `${ps.parent.firstName} ${ps.parent.lastName}`,
+            email: ps.parent.email
+          }))
       };
     });
 
