@@ -355,6 +355,10 @@ class TeacherService {
         take: parseInt(limit),
         include: {
           arm: { select: { name: true } },
+          studentOf: {
+            where: { isActive: true },
+            select: { teacherId: true, isActive: true }
+          },
           parentOf: {
             include: {
               parent: {

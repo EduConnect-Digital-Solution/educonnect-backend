@@ -29,11 +29,10 @@ const getTeacherDashboard = catchAsync(async (req, res) => {
  */
 const getMyStudents = catchAsync(async (req, res) => {
   const { userId, schoolId } = req.user;
-  const { classId, section, page = 1, limit = 20 } = req.query;
+  const { class: studentClass, page = 1, limit = 20 } = req.query;
 
   const data = await TeacherService.getMyStudents(userId, schoolId, {
-    classId,
-    section,
+    studentClass,
     page,
     limit
   });
