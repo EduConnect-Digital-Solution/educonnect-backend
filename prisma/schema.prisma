@@ -319,7 +319,7 @@ model Class {
   id        String         @id @default(uuid())
   schoolId  String
   name      String
-  baseLevel String
+  baseLevel String?
   isActive  Boolean        @default(true)
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
