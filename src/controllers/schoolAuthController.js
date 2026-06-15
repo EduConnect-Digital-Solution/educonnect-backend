@@ -105,7 +105,7 @@ const verifySchoolEmail = catchAsync(async (req, res) => {
       });
     }
 
-    if (error.message.includes('Invalid OTP') || error.message.includes('expired')) {
+    if (error.message.includes('Invalid OTP') || error.message.includes('expired') || error.message.includes('No valid OTP found') || error.message.includes('Maximum verification attempts exceeded')) {
       return res.status(400).json({
         success: false,
         message: error.message
