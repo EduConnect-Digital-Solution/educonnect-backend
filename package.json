@@ -9,7 +9,8 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "docs": "echo 'API Documentation available at http://localhost:3000/api-docs when server is running'",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "postinstall": "prisma generate"
   },
   "keywords": [
     "education",
