@@ -44,7 +44,7 @@ const validateBulkClassCreation = [
     .withMessage('Class name is required')
     .isLength({ min: 1, max: 100 })
     .withMessage('Class name must be between 1 and 100 characters')
-    .matches(/^[a-zA-Z0-9\s\-]+$/)
+    .matches(/^[\p{L}\p{N}\s\-]+$/u)
     .withMessage('Class name can only contain letters, numbers, spaces, and hyphens'),
   
   body('classes.*.description')
@@ -90,21 +90,21 @@ const validateClassUpdate = [
     .optional()
     .isLength({ min: 1, max: 50 })
     .withMessage('Base level must be between 1 and 50 characters')
-    .matches(/^[a-zA-Z0-9\s\-]+$/)
+    .matches(/^[\p{L}\p{N}\s\-]+$/u)
     .withMessage('Base level can only contain letters, numbers, spaces, and hyphens'),
   
   body('name')
     .optional()
     .isLength({ min: 1, max: 100 })
     .withMessage('Class name must be between 1 and 100 characters')
-    .matches(/^[a-zA-Z0-9\s\-]+$/)
+    .matches(/^[\p{L}\p{N}\s\-]+$/u)
     .withMessage('Class name can only contain letters, numbers, spaces, and hyphens'),
   
   body('arm')
     .optional()
     .isLength({ min: 1, max: 50 })
     .withMessage('Class arm must be between 1 and 50 characters')
-    .matches(/^[a-zA-Z0-9\s\-]+$/)
+    .matches(/^[\p{L}\p{N}\s\-]+$/u)
     .withMessage('Class arm can only contain letters, numbers, spaces, and hyphens'),
   
   body('level')

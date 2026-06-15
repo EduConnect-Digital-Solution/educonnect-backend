@@ -103,7 +103,8 @@ const bulkCreateClasses = async (req, res) => {
       validClasses.push({
         schoolId,
         name: classData.name,
-        level: classData.level
+        level: classData.level,
+        baseLevel: classData.baseLevel || null
       });
     }
 
