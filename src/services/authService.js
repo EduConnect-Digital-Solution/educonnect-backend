@@ -231,7 +231,7 @@ const verifyEmail = async (email, otp, requestIP) => {
     email: email.toLowerCase(),
     otp,
     purpose: 'school-signup',
-    schoolId: school.id,
+    schoolId: school.schoolId,
     requestIP
   });
 
@@ -920,7 +920,7 @@ const resendOTP = async (email, requestIP) => {
     where: {
       email: email.toLowerCase(),
       purpose: 'school-signup',
-      schoolId: school.id
+      schoolId: school.schoolId
     }
   });
 
@@ -928,7 +928,7 @@ const resendOTP = async (email, requestIP) => {
   const otpResult = await createOTP(prisma, {
     email: email.toLowerCase(),
     purpose: 'school-signup',
-    schoolId: school.id,
+    schoolId: school.schoolId,
       expirationMinutes: parseInt(process.env.OTP_EXPIRES_IN_MINUTES) || 10,
     createdFromIP: requestIP
   });
