@@ -198,6 +198,12 @@ const configRoutes = require('./routes/config');
 // Grading Scale routes
 const gradingScaleRoutes = require('./routes/gradingScale');
 
+// Assessment Policy routes
+const assessmentPolicyRoutes = require('./routes/assessmentPolicy');
+
+// Submission routes
+const submissionRoutes = require('./routes/submissionRoutes');
+
 // Teacher Attendance routes
 const teacherAttendanceRoutes = require('./routes/teacherAttendance');
 
@@ -243,6 +249,12 @@ app.use('/api/config', configRoutes);
 
 // Grading Scale routes
 app.use('/api/admin', gradingScaleRoutes);
+
+// Assessment Policy routes
+app.use('/api/admin', assessmentPolicyRoutes);
+
+// Submission routes
+app.use('/api/admin', submissionRoutes);
 
 // Teacher Attendance routes
 app.use('/api/teacher', teacherAttendanceRoutes);
