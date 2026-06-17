@@ -52,6 +52,7 @@ model User {
   feeStructures        FeeStructure[]      @relation("FeeStructureCreator")
   feeInvoices          FeeInvoice[]        @relation("FeeInvoiceCreator")
   feePayments          FeePayment[]        @relation("FeePaymentReceiver")
+  scoreSheets          ScoreSheet[]        @relation("TeacherScoreSheets")
   studentProfile       Student?
 
   @@unique([schoolId, email])
@@ -96,6 +97,8 @@ model School {
   feePayments          FeePayment[]
   feeInvoices          FeeInvoice[]
   
+  assessmentPolicies    AssessmentPolicy[]
+  scoreSheets           ScoreSheet[]
   gradingScales         GradingScale[]      @relation("SchoolGradingScales")
   defaultGradingScaleId String? @unique
   defaultGradingScale  GradingScale?       @relation("DefaultGradingScale", fields: [defaultGradingScaleId], references: [id])
@@ -180,6 +183,7 @@ model Student {
   user               User?            @relation(fields: [userId], references: [id])
   submissions        AssignmentSubmission[]
   activities         ActivityLog[]
+  scoreEntries       ScoreEntry[]
 
   @@unique([schoolId, studentId])
   @@index([schoolId, email])
@@ -236,6 +240,97 @@ model Assessment {
 
   @@index([gradeId])
   @@map("assessments")
+}
+
+model AssessmentPolicy {
+  id          String   @id @default(uuid())
+  schoolId    String
+  name        String
+  description String?
+  caMax       Int
+  examMax     Int
+  total       Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  school      School              @relation(fields: [schoolId], references: [id])
+  components  CAComponent[]
+  assignments PolicyAssignment[]
+
+  @@unique([schoolId, name])
+  @@index([schoolId])
+  @@map("assessment_policies")
+}
+
+model CAComponent {
+  id        String           @id @default(uuid())
+  policyId  String
+  name      String
+  maxScore  Int
+  sortOrder Int
+
+  policy    AssessmentPolicy @relation(fields: [policyId], references: [id], onDelete: Cascade)
+
+  @@index([policyId])
+  @@map("ca_components")
+}
+
+model PolicyAssignment {
+  id                 String           @id @default(uuid())
+  policyId           String
+  scope              String           // school | class | arm | subject | subject_class
+  scopeId            String?          // UUID of scope entity (null for school)
+  scopeName          String?
+  secondaryScopeId   String?          // classId when scope = subject_class
+  secondaryScopeName String?
+
+  policy             AssessmentPolicy @relation(fields: [policyId], references: [id], onDelete: Cascade)
+
+  @@unique([policyId, scope, scopeId, secondaryScopeId])
+  @@index([policyId])
+  @@map("policy_assignments")
+}
+
+model ScoreSheet {
+  id          String   @id @default(uuid())
+  schoolId    String
+  teacherId   String
+  classId     String
+  subjectId   String
+  termId      String
+  status      String   @default("draft")
+  returnNote  String?
+  submittedAt DateTime?
+  approvedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  entries ScoreEntry[]
+  school  School @relation(fields: [schoolId], references: [id])
+  teacher User   @relation("TeacherScoreSheets", fields: [teacherId], references: [id])
+  class   Class  @relation(fields: [classId], references: [id])
+
+  @@unique([teacherId, classId, subjectId, termId])
+  @@index([schoolId])
+  @@index([classId])
+  @@index([teacherId])
+  @@index([termId])
+  @@map("score_sheets")
+}
+
+model ScoreEntry {
+  id        String @id @default(uuid())
+  sheetId   String
+  studentId String
+  caScores  Json
+  examScore Float?
+
+  sheet   ScoreSheet @relation(fields: [sheetId], references: [id], onDelete: Cascade)
+  student Student    @relation(fields: [studentId], references: [id])
+
+  @@unique([sheetId, studentId])
+  @@index([sheetId])
+  @@map("score_entries")
 }
 
 model OTP {
@@ -330,6 +425,7 @@ model Class {
   grades              Grade[]             @relation("GradeClass")
   students            Student[]           @relation("StudentClass")
   attendanceSessions  AttendanceSession[]
+  scoreSheets         ScoreSheet[]
   feeStructures       FeeStructure[]
 
   @@unique([schoolId, name])
@@ -998,4 +1094,89 @@ enum LetterGrade {
   D_plus
   D
   F
+}
+
+// =============== RESULT PUBLISHING MODELS ===============
+
+model ResultPublication {
+  id          String   @id @default(uuid())
+  schoolId    String
+  termId      String
+  classId     String
+  published   Boolean  @default(false)
+  publishedAt DateTime?
+  publishedBy String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([schoolId, termId, classId])
+  @@index([schoolId])
+  @@map("result_publications")
+}
+
+model PdfJob {
+  id          String   @id @default(uuid())
+  schoolId    String
+  type        String   // "results" | "report_card"
+  status      String   @default("processing") // processing | completed | failed
+  progress    Int      @default(0)
+  downloadUrl String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([schoolId])
+  @@map("pdf_jobs")
+}
+
+// =============== REPORT CARD MODELS ===============
+
+model ReportCardTemplate {
+  id          String   @id @default(uuid())
+  schoolId    String   @unique
+  orientation String   @default("portrait") // portrait | landscape
+  accent      String   @default("blue") // blue | green | purple | amber | slate
+  blocks      Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("report_card_templates")
+}
+
+model ReportCardComment {
+  id        String   @id @default(uuid())
+  schoolId  String
+  studentId String
+  armId     String
+  termId    String
+  comment   String?
+  traits    Json?
+  status    String   @default("pending") // pending | completed
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([studentId, armId, termId])
+  @@index([schoolId])
+  @@index([armId, termId])
+  @@map("report_card_comments")
+}
+
+model ReportCardPublication {
+  id              String    @id @default(uuid())
+  schoolId        String
+  armId           String
+  termId          String
+  signedOff       Boolean   @default(false)
+  signedAt        DateTime?
+  signedBy        String?
+  released        Boolean   @default(false)
+  releasedAt      DateTime?
+  releasedBy      String?
+  publishedCount  Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([schoolId, armId, termId])
+  @@index([schoolId])
+  @@map("report_card_publications")
 }

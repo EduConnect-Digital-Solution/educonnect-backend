@@ -9,6 +9,8 @@ const router = express.Router();
 // Import controllers and middleware
 const teacherDashboardController = require('../controllers/teacherDashboardController');
 const gradeController = require('../controllers/gradeController');
+const { getEffectivePolicy } = require('../controllers/effectivePolicyController');
+const scoreSheetController = require('../controllers/scoreSheetController');
 const { validateTeacherQuery } = require('../middleware/dashboardValidation');
 const {
   validateGradeAssignment,
@@ -188,6 +190,52 @@ router.get('/classes/:className/subjects/:subject/statistics',
  */
 router.post('/grades/clear-cache',
   gradeController.clearTeacherCaches
+);
+
+/**
+ * @route   GET /api/teacher/score-sheets
+ * @desc    Get score sheet for class+subject+term
+ * @access  Teacher
+ */
+router.get('/score-sheets',
+  scoreSheetController.get
+);
+
+/**
+ * @route   POST /api/teacher/score-sheets
+ * @desc    Create empty draft score sheet
+ * @access  Teacher
+ */
+router.post('/score-sheets',
+  scoreSheetController.create
+);
+
+/**
+ * @route   PUT /api/teacher/score-sheets/:sheetId
+ * @desc    Save score sheet entries (auto-save)
+ * @access  Teacher
+ */
+router.put('/score-sheets/:sheetId',
+  scoreSheetController.save
+);
+
+/**
+ * @route   POST /api/teacher/score-sheets/:sheetId/submit
+ * @desc    Submit score sheet for review
+ * @access  Teacher
+ */
+router.post('/score-sheets/:sheetId/submit',
+  scoreSheetController.submit
+);
+
+/**
+ * @route   GET /api/teacher/effective-policy
+ * @desc    Resolve the effective assessment policy for a class+subject
+ * @access  Teacher
+ * @query   className, subjectName
+ */
+router.get('/effective-policy',
+  getEffectivePolicy
 );
 
 module.exports = router;
