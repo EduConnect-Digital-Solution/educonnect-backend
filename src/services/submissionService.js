@@ -131,4 +131,28 @@ const returnSheet = async (sheetId, schoolId, note) => {
   return { sheet: updated };
 };
 
-module.exports = { getMatrix, approveSheet, returnSheet };
+const forceReturnSheet = async (sheetId, schoolId, note) => {
+  const sheet = await prisma.scoreSheet.findFirst({
+    where: { id: sheetId, schoolId }
+  });
+  if (!sheet) return { notFound: true };
+  if (sheet.status === 'draft' || sheet.status === 'returned') {
+    return { wrongStatus: true, message: 'Sheet is not in a terminal state (submitted/approved)' };
+  }
+
+  const updated = await prisma.scoreSheet.update({
+    where: { id: sheetId },
+    data: {
+      status: 'returned',
+      returnNote: note || null,
+      submittedAt: null,
+      approvedAt: null
+    },
+    select: { id: true, status: true, returnNote: true }
+  });
+
+  logger.info(`Score sheet ${sheetId} force-returned by admin`);
+  return { sheet: updated };
+};
+
+module.exports = { getMatrix, approveSheet, returnSheet, forceReturnSheet };

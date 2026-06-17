@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { authenticateToken } = require('../middleware/auth');
 const { requireRole } = require('../middleware/rbac');
-const { getMatrix, approve, return: return_ } = require('../controllers/submissionController');
+const { getMatrix, approve, return: return_, forceReturn } = require('../controllers/submissionController');
 
 router.use(authenticateToken);
 router.use(requireRole(['admin']));
@@ -10,5 +10,6 @@ router.use(requireRole(['admin']));
 router.get('/submissions/matrix', getMatrix);
 router.post('/submissions/:submissionId/approve', approve);
 router.post('/submissions/:submissionId/return', return_);
+router.post('/submissions/:submissionId/force-return', forceReturn);
 
 module.exports = router;

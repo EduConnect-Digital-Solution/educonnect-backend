@@ -59,4 +59,25 @@ const return_ = async (req, res) => {
   }
 };
 
-module.exports = { getMatrix, approve, return: return_ };
+const forceReturn = async (req, res) => {
+  try {
+    const { schoolId } = req.user;
+    const { submissionId } = req.params;
+    const { note } = req.body;
+
+    const result = await submissionService.forceReturnSheet(submissionId, schoolId, note);
+    if (result.notFound) {
+      return res.status(404).json({ success: false, message: 'Submission not found' });
+    }
+    if (result.wrongStatus) {
+      return res.status(400).json({ success: false, message: result.message || 'Only submitted or approved sheets can be force-returned' });
+    }
+
+    res.json({ success: true, data: { sheet: result.sheet } });
+  } catch (error) {
+    logger.error('Error force-returning submission:', error);
+    res.status(500).json({ success: false, message: 'Failed to force-return submission' });
+  }
+};
+
+module.exports = { getMatrix, approve, return: return_, forceReturn };

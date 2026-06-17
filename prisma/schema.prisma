@@ -1095,3 +1095,88 @@ enum LetterGrade {
   D
   F
 }
+
+// =============== RESULT PUBLISHING MODELS ===============
+
+model ResultPublication {
+  id          String   @id @default(uuid())
+  schoolId    String
+  termId      String
+  classId     String
+  published   Boolean  @default(false)
+  publishedAt DateTime?
+  publishedBy String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([schoolId, termId, classId])
+  @@index([schoolId])
+  @@map("result_publications")
+}
+
+model PdfJob {
+  id          String   @id @default(uuid())
+  schoolId    String
+  type        String   // "results" | "report_card"
+  status      String   @default("processing") // processing | completed | failed
+  progress    Int      @default(0)
+  downloadUrl String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([schoolId])
+  @@map("pdf_jobs")
+}
+
+// =============== REPORT CARD MODELS ===============
+
+model ReportCardTemplate {
+  id          String   @id @default(uuid())
+  schoolId    String   @unique
+  orientation String   @default("portrait") // portrait | landscape
+  accent      String   @default("blue") // blue | green | purple | amber | slate
+  blocks      Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("report_card_templates")
+}
+
+model ReportCardComment {
+  id        String   @id @default(uuid())
+  schoolId  String
+  studentId String
+  armId     String
+  termId    String
+  comment   String?
+  traits    Json?
+  status    String   @default("pending") // pending | completed
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([studentId, armId, termId])
+  @@index([schoolId])
+  @@index([armId, termId])
+  @@map("report_card_comments")
+}
+
+model ReportCardPublication {
+  id              String    @id @default(uuid())
+  schoolId        String
+  armId           String
+  termId          String
+  signedOff       Boolean   @default(false)
+  signedAt        DateTime?
+  signedBy        String?
+  released        Boolean   @default(false)
+  releasedAt      DateTime?
+  releasedBy      String?
+  publishedCount  Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([schoolId, armId, termId])
+  @@index([schoolId])
+  @@map("report_card_publications")
+}

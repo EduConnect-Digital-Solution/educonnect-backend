@@ -182,6 +182,15 @@ const collection = {
       ]
     },
     {
+      name: '03.12 - Score Sheet Submissions',
+      item: [
+        req({ name: 'Get Submission Matrix', method: 'GET', url: '/api/admin/submissions/matrix?termId={{termId}}', authType: 'user' }),
+        req({ name: 'Approve Score Sheet', method: 'POST', url: '/api/admin/submissions/{{sheetId}}/approve', authType: 'user', body: {} }),
+        req({ name: 'Return Score Sheet', method: 'POST', url: '/api/admin/submissions/{{sheetId}}/return', authType: 'user', body: { note: 'Please revise and resubmit' } }),
+        req({ name: 'Force Return Score Sheet (Admin)', method: 'POST', url: '/api/admin/submissions/{{sheetId}}/force-return', authType: 'user', body: { note: 'Admin override - please revise' } })
+      ]
+    },
+    {
       name: '04 - Teacher Dashboard & Grades',
       item: [
         req({ name: 'Teacher Dashboard', method: 'GET', url: '/api/teacher/dashboard', authType: 'user' }),
@@ -487,7 +496,8 @@ const collection = {
     { key: 'invoiceId', value: '', type: 'string' },
     { key: 'paymentId', value: '', type: 'string' },
     { key: 'gradingScaleId', value: '', type: 'string' },
-    { key: 'bandId', value: '', type: 'string' }
+    { key: 'bandId', value: '', type: 'string' },
+    { key: 'sheetId', value: '', type: 'string' }
   ]
 };
 
