@@ -334,7 +334,7 @@ const publishGrades = catchAsync(async (req, res) => {
     });
   }
 
-  logger.info(`📚 Publishing grades for teacher ${teacherId}, class: ${className}, subject: ${subject}, term: ${term || 'First Term'}`);
+  logger.info(`📚 Publishing grades for teacher ${teacherId}, class: ${className}, subject: ${subject}, term: ${term}`);
 
   try {
     const result = await GradeService.publishGrades(teacherId, req.body);
@@ -352,8 +352,8 @@ const publishGrades = catchAsync(async (req, res) => {
           schoolId: schoolId,
           className: className,
           subject: subject,
-          term: term || 'First Term',
-          academicYear: academicYear || `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`,
+          term,
+          academicYear,
         },
         publishedAt: new Date().toISOString()
       }
@@ -383,8 +383,8 @@ const publishGrades = catchAsync(async (req, res) => {
         context: {
           className: className,
           subject: subject,
-          term: term || 'First Term',
-          academicYear: academicYear || `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`
+          term,
+          academicYear
         },
         suggestion: 'Please assign grades to students first before publishing.'
       });
@@ -453,7 +453,7 @@ const publishGrades = catchAsync(async (req, res) => {
 const getClassStatistics = catchAsync(async (req, res) => {
   const { userId: teacherId } = req.user;
   const { className, subject } = req.params;
-  const { term = 'First Term', academicYear } = req.query;
+  const { term, academicYear } = req.query;
 
   if (!className || !subject) {
     return res.status(400).json({
