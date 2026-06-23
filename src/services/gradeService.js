@@ -186,7 +186,7 @@ class GradeService {
    * @returns {Object} Students data with grade information
    */
   static async getStudentsByClassAndSubject(teacherId, className, subject, schoolId, options = {}) {
-    const { term = 'First Term', academicYear, page = 1, limit = 50 } = options;
+    const { term, academicYear, page = 1, limit = 50 } = options;
     
     const cacheKey = `students:${teacherId}:${className}:${subject}:${term}:${page}:${limit}`;
     
@@ -352,7 +352,7 @@ class GradeService {
       subject,
       className,
       section,
-      term = 'First Term',
+      term,
       academicYear,
       assessments,
       remarks
@@ -381,11 +381,14 @@ class GradeService {
       throw new AuthorizationError('Access denied. You do not teach this subject in this class.');
     }
 
-    const currentAcademicYear = academicYear || (() => {
-      const currentYear = new Date().getFullYear();
-      return `${currentYear}-${currentYear + 1}`;
-    })();
+    if (!academicYear) {
+      throw new AppError('Academic year is required to assign a grade.', 400);
+    }
+    if (!term) {
+      throw new AppError('Term is required to assign a grade.', 400);
+    }
 
+    const currentAcademicYear = academicYear;
     const prismaTerm = mapTermToPrisma(term);
 
     let existingGrade = await prisma.grade.findUnique({
@@ -727,10 +730,12 @@ class GradeService {
         return `${currentYear}-${currentYear + 1}`;
       })();
 
-      const currentTerm = term || 'First Term';
-      const prismaTerm = mapTermToPrisma(currentTerm);
+      if (!currentAcademicYear && !term) {
+        throw new Error('Academic year and term are required to publish grades');
+      }
+      const prismaTerm = term ? mapTermToPrisma(term) : null;
 
-      logger.info(`📅 Using academic year: ${currentAcademicYear}, term: ${currentTerm}`);
+      logger.info(`📅 Using academic year: ${currentAcademicYear}, term: ${term}`);
 
       const existingGrades = await prisma.grade.findMany({
         where: {
@@ -745,8 +750,8 @@ class GradeService {
       logger.info(`📊 Found ${existingGrades.length} existing grades for ${subject} in ${className}`);
 
       if (existingGrades.length === 0) {
-        logger.error(`❌ No grades found for publishing: ${subject} in ${className} for ${currentTerm} ${currentAcademicYear}`);
-        throw new NotFoundError(`No grades found for ${subject} in ${className} for ${currentTerm} ${currentAcademicYear}`);
+        logger.error(`❌ No grades found for publishing: ${subject} in ${className} for ${term} ${currentAcademicYear}`);
+        throw new NotFoundError(`No grades found for ${subject} in ${className} for ${term} ${currentAcademicYear}`);
       }
 
       const publishedCount = existingGrades.filter(g => g.isPublished).length;

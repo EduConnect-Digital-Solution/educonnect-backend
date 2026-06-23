@@ -266,16 +266,9 @@ const sanitizeGradeData = (req, res, next) => {
       }));
     }
     
-    // Set default term if not provided
-    if (!req.body.term) {
-      req.body.term = 'First Term';
-    }
-    
-    // Set default academic year if not provided
-    if (!req.body.academicYear) {
-      const currentYear = new Date().getFullYear();
-      req.body.academicYear = `${currentYear}-${currentYear + 1}`;
-    }
+    // Strip empty term/academicYear so they pass as undefined
+    if (req.body.term === '') delete req.body.term;
+    if (req.body.academicYear === '') delete req.body.academicYear;
   }
   
   next();

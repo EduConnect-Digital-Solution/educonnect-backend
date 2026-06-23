@@ -185,7 +185,7 @@ const registerSchool = async (schoolData, requestIP) => {
     schoolName,
     {
       title: 'Welcome to EduConnect!',
-      message: `Thank you for registering <strong>${schoolName}</strong> with EduConnect. Please use the following OTP to verify your email address:`,
+      message: `Thank you for registering <strong>${schoolName}</strong> with EduConnect. Please use the following OTP to verify your email address:<br><br><strong>School ID:</strong> ${schoolId}<br><em>You'll need this School ID to log in after verification.</em>`,
       expirationMinutes: parseInt(process.env.OTP_EXPIRES_IN_MINUTES) || 10
     }
   );
