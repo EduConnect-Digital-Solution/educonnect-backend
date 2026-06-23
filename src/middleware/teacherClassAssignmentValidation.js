@@ -13,8 +13,9 @@ const validateAssignClasses = [
     .withMessage('Teacher ID is required')
     .isUUID()
     .withMessage('Teacher ID must be a valid UUID'),
-    
+
   body('classes')
+    .optional()
     .isArray({ min: 1 })
     .withMessage('Classes must be a non-empty array')
     .custom((classes) => {
@@ -23,7 +24,26 @@ const validateAssignClasses = [
       }
       return true;
     }),
-    
+
+  body('arms')
+    .optional()
+    .isArray({ min: 1 })
+    .withMessage('Arms must be a non-empty array')
+    .custom((arms) => {
+      if (!arms.every(a => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(a))) {
+        throw new Error('All arm IDs must be valid UUIDs');
+      }
+      return true;
+    }),
+
+  body()
+    .custom((body) => {
+      if ((!body.classes || body.classes.length === 0) && (!body.arms || body.arms.length === 0)) {
+        throw new Error('Either classes or arms must be provided');
+      }
+      return true;
+    }),
+
   body('schoolId')
     .optional()
     .matches(/^[A-Z]{3}[0-9]{4}$/)
@@ -71,8 +91,9 @@ const validateRemoveClasses = [
     .withMessage('Teacher ID is required')
     .isUUID()
     .withMessage('Teacher ID must be a valid UUID'),
-    
+
   body('classes')
+    .optional()
     .isArray({ min: 1 })
     .withMessage('Classes must be a non-empty array')
     .custom((classes) => {
@@ -81,7 +102,26 @@ const validateRemoveClasses = [
       }
       return true;
     }),
-    
+
+  body('arms')
+    .optional()
+    .isArray({ min: 1 })
+    .withMessage('Arms must be a non-empty array')
+    .custom((arms) => {
+      if (!arms.every(a => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(a))) {
+        throw new Error('All arm IDs must be valid UUIDs');
+      }
+      return true;
+    }),
+
+  body()
+    .custom((body) => {
+      if ((!body.classes || body.classes.length === 0) && (!body.arms || body.arms.length === 0)) {
+        throw new Error('Either classes or arms must be provided');
+      }
+      return true;
+    }),
+
   body('schoolId')
     .optional()
     .matches(/^[A-Z]{3}[0-9]{4}$/)

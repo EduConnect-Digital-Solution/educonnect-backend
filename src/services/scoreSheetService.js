@@ -166,47 +166,8 @@ const submitSheet = async (sheetId, teacherId, schoolId) => {
 };
 
 const resolvePolicyForSheet = async (schoolId, classId, subjectId) => {
-  const assignments = await prisma.policyAssignment.findMany({
-    where: {
-      OR: [
-        { scope: 'school', policy: { schoolId } },
-        { scope: 'class', scopeId: classId, policy: { schoolId } },
-        { scope: 'subject', scopeId: subjectId, policy: { schoolId } },
-        { scope: 'subject_class', scopeId: subjectId, secondaryScopeId: classId, policy: { schoolId } }
-      ]
-    },
-    include: {
-      policy: {
-        include: {
-          components: { orderBy: { sortOrder: 'asc' } }
-        }
-      }
-    }
-  });
-
-  if (assignments.length === 0) return null;
-
-  const priority = (a) => {
-    if (a.scope === 'subject_class') return 0;
-    if (a.scope === 'subject') return 1;
-    if (a.scope === 'class') return 2;
-    if (a.scope === 'school') return 3;
-    return 4;
-  };
-
-  const best = assignments.sort((a, b) => priority(a) - priority(b))[0];
-  if (!best || !best.policy) return null;
-
-  return {
-    caComponents: best.policy.components.map(c => ({
-      id: c.id,
-      name: c.name,
-      maxScore: c.maxScore,
-      sortOrder: c.sortOrder
-    })),
-    caMax: best.policy.caMax,
-    examMax: best.policy.examMax
-  };
+  const policyService = require('./assessmentPolicyService');
+  return policyService.resolvePolicyForScoring(schoolId, classId, subjectId);
 };
 
 module.exports = {

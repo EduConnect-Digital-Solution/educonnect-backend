@@ -332,7 +332,10 @@ class DashboardService {
         profileImage: true,
         subjects: true,
         classes: true,
-        invitedBy: true
+        invitedBy: true,
+        armClasses: {
+          select: { id: true, name: true, class: { select: { name: true } } }
+        }
       }
     });
 
@@ -348,6 +351,29 @@ class DashboardService {
       map[inviter.id] = inviter;
       return map;
     }, {});
+
+    // Build structured classes for teachers: merge whole-class and arm-specific
+    const buildStructuredClasses = (user) => {
+      if (user.role !== 'teacher') return undefined;
+      const wholeClassNames = user.classes || [];
+      const armEntries = user.armClasses || [];
+
+      const classMap = {};
+      for (const name of wholeClassNames) {
+        classMap[name] = { className: name };
+      }
+      for (const arm of armEntries) {
+        const cn = arm.class.name;
+        if (!classMap[cn]) {
+          classMap[cn] = { className: cn, arms: [] };
+        }
+        if (!classMap[cn].arms) {
+          classMap[cn].arms = [];
+        }
+        classMap[cn].arms.push({ id: arm.id, name: arm.name });
+      }
+      return Object.values(classMap);
+    };
 
     // Format response
     const formattedUsers = users.map(user => ({
@@ -368,7 +394,7 @@ class DashboardService {
       } : null,
       // Role-specific data
       subjects: user.role === 'teacher' ? user.subjects : undefined,
-      classes: user.role === 'teacher' ? user.classes : undefined,
+      classes: user.role === 'teacher' ? buildStructuredClasses(user) : undefined,
       qualifications: user.role === 'teacher' ? user.qualifications : undefined,
       experience: user.role === 'teacher' ? user.experience : undefined,
       address: user.role === 'parent' ? user.address : undefined,

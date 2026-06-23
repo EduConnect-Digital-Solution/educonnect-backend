@@ -7,6 +7,8 @@ const config = require('./config');
 const logger = require('./utils/logger');
 const { globalErrorHandler } = require('./middleware/errorHandler');
 const requestLogger = require('./middleware/requestLogger');
+const { authenticateToken } = require('./middleware/auth');
+const { requireRole } = require('./middleware/rbac');
 
 const app = express();
 
@@ -201,6 +203,12 @@ const gradingScaleRoutes = require('./routes/gradingScale');
 // Assessment Policy routes
 const assessmentPolicyRoutes = require('./routes/assessmentPolicy');
 
+// Teacher Policy Permission routes (admin)
+const adminPolicyPermissionRoutes = require('./routes/adminPolicyPermissions');
+
+// Teacher Policy routes (admin view)
+const teacherPolicyController = require('./controllers/teacherPolicyController');
+
 // Submission routes
 const submissionRoutes = require('./routes/submissionRoutes');
 
@@ -258,6 +266,14 @@ app.use('/api/admin', gradingScaleRoutes);
 
 // Assessment Policy routes
 app.use('/api/admin', assessmentPolicyRoutes);
+
+// Teacher Policy Permission routes (admin)
+app.use('/api/admin', adminPolicyPermissionRoutes);
+
+// Teacher Policy admin view (read-only listing of teacher-created policies)
+app.get('/api/admin/teacher-policies', authenticateToken, requireRole(['admin']), (req, res, next) => {
+  teacherPolicyController.adminListTeacherPolicies(req, res);
+});
 
 // Submission routes
 app.use('/api/admin', submissionRoutes);
