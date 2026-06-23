@@ -1934,6 +1934,99 @@
       ]
     },
     {
+      "name": "03.13 - Policy Permissions (Admin)",
+      "item": [
+        {
+          "name": "List Policy Permissions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/policy-permissions"
+          },
+          "response": []
+        },
+        {
+          "name": "Grant Policy Permission",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"teacherId\": \"{{teacherId}}\",\n  \"classId\": \"{{classId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/admin/policy-permissions"
+          },
+          "response": []
+        },
+        {
+          "name": "Revoke Policy Permission",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/policy-permissions/{{permissionId}}"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "03.14 - Teacher Policies (Admin View)",
+      "item": [
+        {
+          "name": "List Teacher Policies",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/teacher-policies"
+          },
+          "response": []
+        },
+        {
+          "name": "List Teacher Policies by Class",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/teacher-policies?classId={{classId}}"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
       "name": "04 - Teacher Dashboard & Grades",
       "item": [
         {
@@ -2168,6 +2261,148 @@
               }
             ],
             "url": "{{baseUrl}}/api/teacher/grades/clear-cache"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "04.1 - Teacher Delegated Policies",
+      "item": [
+        {
+          "name": "Check My Policy Permission",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/teacher/my-policy-permission"
+          },
+          "response": []
+        },
+        {
+          "name": "List My Policies",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/teacher/my-policies"
+          },
+          "response": []
+        },
+        {
+          "name": "Create My Policy",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"SS 2 Custom (40 CA / 60 Exam)\",\n  \"description\": \"Custom policy\",\n  \"caComponents\": [\n    {\n      \"name\": \"1st CA Test\",\n      \"maxScore\": 15,\n      \"sortOrder\": 0\n    },\n    {\n      \"name\": \"2nd CA Test\",\n      \"maxScore\": 15,\n      \"sortOrder\": 1\n    },\n    {\n      \"name\": \"Project\",\n      \"maxScore\": 10,\n      \"sortOrder\": 2\n    }\n  ],\n  \"examMax\": 60\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/teacher/my-policies"
+          },
+          "response": []
+        },
+        {
+          "name": "Update My Policy",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"SS 2 Custom (Updated)\",\n  \"caComponents\": [\n    {\n      \"name\": \"1st CA Test\",\n      \"maxScore\": 15,\n      \"sortOrder\": 0\n    },\n    {\n      \"name\": \"2nd CA Test\",\n      \"maxScore\": 15,\n      \"sortOrder\": 1\n    },\n    {\n      \"name\": \"Project\",\n      \"maxScore\": 10,\n      \"sortOrder\": 2\n    }\n  ],\n  \"examMax\": 60\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/teacher/my-policies/{{policyId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete My Policy",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/teacher/my-policies/{{policyId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Add Policy Assignment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"scope\": \"arm\",\n  \"scopeId\": \"{{armId}}\",\n  \"scopeName\": \"A\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/teacher/my-policies/{{policyId}}/assignments"
+          },
+          "response": []
+        },
+        {
+          "name": "Remove Policy Assignment",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/teacher/my-policies/{{policyId}}/assignments/{{assignmentId}}"
           },
           "response": []
         }
@@ -2789,7 +3024,7 @@
       "name": "10 - Teacher Class Assignment",
       "item": [
         {
-          "name": "Assign Classes To Teacher",
+          "name": "Assign Classes To Teacher (Whole Class)",
           "request": {
             "method": "POST",
             "header": [
@@ -2805,6 +3040,33 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"teacherId\": \"{{teacherId}}\",\n  \"classes\": [\n    \"JSS1\",\n    \"JSS2\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/admin/teachers/assign-classes"
+          },
+          "response": []
+        },
+        {
+          "name": "Assign Classes To Teacher (By Arm)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"teacherId\": \"{{teacherId}}\",\n  \"arms\": [\n    \"{{armId}}\"\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -2859,6 +3121,33 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"teacherId\": \"{{teacherId}}\",\n  \"classes\": [\n    \"JSS1\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/admin/teachers/remove-classes"
+          },
+          "response": []
+        },
+        {
+          "name": "Remove Arms From Teacher",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"teacherId\": \"{{teacherId}}\",\n  \"arms\": [\n    \"{{armId}}\"\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4505,6 +4794,21 @@
     },
     {
       "key": "sheetId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "permissionId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "policyId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "assignmentId",
       "value": "",
       "type": "string"
     }

@@ -191,6 +191,21 @@ const collection = {
       ]
     },
     {
+      name: '03.13 - Policy Permissions (Admin)',
+      item: [
+        req({ name: 'List Policy Permissions', method: 'GET', url: '/api/admin/policy-permissions', authType: 'user' }),
+        req({ name: 'Grant Policy Permission', method: 'POST', url: '/api/admin/policy-permissions', authType: 'user', body: { teacherId: '{{teacherId}}', classId: '{{classId}}' } }),
+        req({ name: 'Revoke Policy Permission', method: 'DELETE', url: '/api/admin/policy-permissions/{{permissionId}}', authType: 'user' })
+      ]
+    },
+    {
+      name: '03.14 - Teacher Policies (Admin View)',
+      item: [
+        req({ name: 'List Teacher Policies', method: 'GET', url: '/api/admin/teacher-policies', authType: 'user' }),
+        req({ name: 'List Teacher Policies by Class', method: 'GET', url: '/api/admin/teacher-policies?classId={{classId}}', authType: 'user' })
+      ]
+    },
+    {
       name: '04 - Teacher Dashboard & Grades',
       item: [
         req({ name: 'Teacher Dashboard', method: 'GET', url: '/api/teacher/dashboard', authType: 'user' }),
@@ -207,6 +222,18 @@ const collection = {
         req({ name: 'Publish Grades', method: 'POST', url: '/api/teacher/grades/publish', authType: 'user', body: { className: '{{className}}', subject: '{{subject}}', term: 'first', session: '2025/2026' } }),
         req({ name: 'Class Subject Statistics', method: 'GET', url: '/api/teacher/classes/{{className}}/subjects/{{subject}}/statistics?term=first&session=2025/2026', authType: 'user' }),
         req({ name: 'Clear Teacher Grade Cache', method: 'POST', url: '/api/teacher/grades/clear-cache', authType: 'user' })
+      ]
+    },
+    {
+      name: '04.1 - Teacher Delegated Policies',
+      item: [
+        req({ name: 'Check My Policy Permission', method: 'GET', url: '/api/teacher/my-policy-permission', authType: 'user' }),
+        req({ name: 'List My Policies', method: 'GET', url: '/api/teacher/my-policies', authType: 'user' }),
+        req({ name: 'Create My Policy', method: 'POST', url: '/api/teacher/my-policies', authType: 'user', body: { name: 'SS 2 Custom (40 CA / 60 Exam)', description: 'Custom policy', caComponents: [{ name: '1st CA Test', maxScore: 15, sortOrder: 0 }, { name: '2nd CA Test', maxScore: 15, sortOrder: 1 }, { name: 'Project', maxScore: 10, sortOrder: 2 }], examMax: 60 } }),
+        req({ name: 'Update My Policy', method: 'PUT', url: '/api/teacher/my-policies/{{policyId}}', authType: 'user', body: { name: 'SS 2 Custom (Updated)', caComponents: [{ name: '1st CA Test', maxScore: 15, sortOrder: 0 }, { name: '2nd CA Test', maxScore: 15, sortOrder: 1 }, { name: 'Project', maxScore: 10, sortOrder: 2 }], examMax: 60 } }),
+        req({ name: 'Delete My Policy', method: 'DELETE', url: '/api/teacher/my-policies/{{policyId}}', authType: 'user' }),
+        req({ name: 'Add Policy Assignment', method: 'POST', url: '/api/teacher/my-policies/{{policyId}}/assignments', authType: 'user', body: { scope: 'arm', scopeId: '{{armId}}', scopeName: 'A' } }),
+        req({ name: 'Remove Policy Assignment', method: 'DELETE', url: '/api/teacher/my-policies/{{policyId}}/assignments/{{assignmentId}}', authType: 'user' })
       ]
     },
     {
@@ -265,9 +292,11 @@ const collection = {
     {
       name: '10 - Teacher Class Assignment',
       item: [
-        req({ name: 'Assign Classes To Teacher', method: 'POST', url: '/api/admin/teachers/assign-classes', authType: 'user', body: { teacherId: '{{teacherId}}', classes: ['JSS1', 'JSS2'] } }),
+        req({ name: 'Assign Classes To Teacher (Whole Class)', method: 'POST', url: '/api/admin/teachers/assign-classes', authType: 'user', body: { teacherId: '{{teacherId}}', classes: ['JSS1', 'JSS2'] } }),
+        req({ name: 'Assign Classes To Teacher (By Arm)', method: 'POST', url: '/api/admin/teachers/assign-classes', authType: 'user', body: { teacherId: '{{teacherId}}', arms: ['{{armId}}'] } }),
         req({ name: 'Assign Subjects To Teacher', method: 'POST', url: '/api/admin/teachers/assign-subjects', authType: 'user', body: { teacherId: '{{teacherId}}', subjects: ['{{subjectId}}', '{{subjectId1}}'] } }),
         req({ name: 'Remove Classes From Teacher', method: 'DELETE', url: '/api/admin/teachers/remove-classes', authType: 'user', body: { teacherId: '{{teacherId}}', classes: ['JSS1'] } }),
+        req({ name: 'Remove Arms From Teacher', method: 'DELETE', url: '/api/admin/teachers/remove-classes', authType: 'user', body: { teacherId: '{{teacherId}}', arms: ['{{armId}}'] } }),
         req({ name: 'Get Teacher Assignments', method: 'GET', url: '/api/admin/teachers/{{teacherId}}/assignments', authType: 'user' })
       ]
     },
@@ -497,7 +526,10 @@ const collection = {
     { key: 'paymentId', value: '', type: 'string' },
     { key: 'gradingScaleId', value: '', type: 'string' },
     { key: 'bandId', value: '', type: 'string' },
-    { key: 'sheetId', value: '', type: 'string' }
+    { key: 'sheetId', value: '', type: 'string' },
+    { key: 'permissionId', value: '', type: 'string' },
+    { key: 'policyId', value: '', type: 'string' },
+    { key: 'assignmentId', value: '', type: 'string' }
   ]
 };
 

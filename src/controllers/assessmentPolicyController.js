@@ -4,6 +4,7 @@ const logger = require('../utils/logger');
 const list = async (req, res) => {
   try {
     const { schoolId } = req.user;
+    // Return all policies (admin + teacher) with their metadata fields
     const policies = await policyService.listPolicies(schoolId);
     res.json({ success: true, data: { policies } });
   } catch (error) {

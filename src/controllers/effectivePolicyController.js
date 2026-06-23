@@ -3,8 +3,8 @@ const logger = require('../utils/logger');
 
 const getEffectivePolicy = async (req, res) => {
   try {
-    const { schoolId } = req.user;
-    const { className, subjectName } = req.query;
+    const { schoolId, id: userId } = req.user;
+    const { className, subjectName, armId } = req.query;
 
     if (!className || !subjectName) {
       return res.status(400).json({
@@ -13,11 +13,15 @@ const getEffectivePolicy = async (req, res) => {
       });
     }
 
-    const policy = await policyService.getEffectivePolicy(schoolId, className, subjectName);
+    const result = await policyService.getEffectivePolicy(schoolId, className, subjectName, armId || undefined, userId);
 
     res.json({
       success: true,
-      data: { policy }
+      data: {
+        policy: result.policy,
+        source: result.source,
+        hasPermission: result.hasPermission
+      }
     });
   } catch (error) {
     logger.error('Error resolving effective policy:', error);

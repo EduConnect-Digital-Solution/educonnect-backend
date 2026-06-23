@@ -23,9 +23,7 @@ const assignClassesToTeacher = catchAsync(async (req, res) => {
     });
   }
 
-  const { teacherId, classes } = req.body;
-
-  // Use authenticated user's schoolId from JWT token
+  const { teacherId, classes, arms } = req.body;
   const targetSchoolId = req.user.schoolId;
 
   if (!targetSchoolId) {
@@ -35,7 +33,6 @@ const assignClassesToTeacher = catchAsync(async (req, res) => {
     });
   }
 
-  // Find the teacher
   const teacher = await prisma.user.findFirst({
     where: {
       id: teacherId,
@@ -51,45 +48,101 @@ const assignClassesToTeacher = catchAsync(async (req, res) => {
     });
   }
 
-  // Add new classes (avoid duplicates)
-  const existingClasses = teacher.classes || [];
-  const newClasses = classes.filter(cls => !existingClasses.includes(cls));
+  let assignedClassNames = [];
+  let assignedArms = [];
 
-  if (newClasses.length > 0) {
-    const updatedClasses = [...existingClasses, ...newClasses];
-    await prisma.user.update({
-      where: { id: teacherId },
-      data: { classes: updatedClasses }
+  if (arms && arms.length > 0) {
+    // --- Arm-specific assignment ---
+    const armRecords = await prisma.arm.findMany({
+      where: { id: { in: arms }, schoolId: targetSchoolId },
+      include: { class: { select: { name: true } } }
     });
-    teacher.classes = updatedClasses;
 
-    // Auto-create TeacherStudent records for active students in newly assigned classes
-    const classRecords = await prisma.class.findMany({
-      where: { schoolId: targetSchoolId, name: { in: newClasses }, isActive: true }
-    });
-    const classIds = classRecords.map(c => c.id);
+    if (armRecords.length !== arms.length) {
+      const foundIds = armRecords.map(a => a.id);
+      const invalidIds = arms.filter(id => !foundIds.includes(id));
+      return res.status(400).json({
+        success: false,
+        message: `Invalid arm IDs: ${invalidIds.join(', ')}`
+      });
+    }
+
+    for (const arm of armRecords) {
+      await prisma.arm.update({
+        where: { id: arm.id },
+        data: { classTeacherId: teacherId }
+      });
+    }
+
+    assignedArms = armRecords.map(a => ({ id: a.id, name: a.name, className: a.class.name }));
+
+    // Auto-create TeacherStudent records for students in those arms
+    const studentArms = [...new Set(armRecords.map(a => a.id))];
     const activeStudents = await prisma.student.findMany({
-      where: { schoolId: targetSchoolId, classId: { in: classIds }, isActive: true, isEnrolled: true },
+      where: { schoolId: targetSchoolId, armId: { in: studentArms }, isActive: true, isEnrolled: true },
       select: { id: true }
     });
     if (activeStudents.length > 0) {
       await prisma.teacherStudent.createMany({
-        data: activeStudents.map(s => ({
-          teacherId,
-          studentId: s.id
-        })),
+        data: activeStudents.map(s => ({ teacherId, studentId: s.id })),
         skipDuplicates: true
       });
     }
+
+    // Also add class names to User.classes so grading flows still work
+    const classNames = [...new Set(armRecords.map(a => a.class.name))];
+    const existingClasses = teacher.classes || [];
+    const newForUser = classNames.filter(cls => !existingClasses.includes(cls));
+    if (newForUser.length > 0) {
+      const updatedClasses = [...existingClasses, ...newForUser];
+      await prisma.user.update({
+        where: { id: teacherId },
+        data: { classes: updatedClasses }
+      });
+      teacher.classes = updatedClasses;
+    }
+    assignedClassNames = classNames;
   }
 
-  // Always invalidate caches to ensure fresh data on teacher dashboard
+  if (classes && classes.length > 0 && (!arms || arms.length === 0)) {
+    // --- Whole-class assignment (only when arms not provided) ---
+    const existingClasses = teacher.classes || [];
+    const newClasses = classes.filter(cls => !existingClasses.includes(cls));
+
+    if (newClasses.length > 0) {
+      const updatedClasses = [...existingClasses, ...newClasses];
+      await prisma.user.update({
+        where: { id: teacherId },
+        data: { classes: updatedClasses }
+      });
+      teacher.classes = updatedClasses;
+
+      const classRecords = await prisma.class.findMany({
+        where: { schoolId: targetSchoolId, name: { in: newClasses }, isActive: true }
+      });
+      const classIds = classRecords.map(c => c.id);
+      const activeStudents = await prisma.student.findMany({
+        where: { schoolId: targetSchoolId, classId: { in: classIds }, isActive: true, isEnrolled: true },
+        select: { id: true }
+      });
+      if (activeStudents.length > 0) {
+        await prisma.teacherStudent.createMany({
+          data: activeStudents.map(s => ({ teacherId, studentId: s.id })),
+          skipDuplicates: true
+        });
+      }
+    }
+    assignedClassNames = newClasses;
+  }
+
   await TeacherService.invalidateTeacherCaches(targetSchoolId, teacherId);
   await CacheService.del('grades', `classes:${teacherId}`);
 
   res.status(200).json({
     success: true,
-    message: `Teacher assigned to ${newClasses.length} new class(es) successfully`,
+    message: assignedArms.length > 0
+      ? `Teacher assigned to ${assignedArms.length} arm(s) in ${assignedClassNames.length} class(es)`
+      : `Teacher assigned to ${assignedClassNames.length} new class(es) successfully`,
     data: {
       teacher: {
         id: teacher.id,
@@ -99,7 +152,8 @@ const assignClassesToTeacher = catchAsync(async (req, res) => {
         classes: teacher.classes,
         subjects: teacher.subjects
       },
-      assignedClasses: newClasses,
+      assignedClasses: assignedClassNames,
+      assignedArms,
       totalClasses: teacher.classes.length
     }
   });
@@ -208,9 +262,7 @@ const removeClassesFromTeacher = catchAsync(async (req, res) => {
     });
   }
 
-  const { teacherId, classes } = req.body;
-
-  // Use authenticated user's schoolId from JWT token
+  const { teacherId, classes, arms } = req.body;
   const targetSchoolId = req.user.schoolId;
 
   if (!targetSchoolId) {
@@ -220,7 +272,6 @@ const removeClassesFromTeacher = catchAsync(async (req, res) => {
     });
   }
 
-  // Find the teacher
   const teacher = await prisma.user.findFirst({
     where: {
       id: teacherId,
@@ -236,44 +287,92 @@ const removeClassesFromTeacher = catchAsync(async (req, res) => {
     });
   }
 
-  // Remove classes
-  const originalClasses = teacher.classes || [];
-  const updatedClasses = originalClasses.filter(cls => !classes.includes(cls));
+  let removedClassNames = [];
+  let removedArmIds = [];
 
-  await prisma.user.update({
-    where: { id: teacherId },
-    data: { classes: updatedClasses }
-  });
-  teacher.classes = updatedClasses;
-
-  // Delete TeacherStudent records for students in removed classes
-  const classRecords = await prisma.class.findMany({
-    where: { schoolId: targetSchoolId, name: { in: classes }, isActive: true }
-  });
-  const classIds = classRecords.map(c => c.id);
-  const studentsInRemovedClasses = await prisma.student.findMany({
-    where: { schoolId: targetSchoolId, classId: { in: classIds }, isActive: true },
-    select: { id: true }
-  });
-  if (studentsInRemovedClasses.length > 0) {
-    await prisma.teacherStudent.deleteMany({
-      where: {
-        teacherId,
-        studentId: { in: studentsInRemovedClasses.map(s => s.id) }
-      }
+  if (arms && arms.length > 0) {
+    // Remove arm-specific assignments
+    const armRecords = await prisma.arm.findMany({
+      where: { id: { in: arms }, schoolId: targetSchoolId, classTeacherId: teacherId }
     });
+
+    if (armRecords.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'None of the specified arms are assigned to this teacher'
+      });
+    }
+
+    await prisma.arm.updateMany({
+      where: { id: { in: arms }, classTeacherId: teacherId },
+      data: { classTeacherId: null }
+    });
+
+    removedArmIds = armRecords.map(a => a.id);
+
+    // Delete TeacherStudent records for students in those arms
+    const studentsInRemovedArms = await prisma.student.findMany({
+      where: { schoolId: targetSchoolId, armId: { in: removedArmIds }, isActive: true },
+      select: { id: true }
+    });
+    if (studentsInRemovedArms.length > 0) {
+      await prisma.teacherStudent.deleteMany({
+        where: {
+          teacherId,
+          studentId: { in: studentsInRemovedArms.map(s => s.id) }
+        }
+      });
+    }
   }
 
-  // Invalidate teacher caches after class removal
-  await TeacherService.invalidateTeacherCaches(targetSchoolId, teacherId);
-  // Also invalidate grades namespace cache (teacher classes are cached there)
-  await CacheService.del('grades', `classes:${teacherId}`);
+  if (classes && classes.length > 0) {
+    // Remove whole-class assignments
+    const originalClasses = teacher.classes || [];
+    const updatedClasses = originalClasses.filter(cls => !classes.includes(cls));
 
-  const removedClasses = originalClasses.filter(cls => classes.includes(cls));
+    await prisma.user.update({
+      where: { id: teacherId },
+      data: { classes: updatedClasses }
+    });
+    teacher.classes = updatedClasses;
+    removedClassNames = originalClasses.filter(cls => classes.includes(cls));
+
+    // Also clear arm assignments for those classes
+    const classRecords = await prisma.class.findMany({
+      where: { schoolId: targetSchoolId, name: { in: classes }, isActive: true }
+    });
+    const classIds = classRecords.map(c => c.id);
+    const updatedArms = await prisma.arm.updateMany({
+      where: { classId: { in: classIds }, classTeacherId: teacherId },
+      data: { classTeacherId: null }
+    });
+    if (updatedArms.count > 0) {
+      removedArmIds = [...new Set([...removedArmIds])];
+    }
+
+    // Delete TeacherStudent records for students in removed classes
+    const studentsInRemovedClasses = await prisma.student.findMany({
+      where: { schoolId: targetSchoolId, classId: { in: classIds }, isActive: true },
+      select: { id: true }
+    });
+    if (studentsInRemovedClasses.length > 0) {
+      await prisma.teacherStudent.deleteMany({
+        where: {
+          teacherId,
+          studentId: { in: studentsInRemovedClasses.map(s => s.id) }
+        }
+      });
+    }
+  }
+
+  await TeacherService.invalidateTeacherCaches(targetSchoolId, teacherId);
+  await CacheService.del('grades', `classes:${teacherId}`);
 
   res.status(200).json({
     success: true,
-    message: `Teacher removed from ${removedClasses.length} class(es) successfully`,
+    message: removedArmIds.length > 0
+      ? `Teacher removed from ${removedClassNames.length} class(es) and ${removedArmIds.length} arm(s)`
+      : `Teacher removed from ${removedClassNames.length} class(es) successfully`,
     data: {
       teacher: {
         id: teacher.id,
@@ -283,7 +382,8 @@ const removeClassesFromTeacher = catchAsync(async (req, res) => {
         classes: teacher.classes,
         subjects: teacher.subjects
       },
-      removedClasses: removedClasses,
+      removedClasses: removedClassNames,
+      removedArms: removedArmIds,
       remainingClasses: teacher.classes.length
     }
   });
@@ -305,7 +405,6 @@ const getTeacherAssignments = catchAsync(async (req, res) => {
     });
   }
 
-  // Find the teacher
   const teacher = await prisma.user.findFirst({
     where: {
       id: teacherId,
@@ -321,7 +420,10 @@ const getTeacherAssignments = catchAsync(async (req, res) => {
       phone: true,
       isActive: true,
       classes: true,
-      subjects: true
+      subjects: true,
+      armClasses: {
+        select: { id: true, name: true, class: { select: { name: true } } }
+      }
     }
   });
 
@@ -330,6 +432,29 @@ const getTeacherAssignments = catchAsync(async (req, res) => {
       success: false,
       message: 'Teacher not found'
     });
+  }
+
+  // Build structured class list: whole-class entries + arm-specific entries
+  const wholeClassNames = teacher.classes || [];
+  const armClassNames = new Set(teacher.armClasses.map(a => a.class.name));
+
+  // Classes that are only arm-specific (not already in whole-class)
+  const onlyArmClasses = [...armClassNames].filter(n => !wholeClassNames.includes(n));
+
+  const structuredClasses = [
+    ...wholeClassNames.map(name => ({ className: name })),
+    ...onlyArmClasses.map(name => ({
+      className: name,
+      arms: teacher.armClasses.filter(a => a.class.name === name).map(a => ({ id: a.id, name: a.name }))
+    }))
+  ];
+
+  // Also add arms info for classes that have both whole-class and arm assignments
+  for (const entry of structuredClasses) {
+    const armEntries = teacher.armClasses.filter(a => a.class.name === entry.className);
+    if (armEntries.length > 0) {
+      entry.arms = armEntries.map(a => ({ id: a.id, name: a.name }));
+    }
   }
 
   res.status(200).json({
@@ -345,9 +470,9 @@ const getTeacherAssignments = catchAsync(async (req, res) => {
         isActive: teacher.isActive
       },
       assignments: {
-        classes: teacher.classes || [],
+        classes: structuredClasses,
         subjects: teacher.subjects || [],
-        classCount: (teacher.classes || []).length,
+        classCount: structuredClasses.length,
         subjectCount: (teacher.subjects || []).length
       }
     }

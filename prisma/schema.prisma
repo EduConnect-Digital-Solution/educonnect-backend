@@ -54,6 +54,9 @@ model User {
   feePayments          FeePayment[]        @relation("FeePaymentReceiver")
   scoreSheets          ScoreSheet[]        @relation("TeacherScoreSheets")
   studentProfile       Student?
+  teacherPolicies      AssessmentPolicy[]   @relation("TeacherCreatedPolicies")
+  policyPermissions    TeacherPolicyPermission[] @relation("TeacherPermission")
+  grantedPermissions   TeacherPolicyPermission[] @relation("GrantedByAdmin")
 
   @@unique([schoolId, email])
   @@index([schoolId, role])
@@ -250,12 +253,17 @@ model AssessmentPolicy {
   caMax       Int
   examMax     Int
   total       Int
+  createdByRole      String   @default("admin")  // admin | teacher
+  createdByTeacherId String?
+  scopedClassId      String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  school      School              @relation(fields: [schoolId], references: [id])
-  components  CAComponent[]
-  assignments PolicyAssignment[]
+  school           School  @relation(fields: [schoolId], references: [id])
+  components       CAComponent[]
+  assignments      PolicyAssignment[]
+  createdByTeacher User?   @relation("TeacherCreatedPolicies", fields: [createdByTeacherId], references: [id])
+  scopedClass      Class?  @relation(fields: [scopedClassId], references: [id])
 
   @@unique([schoolId, name])
   @@index([schoolId])
@@ -289,6 +297,21 @@ model PolicyAssignment {
   @@unique([policyId, scope, scopeId, secondaryScopeId])
   @@index([policyId])
   @@map("policy_assignments")
+}
+
+model TeacherPolicyPermission {
+  id        String   @id @default(uuid())
+  teacherId String
+  classId   String
+  grantedBy String
+  grantedAt DateTime @default(now())
+
+  teacher User  @relation("TeacherPermission", fields: [teacherId], references: [id])
+  class   Class @relation(fields: [classId], references: [id])
+  granter User  @relation("GrantedByAdmin", fields: [grantedBy], references: [id])
+
+  @@unique([teacherId, classId])
+  @@map("teacher_policy_permissions")
 }
 
 model ScoreSheet {
@@ -425,8 +448,10 @@ model Class {
   grades              Grade[]             @relation("GradeClass")
   students            Student[]           @relation("StudentClass")
   attendanceSessions  AttendanceSession[]
-  scoreSheets         ScoreSheet[]
-  feeStructures       FeeStructure[]
+  scoreSheets             ScoreSheet[]
+  feeStructures           FeeStructure[]
+  assessmentPolicies      AssessmentPolicy[]
+  teacherPolicyPermissions TeacherPolicyPermission[]
 
   @@unique([schoolId, name])
   @@index([schoolId])

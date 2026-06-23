@@ -11,6 +11,14 @@ const teacherDashboardController = require('../controllers/teacherDashboardContr
 const gradeController = require('../controllers/gradeController');
 const { getEffectivePolicy } = require('../controllers/effectivePolicyController');
 const scoreSheetController = require('../controllers/scoreSheetController');
+const teacherPolicyController = require('../controllers/teacherPolicyController');
+const {
+  validateTeacherPolicyCreate,
+  validateTeacherPolicyUpdate,
+  validateTeacherAssignment,
+  validatePolicyId,
+  validateAssignmentDelete
+} = require('../middleware/teacherPolicyValidation');
 const { validateTeacherQuery } = require('../middleware/dashboardValidation');
 const {
   validateGradeAssignment,
@@ -232,10 +240,63 @@ router.post('/score-sheets/:sheetId/submit',
  * @route   GET /api/teacher/effective-policy
  * @desc    Resolve the effective assessment policy for a class+subject
  * @access  Teacher
- * @query   className, subjectName
+ * @query   className, subjectName, armId
  */
 router.get('/effective-policy',
   getEffectivePolicy
 );
+
+// ============================================================================
+// TEACHER-DELEGATED POLICY MANAGEMENT
+// ============================================================================
+
+/**
+ * @route   GET /api/teacher/my-policy-permission
+ * @desc    Check if the authenticated teacher has policy-creation permission
+ * @access  Teacher
+ */
+router.get('/my-policy-permission', teacherPolicyController.myPermission);
+
+/**
+ * @route   GET /api/teacher/my-policies
+ * @desc    List the teacher's own assessment policies
+ * @access  Teacher
+ */
+router.get('/my-policies', teacherPolicyController.myList);
+
+/**
+ * @route   POST /api/teacher/my-policies
+ * @desc    Create a new teacher-delegated assessment policy
+ * @access  Teacher
+ */
+router.post('/my-policies', validateTeacherPolicyCreate, teacherPolicyController.myCreate);
+
+/**
+ * @route   PUT /api/teacher/my-policies/:policyId
+ * @desc    Update a teacher's own policy
+ * @access  Teacher
+ */
+router.put('/my-policies/:policyId', validatePolicyId, validateTeacherPolicyUpdate, teacherPolicyController.myUpdate);
+
+/**
+ * @route   DELETE /api/teacher/my-policies/:policyId
+ * @desc    Delete a teacher's own policy
+ * @access  Teacher
+ */
+router.delete('/my-policies/:policyId', validatePolicyId, teacherPolicyController.myDelete);
+
+/**
+ * @route   POST /api/teacher/my-policies/:policyId/assignments
+ * @desc    Add a scope assignment to a teacher's policy
+ * @access  Teacher
+ */
+router.post('/my-policies/:policyId/assignments', validatePolicyId, validateTeacherAssignment, teacherPolicyController.myAddAssignment);
+
+/**
+ * @route   DELETE /api/teacher/my-policies/:policyId/assignments/:assignmentId
+ * @desc    Remove a scope assignment from a teacher's policy
+ * @access  Teacher
+ */
+router.delete('/my-policies/:policyId/assignments/:assignmentId', validateAssignmentDelete, teacherPolicyController.myRemoveAssignment);
 
 module.exports = router;
