@@ -342,11 +342,12 @@ model ScoreSheet {
 }
 
 model ScoreEntry {
-  id        String @id @default(uuid())
+  id        String  @id @default(uuid())
   sheetId   String
   studentId String
   caScores  Json
   examScore Float?
+  remark    String?
 
   sheet   ScoreSheet @relation(fields: [sheetId], references: [id], onDelete: Cascade)
   student Student    @relation(fields: [studentId], references: [id])
