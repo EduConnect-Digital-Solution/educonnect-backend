@@ -2,7 +2,11 @@ const { prisma } = require('../config/database');
 const logger = require('../utils/logger');
 
 const sheetInclude = {
-  entries: true
+  entries: {
+    include: {
+      student: { select: { id: true, firstName: true, lastName: true } }
+    }
+  }
 };
 
 const formatSheet = (sheet) => {
@@ -13,8 +17,10 @@ const formatSheet = (sheet) => {
     returnNote: sheet.returnNote,
     entries: sheet.entries.map(e => ({
       studentId: e.studentId,
+      studentName: e.student ? `${e.student.firstName} ${e.student.lastName}` : null,
       caScores: e.caScores,
-      examScore: e.examScore
+      examScore: e.examScore,
+      remark: e.remark ?? null
     })),
     submittedAt: sheet.submittedAt,
     updatedAt: sheet.updatedAt
@@ -103,7 +109,8 @@ const saveEntries = async (sheetId, teacherId, schoolId, entries) => {
         sheetId,
         studentId: e.studentId,
         caScores: e.caScores || {},
-        examScore: e.examScore ?? null
+        examScore: e.examScore ?? null,
+        remark: e.remark ?? null
       }))
     });
   }

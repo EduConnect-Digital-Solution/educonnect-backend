@@ -42,7 +42,10 @@ const getMatrix = async (schoolId, termId) => {
       status: true,
       teacherId: true,
       updatedAt: true,
-      teacher: { select: { firstName: true, lastName: true } }
+      teacher: { select: { firstName: true, lastName: true } },
+      entries: {
+        select: { studentId: true, caScores: true, examScore: true, remark: true }
+      }
     }
   });
 
@@ -62,7 +65,13 @@ const getMatrix = async (schoolId, termId) => {
         sheetId: sheet?.id || null,
         status: sheet?.status || 'not_started',
         teacherName: sheet ? `${sheet.teacher.firstName} ${sheet.teacher.lastName}` : null,
-        updatedAt: sheet?.updatedAt || null
+        updatedAt: sheet?.updatedAt || null,
+        entries: sheet?.entries?.map(e => ({
+          studentId: e.studentId,
+          caScores: e.caScores,
+          examScore: e.examScore,
+          remark: e.remark ?? null
+        })) || null
       };
     });
 

@@ -54,6 +54,15 @@ const save = async (req, res) => {
       return res.status(400).json({ success: false, message: 'entries must be an array' });
     }
 
+    for (const entry of entries) {
+      if (entry.remark !== undefined && entry.remark !== null && typeof entry.remark === 'string' && entry.remark.length > 300) {
+        return res.status(400).json({
+          success: false,
+          message: `Remark for student ${entry.studentId} exceeds 300 characters`
+        });
+      }
+    }
+
     const result = await scoreSheetService.saveEntries(sheetId, teacherId, schoolId, entries);
     if (!result) {
       return res.status(404).json({ success: false, message: 'Score sheet not found' });
