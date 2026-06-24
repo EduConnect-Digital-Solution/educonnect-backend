@@ -71,6 +71,30 @@ const getPdfJob = async (req, res) => {
   }
 };
 
+const downloadPdf = async (req, res) => {
+  try {
+    const { schoolId } = req.user;
+    const { jobId } = req.params;
+
+    const result = await reportCardService.downloadPdf(schoolId, jobId);
+    if (result.notFound) {
+      return res.status(404).json({ success: false, message: 'PDF job not found' });
+    }
+    if (!result.downloadUrl) {
+      return res.status(400).json({ success: false, message: result.message || 'No download URL available' });
+    }
+
+    if (result.isLocal) {
+      return res.download(result.filePath, `${jobId}.pdf`);
+    }
+
+    res.redirect(result.downloadUrl);
+  } catch (error) {
+    logger.error('Error downloading PDF:', error);
+    res.status(500).json({ success: false, message: 'Failed to download PDF' });
+  }
+};
+
 // ===== REPORT CARD TEMPLATE =====
 
 const getTemplate = async (req, res) => {
@@ -197,6 +221,7 @@ module.exports = {
   publishResults,
   generatePdfs,
   getPdfJob,
+  downloadPdf,
   getTemplate,
   saveTemplate,
   getComments,

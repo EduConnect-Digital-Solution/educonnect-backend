@@ -18,14 +18,12 @@ const config = {
     fromEmail: process.env.FROM_EMAIL || 'noreply@educonnect.com'
   },
 
-  cloudinary: {
-    cloudName: process.env.CLOUDINARY_CLOUD_NAME,
-    apiKey: process.env.CLOUDINARY_API_KEY,
-    apiSecret: process.env.CLOUDINARY_API_SECRET,
+  supabase: {
+    url: process.env.SUPABASE_URL || `https://${process.env.POSTGRES_HOST?.replace(/^https?:\/\//, '').replace(/\/.*$/, '') || 'localhost'}`,
+    serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    storageBucket: process.env.SUPABASE_STORAGE_BUCKET || 'report-cards',
     isConfigured: !!(
-      process.env.CLOUDINARY_CLOUD_NAME &&
-      process.env.CLOUDINARY_API_KEY &&
-      process.env.CLOUDINARY_API_SECRET
+      process.env.SUPABASE_SERVICE_ROLE_KEY
     )
   },
 

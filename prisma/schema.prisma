@@ -57,6 +57,7 @@ model User {
   teacherPolicies      AssessmentPolicy[]   @relation("TeacherCreatedPolicies")
   policyPermissions    TeacherPolicyPermission[] @relation("TeacherPermission")
   grantedPermissions   TeacherPolicyPermission[] @relation("GrantedByAdmin")
+  assessmentEntries    AssessmentEntry[] @relation("AssessmentEntryCreator")
 
   @@unique([schoolId, email])
   @@index([schoolId, role])
@@ -102,6 +103,7 @@ model School {
   
   assessmentPolicies    AssessmentPolicy[]
   scoreSheets           ScoreSheet[]
+  assessmentEntries     AssessmentEntry[]
   gradingScales         GradingScale[]      @relation("SchoolGradingScales")
   defaultGradingScaleId String? @unique
   defaultGradingScale  GradingScale?       @relation("DefaultGradingScale", fields: [defaultGradingScaleId], references: [id])
@@ -187,6 +189,8 @@ model Student {
   submissions        AssignmentSubmission[]
   activities         ActivityLog[]
   scoreEntries       ScoreEntry[]
+
+  assessmentScores     AssessmentScore[]
 
   @@unique([schoolId, studentId])
   @@index([schoolId, email])
@@ -355,6 +359,48 @@ model ScoreEntry {
   @@unique([sheetId, studentId])
   @@index([sheetId])
   @@map("score_entries")
+}
+
+model AssessmentEntry {
+  id                    String   @id @default(uuid())
+  schoolId              String
+  policyComponentId     String
+  componentType         String   // "ca" | "exam"
+  title                 String
+  assessmentType        String
+  className             String
+  subjectName           String
+  termId                String
+  maxObtainableScore    Float
+  contributionPoints    Float
+  createdBy             String
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  scores      AssessmentScore[]
+  school      School             @relation(fields: [schoolId], references: [id])
+  createdByUser User             @relation("AssessmentEntryCreator", fields: [createdBy], references: [id])
+
+  @@index([schoolId])
+  @@index([className, subjectName, termId])
+  @@map("assessment_entries")
+}
+
+model AssessmentScore {
+  id             String          @id @default(uuid())
+  entryId        String
+  studentId      String
+  scoreObtained  Float
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  entry   AssessmentEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  student Student         @relation(fields: [studentId], references: [id])
+
+  @@unique([entryId, studentId])
+  @@index([entryId])
+  @@index([studentId])
+  @@map("assessment_scores")
 }
 
 model OTP {
