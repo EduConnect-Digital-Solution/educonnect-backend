@@ -3,6 +3,7 @@ const { connectDB, prisma } = require('./config/database');
 const { initializeRedis, closeRedis } = require('./config/redis');
 const config = require('./config');
 const logger = require('./utils/logger');
+const { shutdown: shutdownPuppeteer } = require('./services/pdfRenderer');
 
 // Process-level error handlers for debugging
 process.on('uncaughtException', (error) => {
@@ -146,6 +147,9 @@ const gracefulShutdown = async () => {
     await prisma.$disconnect();
     logger.info('✅ PostgreSQL connection closed');
     
+    // Close Puppeteer browser
+    await shutdownPuppeteer();
+
     // Close server
     server.close(() => {
       logger.info('✅ Server closed successfully');

@@ -7,6 +7,7 @@ const {
   publishResults,
   generatePdfs,
   getPdfJob,
+  downloadPdf,
   getTemplate,
   saveTemplate,
   getComments,
@@ -24,6 +25,7 @@ router.get('/results/publish-status', getPublishStatus);
 router.post('/results/publish', publishResults);
 router.post('/results/generate-pdfs', generatePdfs);
 router.get('/results/pdf-jobs/:jobId', getPdfJob);
+router.get('/results/pdf-jobs/:jobId/download', downloadPdf);
 
 // Report card template
 router.get('/report-cards/template', getTemplate);

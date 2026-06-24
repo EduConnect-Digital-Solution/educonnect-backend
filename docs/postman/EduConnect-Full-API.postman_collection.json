@@ -1271,7 +1271,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"assignments\": [\n    {\n      \"studentId\": \"{{studentId1}}\",\n      \"classId\": \"{{classId1}}\",\n      \"armId\": \"{{armId1}}\"\n    },\n    {\n      \"studentId\": \"{{studentId2}}\",\n      \"classId\": \"{{classId2}}\",\n      \"armId\": \"{{armId2}}\"\n    }\n  ]\n}",
+              "raw": "{\n  \"assignments\": [\n    {\n      \"studentId\": \"{{studentId1}}\",\n      \"classId\": \"{{classId}}\",\n      \"armId\": \"{{armId}}\"\n    },\n    {\n      \"studentId\": \"{{studentId2}}\",\n      \"classId\": \"{{classId}}\",\n      \"armId\": \"{{armId}}\"\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1333,7 +1333,7 @@
                 "value": "Bearer {{accessToken}}"
               }
             ],
-            "url": "{{baseUrl}}/api/academic/students/unassigned?page={{page}}&limit={{limit}}"
+            "url": "{{baseUrl}}/api/academic/students/unassigned?page=1&limit=20"
           },
           "response": []
         }
@@ -1466,13 +1466,54 @@
           "response": []
         },
         {
+          "name": "Update Published Entry",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subjectId\": \"{{subjectId}}\",\n  \"teacherId\": \"{{teacherId}}\",\n  \"roomId\": \"{{roomId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/admin/timetable/published/{{scheduleId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Published Entry",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/timetable/published/{{scheduleId}}"
+          },
+          "response": []
+        },
+        {
           "name": "Teacher Today Schedule",
           "request": {
             "method": "GET",
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
+                "value": "Bearer {{teacheraccessToken}}"
               }
             ],
             "url": "{{baseUrl}}/api/teacher/timetable/today?date=2025-01-27"
@@ -1834,7 +1875,7 @@
       ]
     },
     {
-      "name": "03.12 - Score Sheet Submissions",
+      "name": "03.12 - Score Sheet Submissions (Admin)",
       "item": [
         {
           "name": "Get Submission Matrix",
@@ -1851,7 +1892,7 @@
           "response": []
         },
         {
-          "name": "Approve Score Sheet",
+          "name": "Approve Score Sheet [DEPRECATED]",
           "request": {
             "method": "POST",
             "header": [
@@ -1878,7 +1919,7 @@
           "response": []
         },
         {
-          "name": "Return Score Sheet",
+          "name": "Return Score Sheet [DEPRECATED]",
           "request": {
             "method": "POST",
             "header": [
@@ -1905,7 +1946,7 @@
           "response": []
         },
         {
-          "name": "Force Return Score Sheet (Admin)",
+          "name": "Force Return Score Sheet [DEPRECATED]",
           "request": {
             "method": "POST",
             "header": [
@@ -1934,7 +1975,149 @@
       ]
     },
     {
-      "name": "03.13 - Policy Permissions (Admin)",
+      "name": "03.13 - Assessment Policies (Admin)",
+      "item": [
+        {
+          "name": "List Assessment Policies",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/assessment-policies"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Assessment Policy By ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/assessment-policies/{{policyId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Assessment Policy",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Standard CA/Exam Policy\",\n  \"description\": \"Default CA/exam policy\",\n  \"caComponents\": [\n    {\n      \"name\": \"1st CA Test\",\n      \"maxScore\": 15,\n      \"sortOrder\": 0\n    },\n    {\n      \"name\": \"2nd CA Test\",\n      \"maxScore\": 15,\n      \"sortOrder\": 1\n    },\n    {\n      \"name\": \"Project\",\n      \"maxScore\": 10,\n      \"sortOrder\": 2\n    }\n  ],\n  \"examMax\": 60\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/admin/assessment-policies"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Assessment Policy",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Standard CA/Exam (Updated)\",\n  \"caComponents\": [\n    {\n      \"name\": \"1st CA Test\",\n      \"maxScore\": 20,\n      \"sortOrder\": 0\n    },\n    {\n      \"name\": \"2nd CA Test\",\n      \"maxScore\": 20,\n      \"sortOrder\": 1\n    }\n  ],\n  \"examMax\": 60\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/admin/assessment-policies/{{policyId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Assessment Policy",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/assessment-policies/{{policyId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Add Policy Assignment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"scope\": \"arm\",\n  \"scopeId\": \"{{armId}}\",\n  \"scopeName\": \"A\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/admin/assessment-policies/{{policyId}}/assignments"
+          },
+          "response": []
+        },
+        {
+          "name": "Remove Policy Assignment",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/assessment-policies/{{policyId}}/assignments/{{assignmentId}}"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "03.14 - Policy Permissions (Admin)",
       "item": [
         {
           "name": "List Policy Permissions",
@@ -1994,7 +2177,7 @@
       ]
     },
     {
-      "name": "03.14 - Teacher Policies (Admin View)",
+      "name": "03.15 - Teacher Policies (Admin View)",
       "item": [
         {
           "name": "List Teacher Policies",
@@ -2027,6 +2210,303 @@
       ]
     },
     {
+      "name": "03.16 - Results & Report Cards (Admin)",
+      "item": [
+        {
+          "name": "Get Publish Status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/results/publish-status?termId={{termId}}&classId={{classId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Publish Results",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"termId\": \"{{termId}}\",\n  \"classId\": \"{{classId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/admin/results/publish"
+          },
+          "response": []
+        },
+        {
+          "name": "Generate PDFs",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"termId\": \"{{termId}}\",\n  \"classId\": \"{{classId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/admin/results/generate-pdfs"
+          },
+          "response": []
+        },
+        {
+          "name": "Get PDF Job Status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/results/pdf-jobs/{{jobId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Download PDF",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/results/pdf-jobs/{{jobId}}/download"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Report Card Template",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/report-cards/template"
+          },
+          "response": []
+        },
+        {
+          "name": "Save Report Card Template",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orientation\": \"portrait\",\n  \"accent\": \"blue\",\n  \"blocks\": [\n    {\n      \"id\": \"blk_header\",\n      \"type\": \"header\",\n      \"label\": \"School Header & Crest\",\n      \"enabled\": true\n    },\n    {\n      \"id\": \"blk_results\",\n      \"type\": \"results-table\",\n      \"label\": \"Results Table\",\n      \"enabled\": true\n    },\n    {\n      \"id\": \"blk_comments\",\n      \"type\": \"comments\",\n      \"label\": \"Class Teacher's Comments\",\n      \"enabled\": true\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/admin/report-cards/template"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Broadsheet",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/broadsheets?armId={{armId}}&termId={{termId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Grading Activity",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/grading-activity?className=SSS2&armName=A&subjectName=Mathematics&termId={{termId}}"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "03.17 - Report Card Comments & Sign-off",
+      "item": [
+        {
+          "name": "Get Comment Worklist",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/report-cards/comments?armId={{armId}}&termId={{termId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Save Comment",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"armId\": \"{{armId}}\",\n  \"termId\": \"{{termId}}\",\n  \"comment\": \"Excellent performance this term. Keep it up!\",\n  \"traits\": {\n    \"Punctuality\": \"Excellent\",\n    \"Conduct\": \"Good\",\n    \"Neatness\": \"Very Good\",\n    \"Participation\": \"Excellent\",\n    \"Leadership\": \"Good\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/admin/report-cards/comments/{{studentId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Generate Report Cards",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"armId\": \"{{armId}}\",\n  \"termId\": \"{{termId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/admin/report-cards/generate"
+          },
+          "response": []
+        },
+        {
+          "name": "Sign Off",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"armId\": \"{{armId}}\",\n  \"termId\": \"{{termId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/admin/report-cards/sign-off"
+          },
+          "response": []
+        },
+        {
+          "name": "Publish to Parents",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"armId\": \"{{armId}}\",\n  \"termId\": \"{{termId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/admin/report-cards/publish"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
       "name": "04 - Teacher Dashboard & Grades",
       "item": [
         {
@@ -2036,7 +2516,7 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
+                "value": "Bearer {{teacheraccessToken}}"
               }
             ],
             "url": "{{baseUrl}}/api/teacher/dashboard"
@@ -2050,7 +2530,7 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
+                "value": "Bearer {{teacheraccessToken}}"
               }
             ],
             "url": "{{baseUrl}}/api/teacher/students?page=1&limit=20"
@@ -2064,9 +2544,36 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
+                "value": "Bearer {{teacheraccessToken}}"
               }
             ],
+            "url": "{{baseUrl}}/api/teacher/profile"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Teacher Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacheraccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"+2348012340000\",\n  \"address\": \"Ikeja, Lagos\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
             "url": "{{baseUrl}}/api/teacher/profile"
           },
           "response": []
@@ -2078,7 +2585,7 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
+                "value": "Bearer {{teacheraccessToken}}"
               }
             ],
             "url": "{{baseUrl}}/api/teacher/classes"
@@ -2092,7 +2599,7 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
+                "value": "Bearer {{teacheraccessToken}}"
               }
             ],
             "url": "{{baseUrl}}/api/teacher/classes/{{className}}/subjects"
@@ -2106,7 +2613,7 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
+                "value": "Bearer {{teacheraccessToken}}"
               }
             ],
             "url": "{{baseUrl}}/api/teacher/classes/{{className}}/subjects/{{subject}}/students?page=1&limit=50"
@@ -2114,7 +2621,7 @@
           "response": []
         },
         {
-          "name": "Assign Grade",
+          "name": "Assign Grade [DEPRECATED]",
           "request": {
             "method": "POST",
             "header": [
@@ -2124,7 +2631,7 @@
               },
               {
                 "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
+                "value": "Bearer {{teacheraccessToken}}"
               }
             ],
             "body": {
@@ -2141,13 +2648,13 @@
           "response": []
         },
         {
-          "name": "Student Grades",
+          "name": "Student Grades [DEPRECATED]",
           "request": {
             "method": "GET",
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
+                "value": "Bearer {{teacheraccessToken}}"
               }
             ],
             "url": "{{baseUrl}}/api/teacher/students/{{studentId}}/grades?page=1&limit=20"
@@ -2155,13 +2662,13 @@
           "response": []
         },
         {
-          "name": "Grade Details",
+          "name": "Grade Details [DEPRECATED]",
           "request": {
             "method": "GET",
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
+                "value": "Bearer {{teacheraccessToken}}"
               }
             ],
             "url": "{{baseUrl}}/api/teacher/grades/{{gradeId}}"
@@ -2169,7 +2676,7 @@
           "response": []
         },
         {
-          "name": "Update Grade",
+          "name": "Update Grade [DEPRECATED]",
           "request": {
             "method": "PUT",
             "header": [
@@ -2179,7 +2686,7 @@
               },
               {
                 "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
+                "value": "Bearer {{teacheraccessToken}}"
               }
             ],
             "body": {
@@ -2196,13 +2703,13 @@
           "response": []
         },
         {
-          "name": "Delete Grade",
+          "name": "Delete Grade [DEPRECATED]",
           "request": {
             "method": "DELETE",
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
+                "value": "Bearer {{teacheraccessToken}}"
               }
             ],
             "url": "{{baseUrl}}/api/teacher/grades/{{gradeId}}"
@@ -2210,7 +2717,7 @@
           "response": []
         },
         {
-          "name": "Publish Grades",
+          "name": "Publish Grades [DEPRECATED]",
           "request": {
             "method": "POST",
             "header": [
@@ -2220,7 +2727,7 @@
               },
               {
                 "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
+                "value": "Bearer {{teacheraccessToken}}"
               }
             ],
             "body": {
@@ -2237,13 +2744,13 @@
           "response": []
         },
         {
-          "name": "Class Subject Statistics",
+          "name": "Class Subject Statistics [DEPRECATED]",
           "request": {
             "method": "GET",
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
+                "value": "Bearer {{teacheraccessToken}}"
               }
             ],
             "url": "{{baseUrl}}/api/teacher/classes/{{className}}/subjects/{{subject}}/statistics?term=first&session=2025/2026"
@@ -2257,7 +2764,7 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
+                "value": "Bearer {{teacheraccessToken}}"
               }
             ],
             "url": "{{baseUrl}}/api/teacher/grades/clear-cache"
@@ -2267,7 +2774,222 @@
       ]
     },
     {
-      "name": "04.1 - Teacher Delegated Policies",
+      "name": "04.1 - Teacher Score Sheets",
+      "item": [
+        {
+          "name": "List Score Sheets",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacheraccessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/teacher/score-sheets?termId={{termId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Score Sheet",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacheraccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"className\": \"SSS2\",\n  \"subjectName\": \"Mathematics\",\n  \"termId\": \"{{termId}}\",\n  \"academicYearId\": \"{{academicYearId}}\",\n  \"entries\": [\n    {\n      \"studentId\": \"{{studentId}}\",\n      \"caScores\": {\n        \"test1\": 15,\n        \"test2\": 14,\n        \"project\": 9\n      },\n      \"examScore\": 50,\n      \"remark\": \"Good progress\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/teacher/score-sheets"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Score Sheet",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacheraccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"entries\": [\n    {\n      \"studentId\": \"{{studentId}}\",\n      \"caScores\": {\n        \"test1\": 18,\n        \"test2\": 16,\n        \"project\": 10\n      },\n      \"examScore\": 55,\n      \"remark\": \"Improved\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/teacher/score-sheets/{{sheetId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Submit Score Sheet",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacheraccessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/teacher/score-sheets/{{sheetId}}/submit"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Effective Policy",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacheraccessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/teacher/effective-policy?className=SSS2&subjectName=Mathematics"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "04.2 - Assessment Entries (New Grading)",
+      "item": [
+        {
+          "name": "List Assessment Entries",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacheraccessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/teacher/assessment-entries?className=SSS2&subjectName=Mathematics&termId={{termId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Assessment Entry",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacheraccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"className\": \"SSS2\",\n  \"subjectName\": \"Mathematics\",\n  \"termId\": \"{{termId}}\",\n  \"componentType\": \"CA\",\n  \"name\": \"1st CA Test\",\n  \"maxScore\": 15,\n  \"contributionPoints\": 15\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/teacher/assessment-entries"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Assessment Entry",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacheraccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"1st CA Test (Updated)\",\n  \"maxScore\": 20,\n  \"contributionPoints\": 20\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/teacher/assessment-entries/{{entryId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Assessment Entry",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacheraccessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/teacher/assessment-entries/{{entryId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Save Scores",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacheraccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"scores\": [\n    {\n      \"studentId\": \"{{studentId}}\",\n      \"score\": 14\n    },\n    {\n      \"studentId\": \"{{studentId2}}\",\n      \"score\": 12\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/teacher/assessment-entries/{{entryId}}/scores"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "04.3 - Teacher Delegated Policies",
       "item": [
         {
           "name": "Check My Policy Permission",
@@ -2276,7 +2998,7 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
+                "value": "Bearer {{teacheraccessToken}}"
               }
             ],
             "url": "{{baseUrl}}/api/teacher/my-policy-permission"
@@ -2290,7 +3012,7 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
+                "value": "Bearer {{teacheraccessToken}}"
               }
             ],
             "url": "{{baseUrl}}/api/teacher/my-policies"
@@ -2308,7 +3030,7 @@
               },
               {
                 "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
+                "value": "Bearer {{teacheraccessToken}}"
               }
             ],
             "body": {
@@ -2335,7 +3057,7 @@
               },
               {
                 "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
+                "value": "Bearer {{teacheraccessToken}}"
               }
             ],
             "body": {
@@ -2358,7 +3080,7 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
+                "value": "Bearer {{teacheraccessToken}}"
               }
             ],
             "url": "{{baseUrl}}/api/teacher/my-policies/{{policyId}}"
@@ -2376,7 +3098,7 @@
               },
               {
                 "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
+                "value": "Bearer {{teacheraccessToken}}"
               }
             ],
             "body": {
@@ -2399,10 +3121,166 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
+                "value": "Bearer {{teacheraccessToken}}"
               }
             ],
             "url": "{{baseUrl}}/api/teacher/my-policies/{{policyId}}/assignments/{{assignmentId}}"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "04.4 - Teacher Attendance",
+      "item": [
+        {
+          "name": "Get Attendance Schedule",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacheraccessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/teacher/attendance/schedule?date=2026-06-13"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Session Students",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacheraccessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/teacher/attendance/sessions/{{scheduleId}}/students?className=SSS2&subjectName=Mathematics"
+          },
+          "response": []
+        },
+        {
+          "name": "Save Attendance Draft",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacheraccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"scheduleId\": \"{{scheduleId}}\",\n  \"sessions\": [\n    {\n      \"studentId\": \"{{studentId}}\",\n      \"status\": \"present\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/teacher/attendance/draft"
+          },
+          "response": []
+        },
+        {
+          "name": "Submit Attendance",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacheraccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"scheduleId\": \"{{scheduleId}}\",\n  \"sessions\": [\n    {\n      \"studentId\": \"{{studentId}}\",\n      \"status\": \"present\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/teacher/attendance/submit"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Attendance Record",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacheraccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"absent\",\n  \"reason\": \"Sick\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/teacher/attendance/{{attendanceId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Attendance History",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacheraccessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/teacher/attendance/history?page=1&limit=20&status=submitted&startDate=2026-06-01&endDate=2026-06-30"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Attendance By Date",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacheraccessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/teacher/attendance/date/2026-06-13"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Attendance Summary",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacheraccessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/teacher/attendance/summary/{{scheduleId}}"
           },
           "response": []
         }
@@ -2418,7 +3296,7 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
+                "value": "Bearer {{parentaccessToken}}"
               }
             ],
             "url": "{{baseUrl}}/api/parent/dashboard"
@@ -2432,7 +3310,7 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
+                "value": "Bearer {{parentaccessToken}}"
               }
             ],
             "url": "{{baseUrl}}/api/parent/children"
@@ -2446,10 +3324,38 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
+                "value": "Bearer {{parentaccessToken}}"
               }
             ],
             "url": "{{baseUrl}}/api/parent/children/{{studentId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Child Grades",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{parentaccessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/parent/children/{{studentId}}/grades?termId={{termId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Child Attendance",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{parentaccessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/parent/children/{{studentId}}/attendance?termId={{termId}}"
           },
           "response": []
         },
@@ -2460,7 +3366,7 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
+                "value": "Bearer {{parentaccessToken}}"
               }
             ],
             "url": "{{baseUrl}}/api/parent/profile"
@@ -2478,7 +3384,7 @@
               },
               {
                 "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
+                "value": "Bearer {{parentaccessToken}}"
               }
             ],
             "body": {
@@ -3263,6 +4169,20 @@
             "url": "{{baseUrl}}/api/system-admin/auth/status"
           },
           "response": []
+        },
+        {
+          "name": "System Admin Me",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{systemAdminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/system-admin/auth/me"
+          },
+          "response": []
         }
       ]
     },
@@ -3546,7 +4466,7 @@
                 "header": [
                   {
                     "key": "Authorization",
-                    "value": "Bearer {{accessToken}}"
+                    "value": "Bearer {{studentaccessToken}}"
                   }
                 ],
                 "url": "{{baseUrl}}/api/student/me"
@@ -3565,7 +4485,7 @@
                 "header": [
                   {
                     "key": "Authorization",
-                    "value": "Bearer {{accessToken}}"
+                    "value": "Bearer {{studentaccessToken}}"
                   }
                 ],
                 "url": "{{baseUrl}}/api/student/notifications?page=1&limit=20"
@@ -3579,7 +4499,7 @@
                 "header": [
                   {
                     "key": "Authorization",
-                    "value": "Bearer {{accessToken}}"
+                    "value": "Bearer {{studentaccessToken}}"
                   }
                 ],
                 "url": "{{baseUrl}}/api/student/notifications?unread=true&page=1&limit=20"
@@ -3593,7 +4513,7 @@
                 "header": [
                   {
                     "key": "Authorization",
-                    "value": "Bearer {{accessToken}}"
+                    "value": "Bearer {{studentaccessToken}}"
                   }
                 ],
                 "url": "{{baseUrl}}/api/student/notifications/read-all"
@@ -3607,7 +4527,7 @@
                 "header": [
                   {
                     "key": "Authorization",
-                    "value": "Bearer {{accessToken}}"
+                    "value": "Bearer {{studentaccessToken}}"
                   }
                 ],
                 "url": "{{baseUrl}}/api/student/notifications/{{notificationId}}/read"
@@ -3626,7 +4546,7 @@
                 "header": [
                   {
                     "key": "Authorization",
-                    "value": "Bearer {{accessToken}}"
+                    "value": "Bearer {{studentaccessToken}}"
                   }
                 ],
                 "url": "{{baseUrl}}/api/student/dashboard"
@@ -3640,7 +4560,7 @@
                 "header": [
                   {
                     "key": "Authorization",
-                    "value": "Bearer {{accessToken}}"
+                    "value": "Bearer {{studentaccessToken}}"
                   }
                 ],
                 "url": "{{baseUrl}}/api/student/timetable"
@@ -3654,7 +4574,7 @@
                 "header": [
                   {
                     "key": "Authorization",
-                    "value": "Bearer {{accessToken}}"
+                    "value": "Bearer {{studentaccessToken}}"
                   }
                 ],
                 "url": "{{baseUrl}}/api/student/timetable?week=2025-W28"
@@ -3673,7 +4593,7 @@
                 "header": [
                   {
                     "key": "Authorization",
-                    "value": "Bearer {{accessToken}}"
+                    "value": "Bearer {{studentaccessToken}}"
                   }
                 ],
                 "url": "{{baseUrl}}/api/student/terms"
@@ -3687,7 +4607,7 @@
                 "header": [
                   {
                     "key": "Authorization",
-                    "value": "Bearer {{accessToken}}"
+                    "value": "Bearer {{studentaccessToken}}"
                   }
                 ],
                 "url": "{{baseUrl}}/api/student/academics?page=1&limit=20"
@@ -3701,7 +4621,7 @@
                 "header": [
                   {
                     "key": "Authorization",
-                    "value": "Bearer {{accessToken}}"
+                    "value": "Bearer {{studentaccessToken}}"
                   }
                 ],
                 "url": "{{baseUrl}}/api/student/academics?termId={{termId}}&page=1&limit=20"
@@ -3720,7 +4640,7 @@
                 "header": [
                   {
                     "key": "Authorization",
-                    "value": "Bearer {{accessToken}}"
+                    "value": "Bearer {{studentaccessToken}}"
                   }
                 ],
                 "url": "{{baseUrl}}/api/student/assignments?page=1&limit=20"
@@ -3734,7 +4654,7 @@
                 "header": [
                   {
                     "key": "Authorization",
-                    "value": "Bearer {{accessToken}}"
+                    "value": "Bearer {{studentaccessToken}}"
                   }
                 ],
                 "url": "{{baseUrl}}/api/student/assignments?status=pending&page=1&limit=10"
@@ -3748,7 +4668,7 @@
                 "header": [
                   {
                     "key": "Authorization",
-                    "value": "Bearer {{accessToken}}"
+                    "value": "Bearer {{studentaccessToken}}"
                   }
                 ],
                 "url": "{{baseUrl}}/api/student/assignments?status=submitted&page=1&limit=20"
@@ -3762,7 +4682,7 @@
                 "header": [
                   {
                     "key": "Authorization",
-                    "value": "Bearer {{accessToken}}"
+                    "value": "Bearer {{studentaccessToken}}"
                   }
                 ],
                 "url": "{{baseUrl}}/api/student/assignments?status=graded&page=1&limit=20"
@@ -3776,7 +4696,7 @@
                 "header": [
                   {
                     "key": "Authorization",
-                    "value": "Bearer {{accessToken}}"
+                    "value": "Bearer {{studentaccessToken}}"
                   }
                 ],
                 "url": "{{baseUrl}}/api/student/assignments?status=overdue&page=1&limit=20"
@@ -3790,7 +4710,7 @@
                 "header": [
                   {
                     "key": "Authorization",
-                    "value": "Bearer {{accessToken}}"
+                    "value": "Bearer {{studentaccessToken}}"
                   }
                 ],
                 "url": "{{baseUrl}}/api/student/assignments/{{assignmentId}}"
@@ -3808,12 +4728,12 @@
                   },
                   {
                     "key": "Authorization",
-                    "value": "Bearer {{accessToken}}"
+                    "value": "Bearer {{studentaccessToken}}"
                   }
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"textResponse\": \"My essay response here...\",\n  \"attachments\": [\n    {\n      \"fileId\": \"uuid-1\",\n      \"fileName\": \"essay.pdf\",\n      \"fileUrl\": \"https://res.cloudinary.com/.../essay.pdf\",\n      \"mimeType\": \"application/pdf\"\n    }\n  ]\n}",
+                  "raw": "{\n  \"textResponse\": \"My essay response here...\",\n  \"attachments\": [\n    {\n      \"fileId\": \"uuid-1\",\n      \"fileName\": \"essay.pdf\",\n      \"fileUrl\": \"https://cloudinary.com/.../essay.pdf\",\n      \"mimeType\": \"application/pdf\"\n    }\n  ]\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -3836,7 +4756,7 @@
                 "header": [
                   {
                     "key": "Authorization",
-                    "value": "Bearer {{accessToken}}"
+                    "value": "Bearer {{studentaccessToken}}"
                   }
                 ],
                 "url": "{{baseUrl}}/api/student/teachers?page=1&limit=20"
@@ -3850,7 +4770,7 @@
                 "header": [
                   {
                     "key": "Authorization",
-                    "value": "Bearer {{accessToken}}"
+                    "value": "Bearer {{studentaccessToken}}"
                   }
                 ],
                 "url": "{{baseUrl}}/api/student/teachers?search=okonkwo&page=1&limit=20"
@@ -3869,7 +4789,7 @@
                 "header": [
                   {
                     "key": "Authorization",
-                    "value": "Bearer {{accessToken}}"
+                    "value": "Bearer {{studentaccessToken}}"
                   }
                 ],
                 "url": "{{baseUrl}}/api/student/profile"
@@ -3887,12 +4807,12 @@
                   },
                   {
                     "key": "Authorization",
-                    "value": "Bearer {{accessToken}}"
+                    "value": "Bearer {{studentaccessToken}}"
                   }
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"phone\": \"+2348023456789\",\n  \"address\": \"14 Palm Avenue, Ikeja, Lagos\",\n  \"avatarUrl\": \"https://res.cloudinary.com/.../avatar.jpg\"\n}",
+                  "raw": "{\n  \"phone\": \"+2348023456789\",\n  \"address\": \"14 Palm Avenue, Ikeja, Lagos\",\n  \"avatarUrl\": \"https://cloudinary.com/.../avatar.jpg\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -3910,7 +4830,7 @@
                 "header": [
                   {
                     "key": "Authorization",
-                    "value": "Bearer {{accessToken}}"
+                    "value": "Bearer {{studentaccessToken}}"
                   }
                 ],
                 "url": "{{baseUrl}}/api/student/activity?page=1&limit=20"
@@ -3929,7 +4849,7 @@
                 "header": [
                   {
                     "key": "Authorization",
-                    "value": "Bearer {{accessToken}}"
+                    "value": "Bearer {{studentaccessToken}}"
                   }
                 ],
                 "url": "{{baseUrl}}/api/student/settings"
@@ -3947,7 +4867,7 @@
                   },
                   {
                     "key": "Authorization",
-                    "value": "Bearer {{accessToken}}"
+                    "value": "Bearer {{studentaccessToken}}"
                   }
                 ],
                 "body": {
@@ -3974,7 +4894,7 @@
                   },
                   {
                     "key": "Authorization",
-                    "value": "Bearer {{accessToken}}"
+                    "value": "Bearer {{studentaccessToken}}"
                   }
                 ],
                 "body": {
@@ -4683,6 +5603,21 @@
       "type": "string"
     },
     {
+      "key": "teacheraccessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "studentaccessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "parentaccessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
       "key": "systemAdminToken",
       "value": "",
       "type": "string"
@@ -4713,6 +5648,11 @@
       "type": "string"
     },
     {
+      "key": "studentId2",
+      "value": "",
+      "type": "string"
+    },
+    {
       "key": "parentId",
       "value": "",
       "type": "string"
@@ -4724,6 +5664,26 @@
     },
     {
       "key": "gradeId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "entryId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "jobId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "scheduleId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "attendanceId",
       "value": "",
       "type": "string"
     },
@@ -4809,6 +5769,56 @@
     },
     {
       "key": "assignmentId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "notificationId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "assignmentId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "studentId1",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "studentId2",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "subjectId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "subjectId1",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "subjectId2",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "sourceArmId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "targetArmId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "yearId",
       "value": "",
       "type": "string"
     }

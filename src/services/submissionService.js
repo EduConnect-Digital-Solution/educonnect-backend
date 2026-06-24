@@ -42,10 +42,7 @@ const getMatrix = async (schoolId, termId) => {
       status: true,
       teacherId: true,
       updatedAt: true,
-      teacher: { select: { firstName: true, lastName: true } },
-      entries: {
-        select: { studentId: true, caScores: true, examScore: true, remark: true }
-      }
+      teacher: { select: { firstName: true, lastName: true } }
     }
   });
 
@@ -55,23 +52,52 @@ const getMatrix = async (schoolId, termId) => {
     sheetMap[key] = sheet;
   }
 
+  const classIds = [...new Set(arms.map(a => a.classId))];
+  const classNames = await prisma.class.findMany({
+    where: { id: { in: classIds } },
+    select: { id: true, name: true }
+  });
+  const classNameMap = {};
+  for (const c of classNames) classNameMap[c.id] = c.name;
+
+  const entryAggs = await prisma.assessmentEntry.groupBy({
+    by: ['className', 'subjectName'],
+    where: { schoolId, termId, className: { in: classNames.map(c => c.name) } },
+    _count: { id: true },
+    _max: { updatedAt: true }
+  });
+  const entryKey = (cn, sn) => `${cn}:${sn}`;
+  const entryMap = {};
+  for (const agg of entryAggs) {
+    entryMap[entryKey(agg.className, agg.subjectName)] = {
+      count: agg._count.id,
+      lastUpdated: agg._max.updatedAt
+    };
+  }
+
+  const mapStatus = (sheet) => {
+    if (!sheet) return 'not_started';
+    const legacyMap = { draft: 'in_progress', submitted: 'in_progress', returned: 'in_progress', approved: 'completed' };
+    return legacyMap[sheet.status] || 'in_progress';
+  };
+
   const matrix = arms.map(arm => {
     const subjects = (arm.armSubjects || []).map(armSubject => {
       const key = `${arm.classId}:${armSubject.subject.id}`;
       const sheet = sheetMap[key];
+      const cn = classNameMap[arm.classId] || arm.class.name;
+      const ek = entryKey(cn, armSubject.subject.name);
+      const agg = entryMap[ek];
+
+      const status = agg && agg.count > 0 ? 'in_progress' : mapStatus(sheet);
+
       return {
         subjectId: armSubject.subject.id,
         subjectName: armSubject.subject.name,
-        sheetId: sheet?.id || null,
-        status: sheet?.status || 'not_started',
         teacherName: sheet ? `${sheet.teacher.firstName} ${sheet.teacher.lastName}` : null,
-        updatedAt: sheet?.updatedAt || null,
-        entries: sheet?.entries?.map(e => ({
-          studentId: e.studentId,
-          caScores: e.caScores,
-          examScore: e.examScore,
-          remark: e.remark ?? null
-        })) || null
+        status,
+        entryCount: agg ? agg.count : 0,
+        lastUpdated: agg?.lastUpdated || sheet?.updatedAt || null
       };
     });
 
@@ -83,7 +109,7 @@ const getMatrix = async (schoolId, termId) => {
     };
   });
 
-  const counts = { total: 0, approved: 0, submitted: 0, draft: 0, returned: 0, not_started: 0 };
+  const counts = { total: 0, completed: 0, in_progress: 0, not_started: 0 };
   for (const arm of matrix) {
     for (const subj of arm.subjects) {
       counts.total++;

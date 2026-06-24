@@ -218,6 +218,9 @@ const broadsheetRoutes = require('./routes/broadsheetRoutes');
 // Report Card & Result Publishing routes
 const reportCardRoutes = require('./routes/reportCardRoutes');
 
+// Assessment Entry routes
+const assessmentEntryRoutes = require('./routes/assessmentEntryRoutes');
+
 // Teacher Attendance routes
 const teacherAttendanceRoutes = require('./routes/teacherAttendance');
 
@@ -283,6 +286,9 @@ app.use('/api/admin', broadsheetRoutes);
 
 // Report Card & Result Publishing routes
 app.use('/api/admin', reportCardRoutes);
+
+// Assessment Entry routes (teacher + admin)
+app.use('/api', assessmentEntryRoutes);
 
 // Teacher Attendance routes
 app.use('/api/teacher', teacherAttendanceRoutes);
