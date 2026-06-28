@@ -62,11 +62,20 @@ const validateGradingActivity = [
   handleValidationErrors
 ];
 
+const validateSubjectScores = [
+  query('className').notEmpty().withMessage('className is required'),
+  query('armName').notEmpty().withMessage('armName is required'),
+  query('subjectName').notEmpty().withMessage('subjectName is required'),
+  query('termId').notEmpty().withMessage('termId is required'),
+  handleValidationErrors
+];
+
 module.exports = {
   validateListEntries,
   validateCreateEntry,
   validateUpdateEntry,
   validateEntryId,
   validateSaveScores,
-  validateGradingActivity
+  validateGradingActivity,
+  validateSubjectScores
 };

@@ -315,11 +315,165 @@ const getGradingActivity = async (schoolId, className, armName, subjectName, ter
   };
 };
 
+const getSubjectScores = async (schoolId, className, armName, subjectName, termId) => {
+  const classRecord = await prisma.class.findFirst({
+    where: { schoolId, name: className, isActive: true }
+  });
+  if (!classRecord) throw new Error('Class not found');
+
+  const subjectRecord = await prisma.subject.findFirst({
+    where: { schoolId, name: subjectName, isActive: true }
+  });
+  if (!subjectRecord) throw new Error('Subject not found');
+
+  const arm = await prisma.arm.findFirst({
+    where: { classId: classRecord.id, name: armName, isActive: true }
+  });
+  if (!arm) throw new Error('Arm not found');
+
+  const policy = await getEffectivePolicyForEntry(schoolId, className, subjectName);
+
+  const students = await prisma.student.findMany({
+    where: { armId: arm.id, schoolId, isActive: true, isEnrolled: true },
+    orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }]
+  });
+
+  const entries = await prisma.assessmentEntry.findMany({
+    where: { schoolId, className, subjectName, termId },
+    include: { scores: true },
+    orderBy: { createdAt: 'desc' }
+  });
+
+  const componentEntries = {};
+  entries.forEach(entry => {
+    const key = entry.policyComponentId;
+    if (!componentEntries[key]) componentEntries[key] = [];
+    componentEntries[key].push(entry);
+  });
+
+  const caComponents = policy.components.map(c => {
+    const compEntries = entries.filter(e => e.policyComponentId === c.id);
+    const usedPoints = compEntries.reduce((sum, e) => sum + e.contributionPoints, 0);
+    return { id: c.id, name: c.name, maxScore: c.maxScore, usedPoints };
+  });
+  const examEntries = entries.filter(e => e.componentType === 'exam');
+  const examUsedPoints = examEntries.reduce((sum, e) => sum + e.contributionPoints, 0);
+
+  const allComplete = caComponents.every(c => c.usedPoints === c.maxScore)
+    && examUsedPoints === policy.examMax;
+  const overallStatus = entries.length === 0 ? 'not_started'
+    : allComplete ? 'completed' : 'in_progress';
+
+  const totalMaxScore = policy.components.reduce((sum, c) => sum + c.maxScore, 0) + policy.examMax;
+
+  const studentScores = students.map(student => {
+    const scores = {};
+    let total = 0;
+    let mostRecentAssessment = null;
+    let hasAnyScore = false;
+
+    policy.components.forEach(comp => {
+      const compEntryList = componentEntries[comp.id] || [];
+      let studentCompScore = 0;
+      let mostRecentForComp = null;
+
+      compEntryList.forEach(entry => {
+        const sr = entry.scores.find(s => s.studentId === student.id);
+        if (sr) {
+          hasAnyScore = true;
+          studentCompScore += sr.scoreObtained;
+          if (!mostRecentForComp || entry.createdAt > mostRecentForComp.createdAt) {
+            mostRecentForComp = entry;
+          }
+        }
+      });
+
+      scores[comp.id] = hasAnyScore ? studentCompScore : null;
+
+      if (mostRecentForComp && (!mostRecentAssessment || mostRecentForComp.createdAt > mostRecentAssessment.createdAt)) {
+        mostRecentAssessment = {
+          title: mostRecentForComp.title,
+          score: studentCompScore,
+          maxScore: comp.maxScore,
+          date: mostRecentForComp.createdAt
+        };
+      }
+
+      const compScore = scores[comp.id] !== null ? scores[comp.id] : 0;
+      total += compScore;
+    });
+
+    const examEntryList = componentEntries['exam'] || [];
+    let studentExamScore = 0;
+    let mostRecentExam = null;
+    examEntryList.forEach(entry => {
+      const sr = entry.scores.find(s => s.studentId === student.id);
+      if (sr) {
+        hasAnyScore = true;
+        studentExamScore += sr.scoreObtained;
+        if (!mostRecentExam || entry.createdAt > mostRecentExam.createdAt) {
+          mostRecentExam = entry;
+        }
+      }
+    });
+    scores['exam'] = hasAnyScore ? studentExamScore : null;
+
+    if (mostRecentExam && (!mostRecentAssessment || mostRecentExam.createdAt > mostRecentAssessment.createdAt)) {
+      mostRecentAssessment = {
+        title: mostRecentExam.title,
+        score: studentExamScore,
+        maxScore: policy.examMax,
+        date: mostRecentExam.createdAt
+      };
+    }
+
+    total += studentExamScore;
+
+    let grade = 'Pending';
+    if (overallStatus === 'completed') {
+      const percentage = totalMaxScore > 0 ? (total / totalMaxScore) * 100 : 0;
+      grade = percentage >= 75 ? 'A'
+        : percentage >= 65 ? 'B'
+        : percentage >= 50 ? 'C'
+        : percentage >= 40 ? 'D'
+        : 'F';
+    }
+
+    return {
+      id: student.id,
+      name: `${student.firstName} ${student.lastName}`,
+      admissionNo: student.studentId,
+      gender: student.gender,
+      scores,
+      mostRecentAssessment: hasAnyScore ? mostRecentAssessment : null,
+      total,
+      grade
+    };
+  });
+
+  const studentsWithScores = studentScores.filter(s => s.mostRecentAssessment !== null);
+  const averageScore = studentsWithScores.length > 0
+    ? Math.round((studentsWithScores.reduce((sum, s) => sum + s.total, 0) / studentsWithScores.length) * 100) / 100
+    : 0;
+
+  return {
+    overallStatus,
+    studentCount: students.length,
+    averageScore,
+    policy: {
+      caComponents: policy.components.map(c => ({ id: c.id, name: c.name, maxScore: c.maxScore })),
+      examMax: policy.examMax
+    },
+    students: studentScores
+  };
+};
+
 module.exports = {
   listEntries,
   createEntry,
   updateEntry,
   deleteEntry,
   saveScores,
-  getGradingActivity
+  getGradingActivity,
+  getSubjectScores
 };

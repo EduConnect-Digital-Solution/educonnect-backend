@@ -2376,6 +2376,20 @@
             "url": "{{baseUrl}}/api/admin/grading-activity?className=SSS2&armName=A&subjectName=Mathematics&termId={{termId}}"
           },
           "response": []
+        },
+        {
+          "name": "Get Subject Scores",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/grading/subject-scores?className=SSS2&armName=A&subjectName=Mathematics&termId={{termId}}"
+          },
+          "response": []
         }
       ]
     },
