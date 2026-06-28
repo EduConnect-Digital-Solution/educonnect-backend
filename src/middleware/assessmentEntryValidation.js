@@ -64,7 +64,7 @@ const validateGradingActivity = [
 
 const validateSubjectScores = [
   query('className').notEmpty().withMessage('className is required'),
-  query('armName').notEmpty().withMessage('armName is required'),
+  query('armName').optional({ values: 'falsy' }),
   query('subjectName').notEmpty().withMessage('subjectName is required'),
   query('termId').notEmpty().withMessage('termId is required'),
   handleValidationErrors

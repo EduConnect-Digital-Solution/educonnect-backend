@@ -326,15 +326,23 @@ const getSubjectScores = async (schoolId, className, armName, subjectName, termI
   });
   if (!subjectRecord) throw new Error('Subject not found');
 
-  const arm = await prisma.arm.findFirst({
-    where: { classId: classRecord.id, name: armName, isActive: true }
-  });
-  if (!arm) throw new Error('Arm not found');
+  if (armName) {
+    const arm = await prisma.arm.findFirst({
+      where: { classId: classRecord.id, name: armName, isActive: true }
+    });
+    if (!arm) throw new Error('Arm not found');
+  }
 
   const policy = await getEffectivePolicyForEntry(schoolId, className, subjectName);
 
   const students = await prisma.student.findMany({
-    where: { armId: arm.id, schoolId, isActive: true, isEnrolled: true },
+    where: {
+      schoolId, isActive: true, isEnrolled: true,
+      classId: classRecord.id,
+      ...(armName ? {
+        arm: { name: armName }
+      } : {})
+    },
     orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }]
   });
 
@@ -376,11 +384,13 @@ const getSubjectScores = async (schoolId, className, armName, subjectName, termI
       const compEntryList = componentEntries[comp.id] || [];
       let studentCompScore = 0;
       let mostRecentForComp = null;
+      let hasCompScore = false;
 
       compEntryList.forEach(entry => {
         const sr = entry.scores.find(s => s.studentId === student.id);
         if (sr) {
           hasAnyScore = true;
+          hasCompScore = true;
           studentCompScore += sr.scoreObtained;
           if (!mostRecentForComp || entry.createdAt > mostRecentForComp.createdAt) {
             mostRecentForComp = entry;
@@ -388,7 +398,7 @@ const getSubjectScores = async (schoolId, className, armName, subjectName, termI
         }
       });
 
-      scores[comp.id] = hasAnyScore ? studentCompScore : null;
+      scores[comp.id] = hasCompScore ? studentCompScore : null;
 
       if (mostRecentForComp && (!mostRecentAssessment || mostRecentForComp.createdAt > mostRecentAssessment.createdAt)) {
         mostRecentAssessment = {
@@ -406,17 +416,19 @@ const getSubjectScores = async (schoolId, className, armName, subjectName, termI
     const examEntryList = componentEntries['exam'] || [];
     let studentExamScore = 0;
     let mostRecentExam = null;
+    let hasExamScore = false;
     examEntryList.forEach(entry => {
       const sr = entry.scores.find(s => s.studentId === student.id);
       if (sr) {
         hasAnyScore = true;
+        hasExamScore = true;
         studentExamScore += sr.scoreObtained;
         if (!mostRecentExam || entry.createdAt > mostRecentExam.createdAt) {
           mostRecentExam = entry;
         }
       }
     });
-    scores['exam'] = hasAnyScore ? studentExamScore : null;
+    scores['exam'] = hasExamScore ? studentExamScore : null;
 
     if (mostRecentExam && (!mostRecentAssessment || mostRecentExam.createdAt > mostRecentAssessment.createdAt)) {
       mostRecentAssessment = {
