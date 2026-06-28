@@ -326,22 +326,22 @@ const getSubjectScores = async (schoolId, className, armName, subjectName, termI
   });
   if (!subjectRecord) throw new Error('Subject not found');
 
-  if (armName) {
-    const arm = await prisma.arm.findFirst({
-      where: { classId: classRecord.id, name: armName, isActive: true }
-    });
-    if (!arm) throw new Error('Arm not found');
-  }
-
   const policy = await getEffectivePolicyForEntry(schoolId, className, subjectName);
+
+  const targetArms = armName
+    ? await prisma.arm.findMany({ where: { classId: classRecord.id, name: armName, isActive: true } })
+    : await prisma.arm.findMany({ where: { classId: classRecord.id, isActive: true } });
+  if (targetArms.length === 0) throw new Error('Arm not found');
+
+  const armIds = targetArms.map(a => a.id);
 
   const students = await prisma.student.findMany({
     where: {
       schoolId, isActive: true, isEnrolled: true,
-      classId: classRecord.id,
-      ...(armName ? {
-        arm: { name: armName }
-      } : {})
+      OR: [
+        { armId: { in: armIds } },
+        { classId: classRecord.id }
+      ]
     },
     orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }]
   });
