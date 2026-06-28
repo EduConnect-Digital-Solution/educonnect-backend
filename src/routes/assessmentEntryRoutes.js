@@ -7,7 +7,8 @@ const {
   validateUpdateEntry,
   validateEntryId,
   validateSaveScores,
-  validateGradingActivity
+  validateGradingActivity,
+  validateSubjectScores
 } = require('../middleware/assessmentEntryValidation');
 const { authenticateToken } = require('../middleware/auth');
 const { requireRole } = require('../middleware/rbac');
@@ -27,5 +28,6 @@ router.use('/admin', authenticateToken);
 router.use('/admin', requireRole(['admin']));
 
 router.get('/admin/grading-activity', validateGradingActivity, controller.gradingActivity);
+router.get('/admin/grading/subject-scores', validateSubjectScores, controller.subjectScores);
 
 module.exports = router;

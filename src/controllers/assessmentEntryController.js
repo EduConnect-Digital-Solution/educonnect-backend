@@ -112,4 +112,20 @@ const gradingActivity = async (req, res) => {
   }
 };
 
-module.exports = { list, create, update, remove, saveScores, gradingActivity };
+const subjectScores = async (req, res) => {
+  try {
+    const { schoolId } = req.user;
+    const { className, armName, subjectName, termId } = req.query;
+
+    const data = await entryService.getSubjectScores(schoolId, className, armName, subjectName, termId);
+    res.json({ success: true, data });
+  } catch (error) {
+    logger.error('Error fetching subject scores:', error);
+    if (error.message.includes('not found') || error.message.includes('No assessment policy')) {
+      return res.status(404).json({ success: false, message: error.message });
+    }
+    res.status(500).json({ success: false, message: error.message || 'Failed to fetch subject scores' });
+  }
+};
+
+module.exports = { list, create, update, remove, saveScores, gradingActivity, subjectScores };
