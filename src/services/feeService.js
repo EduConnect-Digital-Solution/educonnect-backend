@@ -40,9 +40,34 @@ const getFeeStructures = async (schoolId, { academicYearId, termId, classId, sta
 };
 
 const getFeeStructureById = async (id, schoolId) => {
-  const feeStructure = await prisma.feeStructure.findFirst({ where: { id, schoolId, isActive: true } });
+  const feeStructure = await prisma.feeStructure.findFirst({
+    where: { id, schoolId, isActive: true },
+    include: {
+      class: { select: { id: true, name: true } },
+      arm: { select: { id: true, name: true } }
+    }
+  });
   if (!feeStructure) throw new Error('Fee structure not found');
-  return { feeStructure };
+
+  let termName = null;
+  if (feeStructure.termId) {
+    const term = await prisma.academicTerm.findUnique({
+      where: { id: feeStructure.termId },
+      select: { name: true }
+    });
+    termName = term ? term.name : null;
+  }
+
+  return {
+    feeStructure: {
+      ...feeStructure,
+      termName,
+      className: feeStructure.class ? feeStructure.class.name : null,
+      armName: feeStructure.arm ? feeStructure.arm.name : null,
+      class: undefined,
+      arm: undefined
+    }
+  };
 };
 
 const createFeeStructure = async (schoolId, data, userId) => {
