@@ -82,6 +82,10 @@ if (process.env.NODE_ENV !== 'development') {
   logger.info('🚧 Rate limiting disabled for development');
 }
 
+// Paystack webhook (must be mounted before express.json to preserve raw body for signature verification)
+const paystackWebhookRoutes = require('./routes/paystackWebhook');
+app.use('/api/fees/paystack/webhook', paystackWebhookRoutes);
+
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));

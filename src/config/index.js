@@ -18,6 +18,12 @@ const config = {
     fromEmail: process.env.FROM_EMAIL || 'noreply@educonnect.com'
   },
 
+  paystack: {
+    secretKey: process.env.PAYSTACK_SECRET_KEY,
+    publicKey: process.env.PAYSTACK_PUBLIC_KEY,
+    isConfigured: !!process.env.PAYSTACK_SECRET_KEY
+  },
+
   supabase: {
     url: process.env.SUPABASE_URL || `https://${process.env.POSTGRES_HOST?.replace(/^https?:\/\//, '').replace(/\/.*$/, '') || 'localhost'}`,
     serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,

@@ -161,7 +161,7 @@ const initializePayment = async (req, res) => {
   const err = handleValidation(req, res);
   if (err) return;
   try {
-    const result = await feeService.initializePayment(req.params.invoiceId, req.user.schoolId, req.body);
+    const result = await feeService.initializePayment(req.params.invoiceId, req.user.schoolId, req.body, req.user.id);
     res.json({ success: true, message: 'Payment initialized', data: result });
   } catch (error) { handleError(res, error, 'initializePayment'); }
 };
