@@ -1,5 +1,7 @@
+const crypto = require('crypto');
 const { prisma } = require('../config/database');
 const logger = require('../utils/logger');
+const paystackService = require('./paystackService');
 
 const AMOUNT_MULTIPLIER = 100;
 
@@ -583,62 +585,161 @@ const recordPayment = async (invoiceId, schoolId, data, userId) => {
   return { payment: { id: payment.id, invoiceId, amount, method: paymentMethod, referenceNumber, receiptNumber: receiptNum, paidAt: payment.paidAt, status: payment.status }, invoice: { id: invoiceId, status: newStatus, amountPaid: newAmountPaid, amountDue: newAmountDue } };
 };
 
-const initializePayment = async (invoiceId, schoolId, data) => {
+const initializePayment = async (invoiceId, schoolId, data, userId) => {
   const invoice = await prisma.feeInvoice.findFirst({ where: { id: invoiceId, schoolId, isActive: true } });
   if (!invoice) throw new Error('Invoice not found');
+  if (invoice.status === 'void') throw new Error('Cannot pay a voided invoice');
+  if (invoice.status === 'paid') throw new Error('Invoice is already fully paid');
 
   const { gateway, amount, email, callbackUrl } = data;
+  if (gateway !== 'paystack') throw new Error(`Gateway "${gateway}" is not supported yet`);
+  if (amount > invoice.amountDue) throw new Error('Payment amount exceeds the amount due');
 
-  const mockRef = `psk_ref_${Date.now()}`;
-  const mockAuthUrl = `https://checkout.${gateway}.com/${mockRef}`;
+  const reference = `psk_${crypto.randomUUID().replace(/-/g, '').slice(0, 32)}`;
 
-  return { authorizationUrl: mockAuthUrl, reference: mockRef, accessCode: `ac_${Date.now().toString(36)}`, gateway };
+  const initialized = await paystackService.initializeTransaction({
+    email,
+    amount,
+    reference,
+    callbackUrl: callbackUrl || process.env.FRONTEND_URL || 'https://educonnect.com.ng',
+    metadata: {
+      schoolId,
+      invoiceId: invoice.id,
+      invoiceNumber: invoice.invoiceNumber,
+      invoiceAmount: invoice.amount,
+      initiatedBy: userId
+    }
+  });
+
+  const payment = await prisma.feePayment.create({
+    data: {
+      schoolId,
+      invoiceId,
+      amount,
+      paymentMethod: 'card',
+      gateway,
+      gatewayReference: initialized.reference || reference,
+      authorizationUrl: initialized.authorization_url,
+      accessCode: initialized.access_code,
+      referenceNumber: initialized.reference || reference,
+      note: `Gateway payment initialized for ${email}`,
+      status: 'pending',
+      receivedBy: userId
+    }
+  });
+
+  return {
+    authorizationUrl: initialized.authorization_url,
+    accessCode: initialized.access_code,
+    reference: initialized.reference || reference,
+    gateway,
+    paymentId: payment.id
+  };
 };
 
-const verifyPayment = async (data) => {
-  const { reference, gateway } = data;
-
-  const payment = await prisma.feePayment.findFirst({ where: { gatewayReference: reference } });
-  if (!payment) throw new Error('Payment not found for this reference');
-
+const confirmGatewayPayment = async (payment) => {
   if (payment.status === 'confirmed') {
-    return { status: 'confirmed', payment: { reference, gateway, amount: payment.amount } };
+    return payment;
   }
 
-  const mockSuccess = true;
+  return prisma.$transaction(async (tx) => {
+    const current = await tx.feePayment.findUnique({ where: { id: payment.id } });
+    if (!current) throw new Error('Payment not found');
+    if (current.status === 'confirmed') return current;
 
-  if (mockSuccess) {
-    await prisma.feePayment.update({ where: { id: payment.id }, data: { status: 'confirmed' } });
+    const invoice = await tx.feeInvoice.findUnique({ where: { id: current.invoiceId } });
+    if (!invoice) throw new Error('Invoice not found');
 
-    const invoice = await prisma.feeInvoice.findUnique({ where: { id: payment.invoiceId } });
-    const newAmountPaid = invoice.amountPaid + payment.amount;
+    const newAmountPaid = invoice.amountPaid + current.amount;
     const newAmountDue = invoice.amount - newAmountPaid;
     const newStatus = newAmountDue <= 0 ? 'paid' : 'partial';
 
-    await prisma.feeInvoice.update({
-      where: { id: payment.invoiceId },
+    const paymentCount = await tx.feePayment.count({ where: { invoiceId: invoice.id } });
+    const receiptNum = generateReceiptNumber(paymentCount + 1);
+
+    const updated = await tx.feePayment.update({
+      where: { id: current.id },
+      data: { status: 'confirmed', paidAt: new Date(), receiptNumber: receiptNum }
+    });
+
+    await tx.feeInvoice.update({
+      where: { id: invoice.id },
       data: { amountPaid: newAmountPaid, amountDue: newAmountDue, status: newStatus }
     });
 
-    await prisma.feeLedgerEntry.create({
+    await tx.feeLedgerEntry.create({
       data: {
         schoolId: invoice.schoolId,
         studentId: invoice.studentId,
         type: 'credit',
-        amount: payment.amount,
+        amount: current.amount,
         balance: newAmountDue,
-        description: `Gateway payment (${gateway}) ${reference}`,
-        reference: payment.id,
+        description: `Gateway payment (${current.gateway}) ${current.gatewayReference}`,
+        reference: current.id,
         account: 'receivable',
         entryDate: new Date()
       }
     });
 
-    return { status: 'confirmed', payment: { reference, gateway, amount: payment.amount } };
+    return updated;
+  });
+};
+
+const verifyPayment = async (data) => {
+  const { reference, gateway } = data;
+  const payment = await prisma.feePayment.findFirst({ where: { gatewayReference: reference } });
+  if (!payment) throw new Error('Payment not found for this reference');
+
+  if (gateway === 'paystack') {
+    const tx = await paystackService.verifyTransaction(reference);
+
+    if (tx.status === 'success') {
+      if (tx.amount && tx.amount !== payment.amount) {
+        throw new Error('Payment amount mismatch with Paystack record');
+      }
+      const confirmed = await confirmGatewayPayment(payment);
+      return {
+        status: 'confirmed',
+        payment: {
+          reference,
+          gateway,
+          amount: confirmed.amount,
+          receiptNumber: confirmed.receiptNumber,
+          paidAt: confirmed.paidAt
+        }
+      };
+    }
+
+    await prisma.feePayment.update({ where: { id: payment.id }, data: { status: 'failed' } });
+    return { status: 'failed', payment: { reference, gateway, amount: payment.amount } };
   }
 
-  await prisma.feePayment.update({ where: { id: payment.id }, data: { status: 'failed' } });
-  return { status: 'failed', payment: { reference, gateway, amount: payment.amount } };
+  throw new Error(`Gateway "${gateway}" is not supported yet`);
+};
+
+const handlePaystackWebhook = async (event) => {
+  const { event: eventType, data } = event;
+  logger.info('Paystack webhook received', { event: eventType, reference: data && data.reference });
+
+  if (eventType === 'charge.success') {
+    const reference = data.reference;
+    const payment = await prisma.feePayment.findFirst({
+      where: { gatewayReference: reference, gateway: 'paystack' }
+    });
+    if (!payment) {
+      logger.warn('Paystack webhook: no payment found for reference', reference);
+      return { handled: true };
+    }
+
+    if (data.amount && data.amount !== payment.amount) {
+      logger.error('Paystack webhook: amount mismatch', { reference, expected: payment.amount, received: data.amount });
+      throw new Error('Amount mismatch in Paystack webhook');
+    }
+
+    await confirmGatewayPayment(payment);
+  }
+
+  return { handled: true };
 };
 
 const getPaymentHistory = async (invoiceId, schoolId) => {
@@ -1096,6 +1197,8 @@ module.exports = {
   recordPayment,
   initializePayment,
   verifyPayment,
+  confirmGatewayPayment,
+  handlePaystackWebhook,
   getPaymentHistory,
   getAllPayments,
   applyAdjustment,

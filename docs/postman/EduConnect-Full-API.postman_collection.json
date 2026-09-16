@@ -5314,6 +5314,33 @@
               "response": []
             },
             {
+              "name": "Paystack Webhook (charge.success)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-paystack-signature",
+                    "value": "{{paystackSignature}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"event\": \"charge.success\",\n  \"data\": {\n    \"reference\": \"{{paystackReference}}\",\n    \"amount\": 250000,\n    \"status\": \"success\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{baseUrl}}/api/fees/paystack/webhook"
+              },
+              "response": []
+            },
+            {
               "name": "Get Payment History (by Invoice)",
               "request": {
                 "method": "GET",
@@ -5753,6 +5780,16 @@
     },
     {
       "key": "paymentId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "paystackReference",
+      "value": "psk_",
+      "type": "string"
+    },
+    {
+      "key": "paystackSignature",
       "value": "",
       "type": "string"
     },
