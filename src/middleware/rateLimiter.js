@@ -185,6 +185,10 @@ const skipRateLimit = (req) => {
   // Skip rate limiting for health checks
   if (req.path === '/health') return true;
 
+  // Payment provider webhooks deliver bursts of retries; throttling them
+  // would delay settlement. They authenticate with a signature, not a token.
+  if (req.path === '/api/fees/nexapay/webhook' || req.path === '/api/fees/paystack/webhook') return true;
+
   // Skip for localhost in development
   if (process.env.NODE_ENV === 'development' && req.ip === '127.0.0.1') return true;
 

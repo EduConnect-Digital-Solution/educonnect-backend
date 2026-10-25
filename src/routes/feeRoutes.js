@@ -2,7 +2,17 @@ const express = require('express');
 const router = express.Router();
 const feeController = require('../controllers/feeController');
 const { authenticate, authorize } = require('../middleware/authMiddleware');
+const { requireRole, preventCrossSchoolAccess } = require('../middleware/rbac');
 const validation = require('../middleware/feeValidation');
+const nexapayValidation = require('../middleware/nexapayValidation');
+const { createCustomLimiter } = require('../middleware/rateLimiter');
+
+// Each self-service payment call can reach NexaPay, so cap it per client.
+const payerLimiter = createCustomLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  message: 'Too many payment requests, please try again later.'
+});
 
 router.use(authenticate);
 
@@ -53,5 +63,17 @@ router.get('/reports/collections', authorize('fees.read'), validation.validateGe
 router.get('/reconciliation', authorize('fees.admin'), validation.validateGetReconciliation, feeController.getReconciliation);
 router.post('/reconciliation/import', authorize('fees.admin'), validation.validateImportSettlements, feeController.importSettlements);
 router.post('/reconciliation/match', authorize('fees.admin'), validation.validateReconcileTransaction, feeController.reconcileTransaction);
+
+// I. NexaPay gateway configuration (admin only)
+// The school is taken from the authenticated session. Only a system admin may
+// target another school, and then it has to name one explicitly.
+router.get('/gateway/nexapay/config', requireRole(['admin']), preventCrossSchoolAccess, nexapayValidation.validateGetNexaPayConfig, feeController.getNexaPayConfig);
+router.put('/gateway/nexapay/config', requireRole(['admin']), preventCrossSchoolAccess, nexapayValidation.validateUpsertNexaPayConfig, feeController.upsertNexaPayConfig);
+
+// J. Parent / student self-service (NexaPay bank transfer)
+// Scoped to the caller's own children (parent) or themselves (student).
+router.get('/my/invoices', authorize('fees.pay'), feeController.getMyInvoices);
+router.post('/my/invoices/:invoiceId/nexapay', authorize('fees.pay'), payerLimiter, validation.validatePayMyInvoice, feeController.payMyInvoice);
+router.post('/my/payments/nexapay/verify', authorize('fees.pay'), payerLimiter, validation.validateVerifyMyPayment, feeController.verifyMyPayment);
 
 module.exports = router;

@@ -2,6 +2,8 @@ const crypto = require('crypto');
 const { prisma } = require('../config/database');
 const logger = require('../utils/logger');
 const paystackService = require('./paystackService');
+const nexapayStrategy = require('./nexapayStrategy');
+const { generateReceiptNumber, applyPaymentToInvoice } = require('./invoiceSettlement');
 
 const AMOUNT_MULTIPLIER = 100;
 
@@ -12,11 +14,6 @@ const generateInvoiceNumber = (schoolId, index) => {
   const short = schoolId.length > 5 ? schoolId.slice(0, 5).toUpperCase() : schoolId.toUpperCase();
   const ts = Date.now().toString(36).toUpperCase();
   return `INV-${short}-${ts}-${String(index).padStart(4, '0')}`;
-};
-
-const generateReceiptNumber = (index) => {
-  const ts = Date.now().toString(36).toUpperCase();
-  return `RCP-${ts}-${String(index).padStart(4, '0')}`;
 };
 
 // ──────────────────────────────────────────────
@@ -486,23 +483,31 @@ const voidInvoice = async (id, schoolId, reason, userId) => {
   if (invoice.status === 'void') throw new Error('Invoice is already voided');
   if (invoice.amountPaid > 0) throw new Error('Cannot void an invoice with recorded payments. Process a refund instead.');
 
-  await prisma.feeInvoice.update({ where: { id }, data: { status: 'void', isActive: false } });
+  return prisma.$transaction(async (tx) => {
+    // Conditional on "still unpaid": Postgres re-checks the WHERE after a
+    // concurrent payment commits, so a deposit and a void cannot both win.
+    const voided = await tx.feeInvoice.updateMany({
+      where: { id, schoolId, isActive: true, amountPaid: 0, status: { not: 'void' } },
+      data: { status: 'void', isActive: false }
+    });
+    if (voided.count === 0) throw new Error('Cannot void an invoice with recorded payments. Process a refund instead.');
 
-  await prisma.feeLedgerEntry.create({
-    data: {
-      schoolId,
-      studentId: invoice.studentId,
-      type: 'credit',
-      amount: invoice.amountDue,
-      balance: 0,
-      description: `Invoice voided: ${reason || 'No reason provided'} - ${invoice.invoiceNumber}`,
-      reference: invoice.id,
-      account: 'receivable',
-      entryDate: new Date()
-    }
+    await tx.feeLedgerEntry.create({
+      data: {
+        schoolId,
+        studentId: invoice.studentId,
+        type: 'credit',
+        amount: invoice.amountDue,
+        balance: 0,
+        description: `Invoice voided: ${reason || 'No reason provided'} - ${invoice.invoiceNumber}`,
+        reference: invoice.id,
+        account: 'receivable',
+        entryDate: new Date()
+      }
+    });
+
+    return { message: 'Invoice voided successfully' };
   });
-
-  return { message: 'Invoice voided successfully' };
 };
 
 const getStudentFees = async (studentId, schoolId) => {
@@ -542,47 +547,48 @@ const recordPayment = async (invoiceId, schoolId, data, userId) => {
   if (amount > invoice.amountDue) throw new Error('Payment amount exceeds the amount due');
 
   const paymentCount = await prisma.feePayment.count({ where: { invoiceId } });
-  const receiptNum = providedReceipt || generateReceiptNumber(paymentCount + 1);
+  // The random suffix keeps two payments recorded in the same millisecond from
+  // colliding on the unique receipt number.
+  const receiptNum = providedReceipt || generateReceiptNumber(paymentCount + 1, crypto.randomBytes(3).toString('hex').toUpperCase());
 
-  const payment = await prisma.feePayment.create({
-    data: {
-      schoolId,
-      invoiceId,
-      amount,
-      paymentMethod,
-      referenceNumber,
-      receiptNumber: receiptNum,
-      note,
-      status: 'confirmed',
-      paidAt: paidAt ? new Date(paidAt) : new Date(),
-      receivedBy: userId
-    }
+  return prisma.$transaction(async (tx) => {
+    const payment = await tx.feePayment.create({
+      data: {
+        schoolId,
+        invoiceId,
+        amount,
+        paymentMethod,
+        referenceNumber,
+        receiptNumber: receiptNum,
+        note,
+        status: 'confirmed',
+        paidAt: paidAt ? new Date(paidAt) : new Date(),
+        receivedBy: userId
+      }
+    });
+
+    const settled = await applyPaymentToInvoice(tx, { invoiceId, schoolId, amount });
+    if (!settled) throw new Error('Cannot record payment against a voided invoice');
+    // The check above can race with a concurrent payment; this one cannot,
+    // because the invoice row is locked. Throwing rolls everything back.
+    if (settled.overpaidBy > 0) throw new Error('Payment amount exceeds the amount due');
+
+    await tx.feeLedgerEntry.create({
+      data: {
+        schoolId,
+        studentId: invoice.studentId,
+        type: 'credit',
+        amount,
+        balance: settled.amountDue,
+        description: `${paymentMethod} payment ${receiptNum}${referenceNumber ? ` - ${referenceNumber}` : ''}`,
+        reference: payment.id,
+        account: 'receivable',
+        entryDate: new Date()
+      }
+    });
+
+    return { payment: { id: payment.id, invoiceId, amount, method: paymentMethod, referenceNumber, receiptNumber: receiptNum, paidAt: payment.paidAt, status: payment.status }, invoice: { id: invoiceId, status: settled.status, amountPaid: settled.amountPaid, amountDue: settled.amountDue } };
   });
-
-  const newAmountPaid = invoice.amountPaid + amount;
-  const newAmountDue = invoice.amount - newAmountPaid;
-  const newStatus = newAmountDue <= 0 ? 'paid' : 'partial';
-
-  const updatedInvoice = await prisma.feeInvoice.update({
-    where: { id: invoiceId },
-    data: { amountPaid: newAmountPaid, amountDue: newAmountDue, status: newStatus }
-  });
-
-  await prisma.feeLedgerEntry.create({
-    data: {
-      schoolId,
-      studentId: invoice.studentId,
-      type: 'credit',
-      amount,
-      balance: newAmountDue,
-      description: `${paymentMethod} payment ${receiptNum}${referenceNumber ? ` - ${referenceNumber}` : ''}`,
-      reference: payment.id,
-      account: 'receivable',
-      entryDate: new Date()
-    }
-  });
-
-  return { payment: { id: payment.id, invoiceId, amount, method: paymentMethod, referenceNumber, receiptNumber: receiptNum, paidAt: payment.paidAt, status: payment.status }, invoice: { id: invoiceId, status: newStatus, amountPaid: newAmountPaid, amountDue: newAmountDue } };
 };
 
 const initializePayment = async (invoiceId, schoolId, data, userId) => {
@@ -592,6 +598,29 @@ const initializePayment = async (invoiceId, schoolId, data, userId) => {
   if (invoice.status === 'paid') throw new Error('Invoice is already fully paid');
 
   const { gateway, amount, email, callbackUrl } = data;
+
+  if (gateway === 'nexapay') {
+    // Bank-transfer collection: the payer receives a virtual account to send
+    // the money to, so there is no redirect URL.
+    const collection = await nexapayStrategy.createCollection({
+      schoolId,
+      invoiceId: invoice.id,
+      amount,
+      userId,
+      payer: { email }
+    });
+
+    return {
+      gateway,
+      reference: collection.reference,
+      accountNumber: collection.accountNumber,
+      bankName: collection.bankName,
+      amount: collection.amount,
+      expiresAt: collection.expiresAt,
+      paymentId: collection.paymentId
+    };
+  }
+
   if (gateway !== 'paystack') throw new Error(`Gateway "${gateway}" is not supported yet`);
   if (amount > invoice.amountDue) throw new Error('Payment amount exceeds the amount due');
 
@@ -647,24 +676,42 @@ const confirmGatewayPayment = async (payment) => {
     if (!current) throw new Error('Payment not found');
     if (current.status === 'confirmed') return current;
 
+    if (!current.invoiceId) throw new Error('Invoice not found');
     const invoice = await tx.feeInvoice.findUnique({ where: { id: current.invoiceId } });
     if (!invoice) throw new Error('Invoice not found');
 
-    const newAmountPaid = invoice.amountPaid + current.amount;
-    const newAmountDue = invoice.amount - newAmountPaid;
-    const newStatus = newAmountDue <= 0 ? 'paid' : 'partial';
+    // Claim the payment. A verify call and a webhook for the same charge can
+    // both get here; only the one that flips the status credits the invoice.
+    const claimed = await tx.feePayment.updateMany({
+      where: { id: current.id, status: { not: 'confirmed' } },
+      data: { status: 'confirmed', paidAt: new Date() }
+    });
+    if (claimed.count === 0) return tx.feePayment.findUnique({ where: { id: current.id } });
+
+    // Scoped to the payment's own school: the payment and the invoice it
+    // credits must belong to the same tenant.
+    const settled = await applyPaymentToInvoice(tx, { invoiceId: invoice.id, schoolId: current.schoolId, amount: current.amount });
+    if (!settled) {
+      // The invoice was voided after checkout started. The money was received,
+      // so hold it for review instead of reviving the voided invoice.
+      logger.warn('Gateway payment received for a voided invoice', { paymentId: current.id, invoiceId: invoice.id });
+      return tx.feePayment.update({
+        where: { id: current.id },
+        data: { invoiceId: null, needsReview: true, reviewReason: 'INVOICE_VOID' }
+      });
+    }
 
     const paymentCount = await tx.feePayment.count({ where: { invoiceId: invoice.id } });
-    const receiptNum = generateReceiptNumber(paymentCount + 1);
+    const receiptNum = generateReceiptNumber(paymentCount, crypto.randomBytes(3).toString('hex').toUpperCase());
+    const overpaid = settled.overpaidBy > 0;
 
     const updated = await tx.feePayment.update({
       where: { id: current.id },
-      data: { status: 'confirmed', paidAt: new Date(), receiptNumber: receiptNum }
-    });
-
-    await tx.feeInvoice.update({
-      where: { id: invoice.id },
-      data: { amountPaid: newAmountPaid, amountDue: newAmountDue, status: newStatus }
+      data: {
+        receiptNumber: receiptNum,
+        needsReview: overpaid,
+        reviewReason: overpaid ? 'OVERPAID' : null
+      }
     });
 
     await tx.feeLedgerEntry.create({
@@ -673,7 +720,7 @@ const confirmGatewayPayment = async (payment) => {
         studentId: invoice.studentId,
         type: 'credit',
         amount: current.amount,
-        balance: newAmountDue,
+        balance: settled.amountDue,
         description: `Gateway payment (${current.gateway}) ${current.gatewayReference}`,
         reference: current.id,
         account: 'receivable',
@@ -681,13 +728,24 @@ const confirmGatewayPayment = async (payment) => {
       }
     });
 
+    if (overpaid) {
+      logger.warn('Gateway payment overpaid the invoice', {
+        paymentId: current.id,
+        invoiceId: invoice.id,
+        overpaidBy: settled.overpaidBy
+      });
+    }
+
     return updated;
   });
 };
 
-const verifyPayment = async (data) => {
+const verifyPayment = async (data, schoolId) => {
   const { reference, gateway } = data;
-  const payment = await prisma.feePayment.findFirst({ where: { gatewayReference: reference } });
+  // Scoped by tenant: a reference from another school must never verify here.
+  const payment = await prisma.feePayment.findFirst({
+    where: { gatewayReference: reference, ...(schoolId ? { schoolId } : {}) }
+  });
   if (!payment) throw new Error('Payment not found for this reference');
 
   if (gateway === 'paystack') {
@@ -710,8 +768,17 @@ const verifyPayment = async (data) => {
       };
     }
 
-    await prisma.feePayment.update({ where: { id: payment.id }, data: { status: 'failed' } });
+    // Only a still-pending payment may be marked failed; never undo a
+    // confirmation that a webhook recorded in the meantime.
+    await prisma.feePayment.updateMany({ where: { id: payment.id, status: 'pending' }, data: { status: 'failed' } });
     return { status: 'failed', payment: { reference, gateway, amount: payment.amount } };
+  }
+
+  if (gateway === 'nexapay') {
+    if (!schoolId) throw new Error('A school is required to verify a NexaPay payment');
+    // The strategy settles through the same path as the webhook, keyed by the
+    // NexaPay transaction id, so the invoice is credited exactly once.
+    return nexapayStrategy.verifyCollection({ schoolId, reference, transactionId: data.transactionId });
   }
 
   throw new Error(`Gateway "${gateway}" is not supported yet`);
@@ -794,37 +861,50 @@ const applyAdjustment = async (schoolId, data, userId) => {
     if (!invoice) throw new Error('Invoice not found');
   }
 
-  const adjustment = await prisma.feeAdjustment.create({
-    data: { schoolId, studentId, invoiceId, type, amount, reason, approvedBy: userId }
-  });
+  return prisma.$transaction(async (tx) => {
+    const adjustment = await tx.feeAdjustment.create({
+      data: { schoolId, studentId, invoiceId, type, amount, reason, approvedBy: userId }
+    });
 
-  await prisma.feeLedgerEntry.create({
-    data: {
-      schoolId,
-      studentId,
-      type: 'adjustment',
-      amount,
-      balance: -(amount),
-      description: `${type}: ${reason}`,
-      reference: adjustment.id,
-      account: 'receivable',
-      entryDate: new Date()
-    }
-  });
+    await tx.feeLedgerEntry.create({
+      data: {
+        schoolId,
+        studentId,
+        type: 'adjustment',
+        amount,
+        balance: -(amount),
+        description: `${type}: ${reason}`,
+        reference: adjustment.id,
+        account: 'receivable',
+        entryDate: new Date()
+      }
+    });
 
-  if (invoiceId) {
-    const invoice = await prisma.feeInvoice.findUnique({ where: { id: invoiceId } });
-    if (invoice) {
-      const newAmountDue = Math.max(0, invoice.amountDue - amount);
-      const newStatus = newAmountDue <= 0 ? 'paid' : invoice.amountPaid > 0 ? 'partial' : invoice.status;
-      await prisma.feeInvoice.update({
+    if (invoiceId) {
+      // Atomic decrement: a deposit landing at the same moment is not lost.
+      // Conditional on a live invoice in this school, so a void that commits
+      // after the check above cannot be revived as "paid"; throwing rolls back
+      // the adjustment and its ledger row.
+      const updated = await tx.feeInvoice.updateMany({
+        where: { id: invoiceId, schoolId, isActive: true, status: { not: 'void' } },
+        data: { amountDue: { decrement: amount } }
+      });
+      if (updated.count === 0) throw new Error('Cannot apply an adjustment to a voided invoice');
+
+      const moved = await tx.feeInvoice.findUnique({
+        where: { id: invoiceId },
+        select: { amountDue: true, amountPaid: true, status: true }
+      });
+      const newAmountDue = Math.max(0, moved.amountDue);
+      const newStatus = newAmountDue <= 0 ? 'paid' : moved.amountPaid > 0 ? 'partial' : moved.status;
+      await tx.feeInvoice.update({
         where: { id: invoiceId },
         data: { amountDue: newAmountDue, status: newStatus }
       });
     }
-  }
 
-  return { adjustment };
+    return { adjustment };
+  });
 };
 
 const getAdjustments = async (schoolId, { studentId, type, from, to }) => {
@@ -902,6 +982,7 @@ const getReceipt = async (paymentId, schoolId) => {
     where: { id: paymentId, schoolId }
   });
   if (!payment) throw new Error('Payment not found');
+  if (!payment.invoiceId) throw new Error('Associated invoice not found');
 
   const [invoice, receipt] = await Promise.all([
     prisma.feeInvoice.findUnique({ where: { id: payment.invoiceId } }),
@@ -929,7 +1010,8 @@ const getReceipt = async (paymentId, schoolId) => {
         method: payment.paymentMethod,
         reference: payment.referenceNumber,
         paidAt: payment.paidAt,
-        issuedBy: payment.receivedBy
+        // Payments settled by a gateway webhook have no receiving user.
+        issuedBy: payment.receivedBy || (payment.gateway ? `gateway:${payment.gateway}` : 'system')
       }
     });
 
@@ -980,7 +1062,9 @@ const getFeeAnalytics = async (schoolId, { academicYearId, termId, classId }) =>
   }
   const byClass = Object.entries(classGroups).map(([className, v]) => ({ className, expected: v.expected, collected: v.collected }));
 
-  const payments = await prisma.feePayment.findMany({ where: { schoolId, status: 'confirmed' } });
+  // Held gateway deposits (invoiceId null, needsReview) are not collections
+  // against any invoice until someone reconciles them.
+  const payments = await prisma.feePayment.findMany({ where: { schoolId, status: 'confirmed', invoiceId: { not: null } } });
   const methodGroups = {};
   for (const p of payments) {
     if (!methodGroups[p.paymentMethod]) methodGroups[p.paymentMethod] = 0;
@@ -1071,7 +1155,8 @@ const getAgingReport = async (schoolId, { academicYearId, termId, classId }) => 
 };
 
 const getCollectionReport = async (schoolId, { from, to, academicYearId, termId, classId }) => {
-  const where = { schoolId, status: 'confirmed' };
+  // Held gateway deposits are excluded until they are reconciled to an invoice.
+  const where = { schoolId, status: 'confirmed', invoiceId: { not: null } };
   if (from || to) {
     where.paidAt = {};
     if (from) where.paidAt.gte = new Date(from);
@@ -1212,5 +1297,7 @@ module.exports = {
   getAgingReport,
   getCollectionReport,
   getReconciliation,
-  reconcileTransaction
+  importSettlements,
+  reconcileTransaction,
+  generateReceiptNumber
 };
