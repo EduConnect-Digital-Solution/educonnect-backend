@@ -45,7 +45,7 @@ describe('Cookie Helper', () => {
       process.env.NODE_ENV = originalEnv;
     });
 
-    test('should return lax config for production localhost', () => {
+    test('should return a secure sameSite none config for production localhost', () => {
       const originalEnv = process.env.NODE_ENV;
       process.env.NODE_ENV = 'production';
 
@@ -53,7 +53,7 @@ describe('Cookie Helper', () => {
 
       expect(config.httpOnly).toBe(true);
       expect(config.secure).toBe(true);
-      expect(config.sameSite).toBe('lax');
+      expect(config.sameSite).toBe('none');
 
       process.env.NODE_ENV = originalEnv;
     });
@@ -66,7 +66,7 @@ describe('Cookie Helper', () => {
 
       expect(config.httpOnly).toBe(true);
       expect(config.secure).toBe(false);
-      expect(config.sameSite).toBe('lax');
+      expect(config.sameSite).toBe('none');
 
       process.env.NODE_ENV = originalEnv;
     });

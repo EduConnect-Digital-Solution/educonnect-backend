@@ -86,6 +86,10 @@ if (process.env.NODE_ENV !== 'development') {
 const paystackWebhookRoutes = require('./routes/paystackWebhook');
 app.use('/api/fees/paystack/webhook', paystackWebhookRoutes);
 
+// NexaPay webhook (same rule: raw body is needed for the HMAC verification)
+const nexapayWebhookRoutes = require('./routes/nexapayWebhook');
+app.use('/api/fees/nexapay/webhook', nexapayWebhookRoutes);
+
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));

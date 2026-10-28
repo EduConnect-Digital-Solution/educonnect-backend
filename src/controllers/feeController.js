@@ -1,6 +1,8 @@
 const { validationResult } = require('express-validator');
 const logger = require('../utils/logger');
 const feeService = require('../services/feeService');
+const nexapayConfigService = require('../services/nexapayConfigService');
+const payerFeeService = require('../services/payerFeeService');
 
 const handleValidation = (req, res) => {
   const errors = validationResult(req);
@@ -10,10 +12,16 @@ const handleValidation = (req, res) => {
   return null;
 };
 
+const hasHttpStatus = (error) =>
+  Number.isInteger(error.statusCode) && error.statusCode >= 400 && error.statusCode <= 599;
+
 const handleError = (res, error, context) => {
   logger.error(`Fee error [${context}]:`, error.message);
-  const status = error.message.includes('not found') ? 404
-    : error.message.includes('Cannot') || error.message.includes('required') || error.message.includes('Invalid') || error.message.includes('must') ? 400
+  // An explicit status (e.g. 502 from a payment provider) wins over the
+  // message keywords below.
+  const status = hasHttpStatus(error) ? error.statusCode
+    : error.message.includes('not found') ? 404
+    : error.message.includes('Cannot') || error.message.includes('required') || error.message.includes('Invalid') || error.message.includes('must') || error.message.includes('exceeds') ? 400
     : error.message.includes('already') || error.message.includes('published') || error.message.includes('delet') || error.message.includes('void') ? 409
     : 500;
   return res.status(status).json({ success: false, message: error.message });
@@ -170,9 +178,91 @@ const verifyPayment = async (req, res) => {
   const err = handleValidation(req, res);
   if (err) return;
   try {
-    const result = await feeService.verifyPayment(req.body);
+    const result = await feeService.verifyPayment(req.body, req.user.schoolId);
     res.json({ success: true, message: 'Payment verified', data: result });
   } catch (error) { handleError(res, error, 'verifyPayment'); }
+};
+
+/**
+ * Resolve which school a gateway configuration belongs to.
+ * A school admin always operates on their own school. A system admin may
+ * target another school, but then it has to name one.
+ */
+const resolveTargetSchoolId = (req) => {
+  if (req.user.role === 'system_admin') {
+    return req.body.schoolId || req.query.schoolId || req.user.schoolId || null;
+  }
+  return req.user.schoolId;
+};
+
+// I. NexaPay gateway configuration
+const upsertNexaPayConfig = async (req, res) => {
+  const err = handleValidation(req, res);
+  if (err) return;
+  try {
+    const schoolId = resolveTargetSchoolId(req);
+    if (!schoolId) {
+      return res.status(400).json({
+        success: false,
+        message: 'schoolId is required when configuring another school'
+      });
+    }
+
+    const result = await nexapayConfigService.upsert(schoolId, {
+      businessId: req.body.businessId,
+      environment: req.body.environment,
+      apiKey: req.body.apiKey,
+      webhookSecret: req.body.webhookSecret
+    });
+
+    res.json({ success: true, message: 'NexaPay configuration saved', data: result });
+  } catch (error) { handleError(res, error, 'upsertNexaPayConfig'); }
+};
+
+const getNexaPayConfig = async (req, res) => {
+  const err = handleValidation(req, res);
+  if (err) return;
+  try {
+    const schoolId = resolveTargetSchoolId(req);
+    if (!schoolId) {
+      return res.status(400).json({
+        success: false,
+        message: 'schoolId is required'
+      });
+    }
+
+    const result = await nexapayConfigService.getPublicConfig(schoolId);
+    res.json({ success: true, data: result || { configured: false } });
+  } catch (error) { handleError(res, error, 'getNexaPayConfig'); }
+};
+
+// J. Parent / student self-service
+const getMyInvoices = async (req, res) => {
+  try {
+    const result = await payerFeeService.getMyInvoices(req.user);
+    res.json({ success: true, data: result });
+  } catch (error) { handleError(res, error, 'getMyInvoices'); }
+};
+
+const payMyInvoice = async (req, res) => {
+  const err = handleValidation(req, res);
+  if (err) return;
+  try {
+    const result = await payerFeeService.startNexapayPayment(req.user, req.params.invoiceId, { amount: req.body.amount });
+    res.json({ success: true, message: 'Payment initialized', data: result });
+  } catch (error) { handleError(res, error, 'payMyInvoice'); }
+};
+
+const verifyMyPayment = async (req, res) => {
+  const err = handleValidation(req, res);
+  if (err) return;
+  try {
+    const result = await payerFeeService.verifyMyNexapayPayment(req.user, {
+      reference: req.body.reference,
+      transactionId: req.body.transactionId
+    });
+    res.json({ success: true, message: 'Payment verified', data: result });
+  } catch (error) { handleError(res, error, 'verifyMyPayment'); }
 };
 
 const getPaymentHistory = async (req, res) => {
@@ -347,5 +437,10 @@ module.exports = {
   getCollectionReport,
   getReconciliation,
   reconcileTransaction,
-  importSettlements
+  importSettlements,
+  upsertNexaPayConfig,
+  getNexaPayConfig,
+  getMyInvoices,
+  payMyInvoice,
+  verifyMyPayment
 };

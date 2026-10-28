@@ -24,6 +24,21 @@ const config = {
     isConfigured: !!process.env.PAYSTACK_SECRET_KEY
   },
 
+  nexapay: {
+    // NexaPay merchant API base. The business routes live under /business.
+    baseUrl: process.env.NEXAPAY_BASE_URL || 'https://api.nexapay.ng/api/v1/business',
+    // Temporary flag used to inspect raw webhook deliveries while the exact
+    // signature layout is still being confirmed. Honoured only when NODE_ENV
+    // is explicitly development or test, so an unset NODE_ENV never logs bodies.
+    debugWebhooks: process.env.NEXAPAY_DEBUG_WEBHOOKS === 'true' &&
+      ['development', 'test'].includes(process.env.NODE_ENV)
+  },
+
+  secrets: {
+    // 32 bytes, base64 encoded. Used to encrypt per-school gateway secrets at rest.
+    encKey: process.env.SECRETS_ENC_KEY ? Buffer.from(process.env.SECRETS_ENC_KEY, 'base64') : null
+  },
+
   supabase: {
     url: process.env.SUPABASE_URL || `https://${process.env.POSTGRES_HOST?.replace(/^https?:\/\//, '').replace(/\/.*$/, '') || 'localhost'}`,
     serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
@@ -75,7 +90,8 @@ const config = {
 const requiredEnvVars = [
   'JWT_SECRET',
   'JWT_REFRESH_SECRET',
-  'RESEND_API_KEY'
+  'RESEND_API_KEY',
+  'SECRETS_ENC_KEY'
 ];
 
 const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
@@ -83,6 +99,14 @@ const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
 if (missingEnvVars.length > 0) {
   logger.error('Missing required environment variables:', missingEnvVars.join(', '));
   logger.error('Please check your .env file and ensure all required variables are set.');
+  process.exit(1);
+}
+
+// The encryption key must decode to exactly 32 bytes (AES-256). Fail fast rather
+// than letting the first gateway write attempt blow up at runtime.
+if (!config.secrets.encKey || config.secrets.encKey.length !== 32) {
+  logger.error('SECRETS_ENC_KEY must be a base64 encoded 32 byte key.');
+  logger.error('Generate one with: openssl rand -base64 32');
   process.exit(1);
 }
 

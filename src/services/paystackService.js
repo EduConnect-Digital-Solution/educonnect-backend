@@ -19,17 +19,28 @@ const ensureConfigured = () => {
 
 const paystackFetch = async (path, options = {}) => {
   ensureConfigured();
-  const res = await fetch(`${PAYSTACK_BASE_URL}${path}`, {
-    ...options,
-    headers: { ...authHeaders(), ...(options.headers || {}) }
-  });
+  let res;
+  try {
+    res = await fetch(`${PAYSTACK_BASE_URL}${path}`, {
+      ...options,
+      headers: { ...authHeaders(), ...(options.headers || {}) }
+    });
+  } catch (error) {
+    logger.error('Paystack request failed', { path, message: error.message });
+    const networkError = new Error('Payment provider is unreachable');
+    networkError.statusCode = 502;
+    throw networkError;
+  }
 
   const body = await res.json().catch(() => ({}));
   if (!res.ok || body.status === false) {
     const message = body.message || `Paystack request failed with status ${res.status}`;
     logger.error('Paystack API error', { path, status: res.status, message });
     const error = new Error(message);
-    error.statusCode = res.status;
+    // A provider failure is a bad gateway for our caller; never pass a
+    // Paystack 401 through as if our own session had expired.
+    error.statusCode = 502;
+    error.providerStatus = res.status;
     throw error;
   }
   return body;
@@ -57,9 +68,11 @@ const verifyTransaction = async (reference) => {
 const verifyWebhookSignature = (rawBody, signatureHeader) => {
   const secret = getSecretKey();
   if (!secret || !signatureHeader) return false;
-  const hmac = crypto.createHmac('sha512', secret).update(rawBody).digest('hex');
+  const expected = crypto.createHmac('sha512', secret).update(rawBody).digest();
   const provided = Array.isArray(signatureHeader) ? signatureHeader[0] : signatureHeader;
-  return hmac === provided;
+  if (typeof provided !== 'string' || !/^[0-9a-f]{128}$/i.test(provided)) return false;
+  // Constant-time comparison so a mismatch does not leak how much matched.
+  return crypto.timingSafeEqual(expected, Buffer.from(provided, 'hex'));
 };
 
 const listBanks = async ({ currency = 'NGN' } = {}) => {

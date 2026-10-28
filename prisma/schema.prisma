@@ -100,6 +100,8 @@ model School {
   feeStructures        FeeStructure[]
   feePayments          FeePayment[]
   feeInvoices          FeeInvoice[]
+  nexaPayConfig        NexaPayConfig?
+  gatewayEvents        GatewayEvent[]
   
   assessmentPolicies    AssessmentPolicy[]
   scoreSheets           ScoreSheet[]
@@ -859,31 +861,41 @@ model FeeInvoice {
 }
 
 model FeePayment {
-  id               String   @id @default(uuid())
+  id               String    @id @default(uuid())
   schoolId         String
-  invoiceId        String
-  amount           Int      // in kobo
-  paymentMethod    String   // "cash" | "bank_transfer" | "pos" | "cheque" | "card" | "mobile_money"
-  gateway          String?  // "paystack" | "flutterwave"
+  invoiceId        String? // null for gateway deposits that could not be matched to an invoice
+  amount           Int       // in kobo
+  paymentMethod    String    // "cash" | "bank_transfer" | "pos" | "cheque" | "card" | "mobile_money"
+  gateway          String?   // "paystack" | "flutterwave" | "nexapay"
   gatewayReference String?
+  providerTxnId    String?   // provider-side transaction id (second line of webhook idempotency)
   authorizationUrl String?
   accessCode       String?
+  accountNumber    String?   // bank transfer / virtual account number
+  bankName         String?
+  expiresAt        DateTime?
   referenceNumber  String?
-  receiptNumber    String?  @unique
+  receiptNumber    String?   @unique
+  payerDetails     Json?     // payer name / account / bank as reported by the gateway
+  providerRaw      Json?     // raw gateway payload, kept for reconciliation
+  needsReview      Boolean   @default(false) // unmatched or overpaid -> manual reconciliation
+  reviewReason     String?
   note             String?
-  status           String   @default("pending") // "pending" | "confirmed" | "failed"
+  status           String    @default("pending") // "pending" | "confirmed" | "failed"
   paidAt           DateTime?
-  receivedBy       String
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt()
+  receivedBy       String? // null for payments settled by a gateway webhook
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt()
 
   school   School @relation(fields: [schoolId], references: [id])
-  receiver User   @relation("FeePaymentReceiver", fields: [receivedBy], references: [id])
+  receiver User?  @relation("FeePaymentReceiver", fields: [receivedBy], references: [id])
 
+  @@unique([gateway, providerTxnId]) // one row per provider transaction
   @@index([schoolId])
   @@index([invoiceId])
   @@index([status])
   @@index([paidAt])
+  @@index([needsReview])
   @@map("fee_payments")
 }
 
@@ -956,6 +968,44 @@ model FeeReconciliation {
   @@index([schoolId])
   @@index([status])
   @@map("fee_reconciliations")
+}
+
+// =============== PAYMENT GATEWAY MODELS ===============
+
+/// Per-school NexaPay merchant credentials. The API key and webhook secret are
+/// encrypted at rest with SECRETS_ENC_KEY (AES-256-GCM, see src/utils/secretBox.js).
+model NexaPayConfig {
+  id               String   @id @default(uuid())
+  schoolId         String   @unique
+  businessId       String   @unique
+  environment      String   @default("test") // "test" | "prod"
+  apiKeyEnc        String
+  webhookSecretEnc String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt()
+
+  school School @relation(fields: [schoolId], references: [id])
+
+  @@index([schoolId])
+  @@map("nexapay_configs")
+}
+
+/// Every verified inbound gateway webhook is stored exactly once. The unique
+/// (provider, eventId) key is the idempotency guarantee for webhook delivery.
+model GatewayEvent {
+  id         String   @id @default(uuid())
+  provider   String   // "nexapay"
+  eventId    String
+  eventType  String
+  schoolId   String
+  payload    Json
+  receivedAt DateTime @default(now())
+
+  school School @relation(fields: [schoolId], references: [id])
+
+  @@unique([provider, eventId])
+  @@index([schoolId])
+  @@map("gateway_events")
 }
 
 // =============== EVENTS & NOTIFICATIONS MODELS ===============

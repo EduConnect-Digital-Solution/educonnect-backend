@@ -1,5 +1,19 @@
 const { body, query, param } = require('express-validator');
 
+// A JSON integer, or a string of plain digits. Rejects true, [5], '1e3' and
+// '0x10', which Number() would otherwise coerce.
+const isPositiveInteger = (value) =>
+  (typeof value === 'number' && Number.isInteger(value) && value >= 1) ||
+  (typeof value === 'string' && /^[1-9]\d*$/.test(value));
+
+const toIntegerOrUndefined = (value) =>
+  value === undefined || value === null || value === '' ? undefined : Number(value);
+
+const isEmailAddress = (value) =>
+  typeof value === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+
+const GATEWAYS = ['paystack', 'flutterwave', 'nexapay'];
+
 const validateGetFeeStructures = [
   query('academicYearId').optional().isString(),
   query('termId').optional().isString(),
@@ -121,15 +135,48 @@ const validateRecordPayment = [
 
 const validateInitializePayment = [
   param('invoiceId').isUUID().withMessage('Invalid invoice ID'),
-  body('gateway').isIn(['paystack', 'flutterwave']).withMessage('Gateway must be paystack or flutterwave'),
-  body('amount').isInt({ min: 1 }),
-  body('email').isEmail(),
+  body('gateway').isIn(GATEWAYS).withMessage('Gateway must be paystack, flutterwave or nexapay'),
+  // NexaPay collects by bank transfer to a virtual account, so the payer does
+  // not have to supply an email and the amount defaults to the amount due.
+  body('amount')
+    .custom((value, { req }) => {
+      const empty = value === undefined || value === null || value === '';
+      if (empty && req.body.gateway === 'nexapay') return true;
+      return isPositiveInteger(value);
+    })
+    .withMessage('Amount must be a positive integer')
+    .customSanitizer(toIntegerOrUndefined),
+  body('email')
+    .custom((value, { req }) => {
+      const empty = value === undefined || value === null || value === '';
+      if (empty && req.body.gateway === 'nexapay') return true;
+      return isEmailAddress(value);
+    })
+    .withMessage('Valid email is required'),
   body('callbackUrl').optional().isURL()
 ];
 
 const validateVerifyPayment = [
   body('reference').isString().notEmpty().withMessage('Payment reference is required'),
-  body('gateway').isIn(['paystack', 'flutterwave']).withMessage('Gateway must be paystack or flutterwave')
+  body('gateway').isIn(GATEWAYS).withMessage('Gateway must be paystack, flutterwave or nexapay'),
+  // NexaPay only: the provider transaction id, when the payer or the
+  // dashboard supplies it. Without it the recent transactions are searched.
+  body('transactionId').optional().isString().trim().isLength({ min: 1, max: 128 }).withMessage('Invalid transaction ID')
+];
+
+// Parent / student self-service (NexaPay only).
+const validatePayMyInvoice = [
+  param('invoiceId').isUUID().withMessage('Invalid invoice ID'),
+  body('amount')
+    .optional({ values: 'falsy' })
+    .custom(isPositiveInteger)
+    .withMessage('Amount must be a positive integer')
+    .customSanitizer(toIntegerOrUndefined)
+];
+
+const validateVerifyMyPayment = [
+  body('reference').isString().trim().notEmpty().withMessage('Payment reference is required'),
+  body('transactionId').optional().isString().trim().isLength({ min: 1, max: 128 }).withMessage('Invalid transaction ID')
 ];
 
 const validateGetPaymentHistory = [
@@ -213,7 +260,7 @@ const validateGetCollectionReport = [
 ];
 
 const validateGetReconciliation = [
-  query('gateway').optional().isIn(['paystack', 'flutterwave']),
+  query('gateway').optional().isIn(GATEWAYS),
   query('from').optional().isISO8601(),
   query('to').optional().isISO8601(),
   query('status').optional().isIn(['matched', 'unmatched']),
@@ -227,7 +274,7 @@ const validateReconcileTransaction = [
 ];
 
 const validateImportSettlements = [
-  body('gateway').optional().isIn(['paystack', 'flutterwave']).withMessage('Gateway must be paystack or flutterwave'),
+  body('gateway').optional().isIn(GATEWAYS).withMessage('Gateway must be paystack, flutterwave or nexapay'),
   body('settlements').isArray({ min: 1 }).withMessage('At least one settlement is required'),
   body('settlements.*.settlementId').isString().notEmpty().withMessage('Settlement ID is required'),
   body('settlements.*.amount').isInt({ min: 1 }).withMessage('Amount must be a positive integer'),
@@ -252,6 +299,8 @@ module.exports = {
   validateRecordPayment,
   validateInitializePayment,
   validateVerifyPayment,
+  validatePayMyInvoice,
+  validateVerifyMyPayment,
   validateGetPaymentHistory,
   validateGetAllPayments,
   validateApplyAdjustment,

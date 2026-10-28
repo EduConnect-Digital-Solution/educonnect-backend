@@ -93,6 +93,8 @@ A comprehensive educational platform backend with Role-Based Access Control (RBA
 #### For Frontend Developers & Designers
 - **[API Endpoints Reference](./docs/API_Endpoints_Reference.md)** ⭐ **START HERE** - Complete API reference organized by user roles (35+ endpoints)
 - **[API Examples](./docs/api-examples.md)** - Practical usage examples with cURL, JavaScript, and React integration
+- **[Paystack Integration API](./docs/postman/Paystack-Integration-API.md)** - Card checkout flow for frontend developers
+- **[NexaPay Integration API](./docs/postman/NexaPay-Integration-API.md)** - Bank transfer collection flow for frontend developers
 - **[Swagger Specification](./docs/swagger.yaml)** - OpenAPI specification for import into API tools
 
 #### For Project Management & Stakeholders  
@@ -230,6 +232,19 @@ AUTH_RATE_LIMIT_MAX_REQUESTS=20
 
 # Frontend (Optional)
 FRONTEND_URL=http://localhost:3000
+
+# Payment Gateway (Paystack)
+PAYSTACK_SECRET_KEY=sk_test_xxx
+PAYSTACK_PUBLIC_KEY=pk_test_xxx
+
+# Payment Gateway (NexaPay)
+# 32 byte key, base64 encoded. Encrypts the per-school NexaPay API key and
+# webhook secret at rest. Generate with: openssl rand -base64 32
+SECRETS_ENC_KEY=your-base64-encoded-32-byte-key
+# Optional. Defaults to https://api.nexapay.ng/api/v1/business
+NEXAPAY_BASE_URL=https://api.nexapay.ng/api/v1/business
+# Temporary debugging aid, off by default and force-disabled in production
+NEXAPAY_DEBUG_WEBHOOKS=false
 ```
 
 ### Environment Variables Reference
@@ -248,6 +263,203 @@ FRONTEND_URL=http://localhost:3000
 | `BCRYPT_SALT_ROUNDS` | Password hashing rounds | 12 | No |
 | `OTP_EXPIRES_IN_MINUTES` | OTP expiration time | 10 | No |
 | `INVITATION_EXPIRES_IN_HOURS` | Invitation token expiration | 72 | No |
+| `SECRETS_ENC_KEY` | 32 byte base64 key used to encrypt per-school gateway secrets at rest | - | **Yes** |
+| `NEXAPAY_BASE_URL` | NexaPay merchant API base URL | https://api.nexapay.ng/api/v1/business | No |
+| `NEXAPAY_DEBUG_WEBHOOKS` | Log the signature layout of incoming NexaPay webhooks (never in production) | false | No |
+
+## 💳 NexaPay — Bank Transfer Collections
+
+NexaPay is a second payment gateway, alongside Paystack. It collects by **bank
+transfer**: instead of redirecting the payer to a checkout page, the API opens a
+customer-facing virtual bank account for the invoice and the payer sends money
+to that account. The deposit is detected by a signed webhook.
+
+Every school is its own NexaPay merchant with its own `businessId`, API key and
+webhook secret. Those secrets are encrypted at rest with `SECRETS_ENC_KEY`.
+
+### Per-school onboarding (manual)
+
+NexaPay's Merchant API has no programmatic onboarding endpoint, so a merchant
+has to be created in the NexaPay dashboard:
+
+1. Create the merchant in the NexaPay dashboard (test environment first).
+2. Copy the **business ID**, the **API key** and the **webhook secret**.
+3. Register the webhook URL in the dashboard:
+   `https://<your-api-host>/api/fees/nexapay/webhook`
+4. Store the credentials through the API (below). The API key and webhook
+   secret are write-only — they are encrypted on the way in and never returned.
+
+### Endpoints
+
+| Method | Path | Who | Purpose |
+|--------|------|-----|---------|
+| `GET` | `/api/fees/gateway/nexapay/config` | admin, system_admin | Read the school's NexaPay configuration (no secrets) |
+| `PUT` | `/api/fees/gateway/nexapay/config` | admin, system_admin | Create or replace the school's NexaPay configuration |
+| `POST` | `/api/fees/invoices/:invoiceId/initialize` | admin, system_admin | Open a collection — body `{ "gateway": "nexapay" }` |
+| `POST` | `/api/fees/payments/verify` | admin, system_admin | Manually verify a NexaPay reference (optional `transactionId`) |
+| `GET` | `/api/fees/my/invoices` | parent, student | The caller's own (or their linked children's) invoices |
+| `POST` | `/api/fees/my/invoices/:invoiceId/nexapay` | parent, student | Open a collection for one of those invoices |
+| `POST` | `/api/fees/my/payments/nexapay/verify` | parent, student | Verify one of the caller's NexaPay payments |
+| `POST` | `/api/fees/nexapay/webhook` | public (signature) | NexaPay deposit notifications |
+
+Configure a school:
+
+```http
+PUT /api/fees/gateway/nexapay/config
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "businessId": "66f1234567890abcde123456",
+  "environment": "test",
+  "apiKey": "nexa-test-xxxxxxxx",
+  "webhookSecret": "whsec_xxxxxxxx"
+}
+```
+
+A school admin can only configure their own school. A system admin may target
+another school by passing `schoolId`. NexaPay picks the mode from the key
+prefix, so a `test` configuration must use a `nexa-test-` key and a `prod`
+configuration a `nexa-prod-` key; anything else is rejected. Before saving, the
+API key is checked against NexaPay with a read-only call, so a business ID can
+only be linked by someone holding its real key. One NexaPay business ID can only
+be linked to one school. (NexaPay offers no API to check the webhook secret; a
+wrong secret shows up as `401`s on the webhook.)
+
+Open a collection:
+
+```http
+POST /api/fees/invoices/:invoiceId/initialize
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{ "gateway": "nexapay" }
+```
+
+`amount` and `email` are optional for NexaPay — the amount defaults to the
+outstanding balance. The response carries the virtual account to pay into:
+
+```json
+{
+  "success": true,
+  "data": {
+    "gateway": "nexapay",
+    "reference": "nxa_9f2c...",
+    "accountNumber": "0123456789",
+    "bankName": "Example Bank",
+    "amount": 400000,
+    "expiresAt": "2026-10-24T12:00:00.000Z",
+    "paymentId": "c1f0..."
+  }
+}
+```
+
+### Webhook
+
+`POST /api/fees/nexapay/webhook` is mounted **before** `express.json()` so the
+exact raw bytes survive for the HMAC check.
+
+| Header | Purpose |
+|--------|---------|
+| `x-nexapay-business-id` | Selects the tenant secret. Nothing from the payload is trusted before the HMAC passes. |
+| `x-nexapay-signature` | HMAC SHA-256 over the raw body and the timestamp |
+| `x-nexapay-timestamp` | Timestamp of the delivery |
+| `x-nexapay-event-id` | Idempotency key |
+| `x-nexapay-event` | Event type, e.g. `deposit.received` |
+
+Responses:
+
+| Status | Meaning |
+|--------|---------|
+| `200` | Accepted — processed, already processed, or ignored |
+| `400` | The delivery could not be parsed |
+| `401` | Bad signature **or** unknown business — the response is identical for both |
+| `500` | Processing failed, NexaPay should retry |
+
+Guarantees:
+
+- The event row (`gateway_events`) and the business effect commit in **one**
+  transaction. A failure rolls both back and returns `500`, so the provider's
+  retry gets a clean attempt.
+- A replayed `eventId` (taken from the signed body) settles nothing twice. The
+  NexaPay transaction id is a second de-duplication key, shared with manual
+  verification, so a deposit is credited **exactly once** whether it arrives by
+  webhook, by `POST /payments/verify`, or both.
+- Only `deposit.received` moves money. Events without a matching `environment`
+  are ignored, so sandbox deposits never settle a live invoice.
+- Every invoice and session lookup is scoped to the verified tenant, so a forged
+  `merchantReference` cannot touch another school's invoice.
+- A deposit that matches no invoice, targets a voided invoice, or disagrees with
+  our own session is stored with `needsReview = true` and not applied. An
+  overpayment is applied and flagged with `needsReview = true`.
+- Every payment path (webhook, manual verify, Paystack, cash entry, adjustments)
+  moves `amountPaid` / `amountDue` with one atomic UPDATE, so concurrent
+  updates are never lost and earlier discounts are kept.
+
+### Manual verification
+
+`POST /api/fees/payments/verify` with `{ "gateway": "nexapay", "reference": "nxa_..." }`
+returns `status` as one of:
+
+| `status` | Meaning |
+|----------|---------|
+| `confirmed` | The money arrived and the invoice was credited (now or earlier) |
+| `pending` | No matching transaction yet; the virtual account stays open |
+| `failed` | NexaPay reports the transaction as failed |
+| `review` | The money arrived but was held for manual reconciliation |
+
+NexaPay's transaction-details endpoint is keyed by its own transaction id, not by
+our reference. Pass `transactionId` (from the payer's receipt or the NexaPay
+dashboard) for a direct lookup; without it the 200 most recent wallet
+transactions (the documented maximum, with no filter or paging) are searched
+for the reference. If all 200 are newer than the deposit, the call answers
+`400` asking for the `transactionId` rather than wrongly reporting `pending`.
+
+### Resolved from the NexaPay docs
+
+- **Amount units:** naira. The withdrawal schema documents its minimum as
+  "minimum ₦1,000" with `minimum: 1000`, and the `deposit.received` example
+  pairs `amount: 50000` with `balanceAfter: 125000`. Kobo is converted only in
+  `src/services/nexapayService.js` and the webhook.
+- **Environments:** `test` / `prod`, chosen by the API key prefix
+  (`nexa-test-` / `nexa-prod-`); every webhook body carries `environment`.
+- **Onboarding:** manual. Merchants register in the dashboard to get keys; the
+  webhook URL and secret are managed there with a dashboard login, not with an
+  API key (see the onboarding steps above).
+
+### Open items
+
+These are unresolved because NexaPay does not publish the information. Each one
+needs a real test-mode account to close.
+
+1. **Signature layout and digest encoding.** The docs only say "HMAC SHA-256
+   over the raw body plus timestamp". The implementation accepts four layouts
+   (`timestamp.body`, `timestampbody`, `body.timestamp`, `bodytimestamp`) and
+   three encodings (hex, base64, base64url). Set `NEXAPAY_DEBUG_WEBHOOKS=true`
+   with `NODE_ENV=development` or `test` (the flag is ignored otherwise) and
+   trigger one test-mode delivery. The log shows every header name, the safe
+   header values and the signature's length and encoding (never its value);
+   for a delivery that names a configured school it also shows the body (first
+   8 KB) and the `layout` that matched. Then delete the candidates that did not
+   match and turn the flag off.
+2. **Create-virtual-account response shape.** The OpenAPI document declares the
+   `200` response without a body schema. `src/services/nexapayStrategy.js`
+   picks the account number from the documented-looking names
+   (`accountNumber` / `account_number`) and falls back to a nested `data`
+   object. Record one real response and replace the fallback with the real
+   field names.
+3. **`amountValidation`.** The accepted values and their casing are not
+   documented, so the parameter is not sent at all.
+4. **Deposit `reference`.** The docs do not say whether `data.reference` in
+   `deposit.received` (and `reference` on a wallet transaction) is the
+   `reference` we sent when creating the virtual account. Settlement prefers our
+   own session matched by that reference and falls back to `merchantReference`
+   (our invoice id); confirm the echo with one test-mode deposit.
+5. **`x-nexapay-business-id` header.** The webhook docs list it among headers
+   NexaPay sends "similar to". If it is absent, the `businessId` in the body is
+   used to choose which school's secret to verify with; the signature still has
+   to pass under that secret.
+
 
 ## 🔐 Authentication & Authorization
 
