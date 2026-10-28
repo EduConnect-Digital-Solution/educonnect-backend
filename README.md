@@ -92,6 +92,7 @@ A comprehensive educational platform backend with Role-Based Access Control (RBA
 
 #### For Frontend Developers & Designers
 - **[API Endpoints Reference](./docs/API_Endpoints_Reference.md)** ⭐ **START HERE** - Complete API reference organized by user roles (35+ endpoints)
+- **[System Admin: school operations](./docs/superadmin-god-mode.md)** - Create, deactivate, archive/purge schools, remove people, CSV import of students and staff
 - **[API Examples](./docs/api-examples.md)** - Practical usage examples with cURL, JavaScript, and React integration
 - **[Swagger Specification](./docs/swagger.yaml)** - OpenAPI specification for import into API tools
 
