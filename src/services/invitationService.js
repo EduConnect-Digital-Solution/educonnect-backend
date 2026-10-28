@@ -12,6 +12,13 @@ const logger = require('../utils/logger');
 const bcrypt = require('bcrypt');
 
 /**
+ * A teacher record created by a CSV import: no login yet (unverified) and
+ * nobody has invited them. Only an invitation turns it into a real account.
+ */
+const isImportedTeacherRecord = (user) =>
+  user.role === 'teacher' && !user.isVerified && !user.invitedBy;
+
+/**
  * Create Teacher Invitation Service
  * Creates invitation for a new teacher and sends invitation email
  */
@@ -77,7 +84,11 @@ const createTeacherInvitation = async (invitationData, schoolId, adminUserId) =>
      }
    });
 
-   if (existingUser) {
+   // A teacher imported from a CSV has a record but no login yet. Inviting
+   // them claims that record rather than counting as a duplicate.
+   const importedRecord = existingUser && isImportedTeacherRecord(existingUser) ? existingUser : null;
+
+   if (existingUser && !importedRecord) {
      throw new Error('A user with this email already exists in this school');
    }
 
@@ -85,23 +96,35 @@ const createTeacherInvitation = async (invitationData, schoolId, adminUserId) =>
    const tempPassword = crypto.randomBytes(8).toString('hex');
    const hashedPassword = await bcrypt.hash(tempPassword, 10);
 
-   // Create teacher user account immediately with temporary password
-   const teacher = await prisma.user.create({
-    data: {
-      schoolId: school.id,  // Use UUID for foreign key
-      firstName,
-      lastName,
-      email: email.toLowerCase(),
-      password: hashedPassword,
-      role: 'teacher',
-      isVerified: true,
-      isActive: true,
-      isTemporaryPassword: true,
-      subjects: subjects || [],
-      classes: [], // Teachers do not get classes automatically
-      invitedBy: adminUser.id
-    }
-  });
+   // Create (or claim) the teacher account with the temporary password
+   const teacher = importedRecord
+     ? await prisma.user.update({
+         where: { id: importedRecord.id },
+         data: {
+           password: hashedPassword,
+           isVerified: true,
+           isTemporaryPassword: true,
+           invitedBy: adminUser.id,
+           // Keep the imported subjects unless the invitation names some.
+           ...(subjects && subjects.length > 0 ? { subjects } : {})
+         }
+       })
+     : await prisma.user.create({
+         data: {
+           schoolId: school.id,  // Use UUID for foreign key
+           firstName,
+           lastName,
+           email: email.toLowerCase(),
+           password: hashedPassword,
+           role: 'teacher',
+           isVerified: true,
+           isActive: true,
+           isTemporaryPassword: true,
+           subjects: subjects || [],
+           classes: [], // Teachers do not get classes automatically
+           invitedBy: adminUser.id
+         }
+       });
 
   // Generate invitation token
   const invitationToken = crypto.randomBytes(32).toString('hex');
@@ -795,6 +818,7 @@ const deleteInvitation = async (invitationId, schoolId) => {
 };
 
 module.exports = {
+  isImportedTeacherRecord,
   createTeacherInvitation,
   createParentInvitation,
   resendInvitation,

@@ -1,0 +1,710 @@
+{
+  "info": {
+    "name": "EduConnect - NexaPay",
+    "description": "NexaPay bank-transfer fee collection.\n\nFolders:\n1. Admin setup and collection (admin token)\n2. Parent / student self-service (parent or student token)\n3. Webhook simulator (signs a deposit.received event locally)\n\nImport EduConnect-NexaPay.postman_environment.json, select it, and fill in: baseUrl, adminToken, parentToken, nexapayBusinessId, nexapayApiKey (nexa-test-...), webhookSecret and invoiceId.\n\nRequests that return a virtual account save into the environment `reference` and `accountNumber` for the verify and webhook requests.\n\nNOTE: NexaPay does not publish the webhook signature layout. The simulator signs HMAC-SHA256 over `<timestamp>.<body>` as hex, which is the first layout the server accepts. Use it to exercise the server logic, not to prove NexaPay's format.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Admin - setup and collection",
+      "item": [
+        {
+          "name": "Get NexaPay config",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/fees/gateway/nexapay/config",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "fees",
+                "gateway",
+                "nexapay",
+                "config"
+              ],
+              "query": [
+                {
+                  "key": "schoolId",
+                  "value": "",
+                  "description": "System admin only: target school UUID",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Returns whether the school is configured. Never returns the API key or webhook secret."
+          },
+          "response": []
+        },
+        {
+          "name": "Save NexaPay config",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"businessId\": \"{{nexapayBusinessId}}\",\n  \"environment\": \"{{nexapayEnvironment}}\",\n  \"apiKey\": \"{{nexapayApiKey}}\",\n  \"webhookSecret\": \"{{webhookSecret}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/fees/gateway/nexapay/config",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "fees",
+                "gateway",
+                "nexapay",
+                "config"
+              ]
+            },
+            "description": "The key must start with nexa-test- for environment test and nexa-prod- for prod. The key is checked against NexaPay before it is saved. One business ID can only be linked to one school (409 otherwise)."
+          },
+          "response": []
+        },
+        {
+          "name": "Open collection (virtual account)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.success && body.data) {",
+                  "  pm.environment.set('reference', body.data.reference);",
+                  "  pm.environment.set('accountNumber', body.data.accountNumber);",
+                  "  pm.environment.set('amountKobo', String(body.data.amount));",
+                  "}",
+                  "pm.test('virtual account returned', () => pm.expect(body.data.accountNumber).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"gateway\": \"nexapay\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/fees/invoices/{{invoiceId}}/initialize",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "fees",
+                "invoices",
+                "{{invoiceId}}",
+                "initialize"
+              ]
+            },
+            "description": "amount (kobo) and email are optional for NexaPay; amount defaults to the outstanding balance and cannot exceed it. Calling again while a session is open reuses the virtual account."
+          },
+          "response": []
+        },
+        {
+          "name": "Open collection - part payment",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.success && body.data) {",
+                  "  pm.environment.set('reference', body.data.reference);",
+                  "  pm.environment.set('accountNumber', body.data.accountNumber);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"gateway\": \"nexapay\",\n  \"amount\": 150000\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/fees/invoices/{{invoiceId}}/initialize",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "fees",
+                "invoices",
+                "{{invoiceId}}",
+                "initialize"
+              ]
+            },
+            "description": "amount is in KOBO (150000 = N1,500)."
+          },
+          "response": []
+        },
+        {
+          "name": "Verify payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"gateway\": \"nexapay\",\n  \"reference\": \"{{reference}}\",\n  \"transactionId\": \"{{transactionId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/fees/payments/verify",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "fees",
+                "payments",
+                "verify"
+              ]
+            },
+            "description": "data.status is confirmed, pending, failed or review. transactionId is optional (NexaPay's own id); remove it from the body to search the 200 most recent transactions instead. Safe to call repeatedly: the invoice is credited exactly once."
+          },
+          "response": []
+        },
+        {
+          "name": "Invoice with payments",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/fees/invoices/{{invoiceId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "fees",
+                "invoices",
+                "{{invoiceId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "NexaPay payments (check needsReview)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/fees/payments?gateway=nexapay&status=confirmed&limit=100",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "fees",
+                "payments"
+              ],
+              "query": [
+                {
+                  "key": "gateway",
+                  "value": "nexapay"
+                },
+                {
+                  "key": "status",
+                  "value": "confirmed"
+                },
+                {
+                  "key": "limit",
+                  "value": "100"
+                }
+              ]
+            },
+            "description": "Look for needsReview=true rows: unmatched, voided, mismatched or unreadable deposits (invoiceId null) and overpayments (reviewReason OVERPAID)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. Parent / student - self-service",
+      "item": [
+        {
+          "name": "My invoices",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "const first = body.data && body.data.invoices && body.data.invoices.find(i => i.payable);",
+                  "if (first) pm.environment.set('invoiceId', first.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{parentToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/fees/my/invoices",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "fees",
+                "my",
+                "invoices"
+              ]
+            },
+            "description": "A parent sees their linked children's invoices; a student sees their own. The first payable invoice id is saved to {{invoiceId}}."
+          },
+          "response": []
+        },
+        {
+          "name": "Pay my invoice (full balance)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.success && body.data) {",
+                  "  pm.environment.set('reference', body.data.reference);",
+                  "  pm.environment.set('accountNumber', body.data.accountNumber);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{parentToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/fees/my/invoices/{{invoiceId}}/nexapay",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "fees",
+                "my",
+                "invoices",
+                "{{invoiceId}}",
+                "nexapay"
+              ]
+            },
+            "description": "404 if the invoice is not the caller's own (or a linked child's). Rate limited to 30 calls per 15 minutes."
+          },
+          "response": []
+        },
+        {
+          "name": "Pay my invoice (part payment)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{parentToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 150000\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/fees/my/invoices/{{invoiceId}}/nexapay",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "fees",
+                "my",
+                "invoices",
+                "{{invoiceId}}",
+                "nexapay"
+              ]
+            },
+            "description": "amount is in KOBO."
+          },
+          "response": []
+        },
+        {
+          "name": "Verify my payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{parentToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reference\": \"{{reference}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/fees/my/payments/nexapay/verify",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "fees",
+                "my",
+                "payments",
+                "nexapay",
+                "verify"
+              ]
+            },
+            "description": "Add \"transactionId\" to the body for a direct NexaPay lookup. data.status is confirmed, pending, failed or review."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. Webhook simulator (server to server)",
+      "description": "Simulates NexaPay calling POST /api/fees/nexapay/webhook. Needs no Bearer token: authentication is the HMAC. The collection variables nexapayBusinessId, nexapayEnvironment and webhookSecret must match the saved school config, and reference, accountNumber and invoiceId should come from an opened collection.",
+      "item": [
+        {
+          "name": "Deposit received (new event)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const v = (k) => pm.variables.get(k);",
+                  "const stamp = Date.now();",
+                  "const eventId = 'evt_' + stamp;",
+                  "const transactionId = 'txn_' + stamp;",
+                  "const body = JSON.stringify({",
+                  "  event: 'deposit.received',",
+                  "  eventId: eventId,",
+                  "  businessId: v('nexapayBusinessId'),",
+                  "  businessName: 'Test School',",
+                  "  environment: v('nexapayEnvironment'),",
+                  "  occurredAt: new Date().toISOString(),",
+                  "  data: {",
+                  "    transactionId: transactionId,",
+                  "    reference: v('reference'),",
+                  "    accountNumber: v('accountNumber'),",
+                  "    amount: Number(v('depositNaira')),",
+                  "    senderName: 'Test Payer',",
+                  "    senderAccount: '0123456789',",
+                  "    senderBank: 'Test Bank',",
+                  "    balanceAfter: Number(v('depositNaira')),",
+                  "    status: 'successful',",
+                  "    merchantCustomerId: 'student',",
+                  "    merchantReference: v('invoiceId')",
+                  "  }",
+                  "});",
+                  "const ts = String(Math.floor(Date.now() / 1000));",
+                  "pm.environment.set('webhookBody', body);",
+                  "pm.environment.set('webhookTimestamp', ts);",
+                  "pm.environment.set('transactionId', transactionId);",
+                  "pm.environment.set('webhookSignature', CryptoJS.HmacSHA256(ts + '.' + body, v('webhookSecret')).toString(CryptoJS.enc.Hex));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "x-nexapay-business-id",
+                "value": "{{nexapayBusinessId}}",
+                "type": "text"
+              },
+              {
+                "key": "x-nexapay-timestamp",
+                "value": "{{webhookTimestamp}}",
+                "type": "text"
+              },
+              {
+                "key": "x-nexapay-signature",
+                "value": "{{webhookSignature}}",
+                "type": "text"
+              },
+              {
+                "key": "x-nexapay-event",
+                "value": "deposit.received",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{{webhookBody}}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/fees/nexapay/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "fees",
+                "nexapay",
+                "webhook"
+              ]
+            },
+            "description": "depositNaira is in NAIRA (NexaPay's unit); the server converts to kobo. 200 = accepted. A body that does not match the signature, an unknown business, or a wrong secret all answer a bare 401. Change depositNaira to test part payments, an overpayment (review flag) or a deposit with a wrong invoiceId (held for review)."
+          },
+          "response": []
+        },
+        {
+          "name": "Replay the same event (expect duplicate)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Re-sign the SAME body with a fresh timestamp: same eventId, same transactionId.",
+                  "const body = pm.variables.get('webhookBody');",
+                  "if (!body) throw new Error('Run \"Deposit received (new event)\" first');",
+                  "const ts = String(Math.floor(Date.now() / 1000));",
+                  "pm.environment.set('webhookTimestamp', ts);",
+                  "pm.environment.set('webhookSignature', CryptoJS.HmacSHA256(ts + '.' + body, pm.variables.get('webhookSecret')).toString(CryptoJS.enc.Hex));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('duplicate delivery is a 200 no-op', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().duplicate).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "x-nexapay-business-id",
+                "value": "{{nexapayBusinessId}}",
+                "type": "text"
+              },
+              {
+                "key": "x-nexapay-timestamp",
+                "value": "{{webhookTimestamp}}",
+                "type": "text"
+              },
+              {
+                "key": "x-nexapay-signature",
+                "value": "{{webhookSignature}}",
+                "type": "text"
+              },
+              {
+                "key": "x-nexapay-event",
+                "value": "deposit.received",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{{webhookBody}}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/fees/nexapay/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "fees",
+                "nexapay",
+                "webhook"
+              ]
+            },
+            "description": "Delivers the previous event again. The invoice must not be credited twice."
+          },
+          "response": []
+        },
+        {
+          "name": "Bad signature (expect 401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('bad signature gets a bare 401', () => {",
+                  "  pm.response.to.have.status(401);",
+                  "  pm.expect(pm.response.text()).to.eql('');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "x-nexapay-business-id",
+                "value": "{{nexapayBusinessId}}",
+                "type": "text"
+              },
+              {
+                "key": "x-nexapay-timestamp",
+                "value": "{{webhookTimestamp}}",
+                "type": "text"
+              },
+              {
+                "key": "x-nexapay-signature",
+                "value": "0000000000000000000000000000000000000000000000000000000000000000",
+                "type": "text"
+              },
+              {
+                "key": "x-nexapay-event",
+                "value": "deposit.received",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{{webhookBody}}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/fees/nexapay/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "fees",
+                "nexapay",
+                "webhook"
+              ]
+            },
+            "description": "A wrong signature and an unknown business ID produce the same bare 401."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

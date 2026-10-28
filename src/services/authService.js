@@ -19,6 +19,7 @@ const {
   verifyRefreshToken: verifyRefreshTokenFn
 } = require('../middleware/auth');
 const SessionService = require('./sessionService');
+const AccessGuard = require('./accessGuard');
 const logger = require('../utils/logger');
 const { prisma } = require('../config/database');
 
@@ -388,11 +389,16 @@ const loginUser = async (email, password, schoolId) => {
   // First, find the school by human-readable schoolId to get its UUID
   const school = await prisma.school.findFirst({
     where: { schoolId: schoolId },
-    select: { id: true, schoolId: true, isVerified: true, isActive: true }
+    select: { id: true, schoolId: true, isVerified: true, isActive: true, archivedAt: true, isDeleted: true }
   });
 
   if (!school) {
     throw new Error('Invalid credentials');
+  }
+
+  // A deactivated or archived school locks out everyone in it, not only its admin
+  if (AccessGuard.isSchoolBlocked(school)) {
+    throw new Error('School account has been deactivated. Please contact support.');
   }
 
   // Find user by email and school UUID
@@ -401,7 +407,7 @@ const loginUser = async (email, password, schoolId) => {
       email: email.toLowerCase(),
       schoolId: school.id
     },
-    select: { id: true, schoolId: true, email: true, password: true, firstName: true, lastName: true, role: true, isVerified: true, isActive: true, isTemporaryPassword: true }
+    select: { id: true, schoolId: true, email: true, password: true, firstName: true, lastName: true, role: true, isVerified: true, isActive: true, isTemporaryPassword: true, deactivatedAt: true, isDeleted: true }
   });
 
   if (!user) {
@@ -413,8 +419,9 @@ const loginUser = async (email, password, schoolId) => {
     throw new Error('User account is not verified');
   }
 
-  // Allow users with temporary passwords to login even if not fully active
-  if (!user.isActive && !user.isTemporaryPassword) {
+  // Users with temporary passwords may log in before they are fully active, but
+  // never once a system admin has deactivated them (deactivatedAt is set).
+  if (AccessGuard.isUserBlocked(user)) {
     throw new Error('User account is deactivated. Please contact school administration.');
   }
 

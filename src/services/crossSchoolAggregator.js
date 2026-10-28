@@ -464,7 +464,7 @@ class CrossSchoolAggregator {
     const schoolDbIds = schools.map(s => s.id);
 
     const auditLogs = await prisma.platformAuditLog.groupBy({
-      by: ['operationType', 'createdAt'],
+      by: ['action', 'createdAt'],
       where: {
         schoolId: { in: schoolDbIds },
         createdAt: {
@@ -473,7 +473,7 @@ class CrossSchoolAggregator {
         }
       },
       _count: {
-        operationType: true
+        action: true
       }
     });
 
@@ -484,8 +484,8 @@ class CrossSchoolAggregator {
 
     auditLogs.forEach(log => {
       const date = log.createdAt.toISOString().split('T')[0];
-      const opType = log.operationType;
-      const count = log._count.operationType;
+      const opType = log.action;
+      const count = log._count.action;
 
       if (!byDate[date]) byDate[date] = 0;
       if (!byType[opType]) byType[opType] = 0;

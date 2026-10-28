@@ -1,0 +1,991 @@
+{
+  "info": {
+    "name": "EduConnect - System Admin (God Mode)",
+    "description": "School operations for the platform owner: oversee, create, deactivate/reactivate, archive/delete/restore schools, remove people, import students and staff from CSV.\n\nImport EduConnect-SystemAdmin.postman_environment.json, select it, run \"Login\", then set schoolId (e.g. ABC1234).\n\nDestructive requests (archive, delete, remove) need a reason; archive and delete also need confirmSchoolName to match the school name exactly.\n\nSee docs/superadmin-god-mode.md.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "0. Login",
+      "item": [
+        {
+          "name": "Login (saves the token)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.success && body.data && body.data.token) pm.environment.set('systemAdminToken', body.data.token);",
+                  "pm.test('got a token', () => pm.expect(body.data.token).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{systemAdminEmail}}\",\n  \"password\": \"{{systemAdminPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/system-admin/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "system-admin",
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "1. Oversee",
+      "item": [
+        {
+          "name": "Platform overview",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{systemAdminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/system-admin/platform/overview",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "system-admin",
+                "platform",
+                "overview"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Platform KPIs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{systemAdminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/system-admin/platform/kpis",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "system-admin",
+                "platform",
+                "kpis"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List schools",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{systemAdminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/system-admin/schools/management?status=active",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "system-admin",
+                "schools",
+                "management"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "active",
+                  "description": "active | inactive | archived | all (archived hidden by default)"
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "name, email or school code",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Archived (\"removed\") schools are hidden unless status=archived or status=all."
+          },
+          "response": []
+        },
+        {
+          "name": "School detail",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{systemAdminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/system-admin/schools/{{schoolId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "system-admin",
+                "schools",
+                "{{schoolId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "School students",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{systemAdminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/system-admin/schools/{{schoolId}}/students?page=1&limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "system-admin",
+                "schools",
+                "{{schoolId}}",
+                "students"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "name, admission number or email",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "active",
+                  "description": "active | inactive",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "School staff",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{systemAdminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/system-admin/schools/{{schoolId}}/staff?status=not_invited",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "system-admin",
+                "schools",
+                "{{schoolId}}",
+                "staff"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "not_invited",
+                  "description": "not_invited | invited | active | inactive"
+                },
+                {
+                  "key": "role",
+                  "value": "teacher",
+                  "description": "teacher | admin",
+                  "disabled": true
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Audit trail (this school)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{systemAdminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/system-admin/audit-logs?schoolId={{schoolId}}&limit=50",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "system-admin",
+                "audit-logs"
+              ],
+              "query": [
+                {
+                  "key": "schoolId",
+                  "value": "{{schoolId}}"
+                },
+                {
+                  "key": "action",
+                  "value": "",
+                  "description": "e.g. school.archive, user.remove, import.students",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "50"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. Add / switch on and off",
+      "item": [
+        {
+          "name": "Create school",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.success && body.data && body.data.school) { pm.environment.set('schoolId', body.data.school.schoolId); pm.environment.set('schoolName', body.data.school.schoolName); }",
+                  "if (body.data && body.data.temporaryPassword) console.log('Temporary admin password (shown once):', body.data.temporaryPassword);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{systemAdminToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"schoolName\": \"Greenfield Academy\",\n  \"email\": \"head@greenfield.example\",\n  \"phone\": \"08031234567\",\n  \"address\": \"12 Marina Road, Lagos\",\n  \"principalName\": \"Mrs Ada Obi\",\n  \"subscriptionTier\": \"basic\",\n  \"adminUserData\": {\n    \"firstName\": \"Ada\",\n    \"lastName\": \"Obi\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/system-admin/schools",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "system-admin",
+                "schools"
+              ]
+            },
+            "description": "Leave password out and one is generated and returned once as data.temporaryPassword. The new school code and name are saved to the environment."
+          },
+          "response": []
+        },
+        {
+          "name": "Deactivate school",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{systemAdminToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Subscription unpaid for 60 days\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/system-admin/schools/{{schoolId}}/deactivate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "system-admin",
+                "schools",
+                "{{schoolId}}",
+                "deactivate"
+              ]
+            },
+            "description": "Locks everyone in the school out within ~30 seconds. Data is kept."
+          },
+          "response": []
+        },
+        {
+          "name": "Reactivate school",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{systemAdminToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Paid in full\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/system-admin/schools/{{schoolId}}/reactivate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "system-admin",
+                "schools",
+                "{{schoolId}}",
+                "reactivate"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Deactivate / activate a user",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{systemAdminToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"deactivate\",\n  \"reason\": \"Left the school at the end of term\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/system-admin/users/{{userId}}/access",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "system-admin",
+                "users",
+                "{{userId}}",
+                "access"
+              ]
+            },
+            "description": "action: activate | deactivate | change_role (newRole) | transfer_school (schoolTransfer.targetSchoolId)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. Remove a school (archive or soft delete)",
+      "item": [
+        {
+          "name": "Archive school (reversible)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{systemAdminToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Contract ended in July\",\n  \"confirmSchoolName\": \"{{schoolName}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/system-admin/schools/{{schoolId}}/archive",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "system-admin",
+                "schools",
+                "{{schoolId}}",
+                "archive"
+              ]
+            },
+            "description": "Locks everyone out, keeps all data. confirmSchoolName must match the school name."
+          },
+          "response": []
+        },
+        {
+          "name": "Restore school",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{systemAdminToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Paid the outstanding invoice\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/system-admin/schools/{{schoolId}}/restore",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "system-admin",
+                "schools",
+                "{{schoolId}}",
+                "restore"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE school (soft delete, restorable)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{systemAdminToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"School closed permanently\",\n  \"confirmSchoolName\": \"{{schoolName}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/system-admin/schools/{{schoolId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "system-admin",
+                "schools",
+                "{{schoolId}}"
+              ]
+            },
+            "description": "Sets isDeleted and locks the school. Nothing is erased; POST /restore undoes it."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "4. Remove a person",
+      "item": [
+        {
+          "name": "Remove user (erase details, keep records)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{systemAdminToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Parent asked for erasure of their data\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/system-admin/schools/{{schoolId}}/users/{{userId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "system-admin",
+                "schools",
+                "{{schoolId}}",
+                "users",
+                "{{userId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Remove student (erase details, keep records)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{systemAdminToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Guardian asked for erasure of their data\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/system-admin/schools/{{schoolId}}/students/{{studentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "system-admin",
+                "schools",
+                "{{schoolId}}",
+                "students",
+                "{{studentId}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "5. Import from CSV",
+      "item": [
+        {
+          "name": "Download students template",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{systemAdminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/system-admin/import/templates/students",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "system-admin",
+                "import",
+                "templates",
+                "students"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Download staff template",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{systemAdminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/system-admin/import/templates/staff",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "system-admin",
+                "import",
+                "templates",
+                "staff"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Import students - DRY RUN",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{systemAdminToken}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": [],
+                  "description": "Choose the .csv file (max 5 MB, 5000 rows)"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/system-admin/schools/{{schoolId}}/import/students?dryRun=true",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "system-admin",
+                "schools",
+                "{{schoolId}}",
+                "import",
+                "students"
+              ],
+              "query": [
+                {
+                  "key": "dryRun",
+                  "value": "true",
+                  "description": "checks only; writes nothing"
+                }
+              ]
+            },
+            "description": "Attach the CSV in the \"file\" field. Run this first and fix every reported row."
+          },
+          "response": []
+        },
+        {
+          "name": "Import students",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{systemAdminToken}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": [],
+                  "description": "Choose the .csv file (max 5 MB, 5000 rows)"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/system-admin/schools/{{schoolId}}/import/students",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "system-admin",
+                "schools",
+                "{{schoolId}}",
+                "import",
+                "students"
+              ]
+            },
+            "description": "Records only: no logins, no emails. Bad rows are skipped and reported; good rows are imported."
+          },
+          "response": []
+        },
+        {
+          "name": "Import staff (teachers) - DRY RUN",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{systemAdminToken}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": [],
+                  "description": "Choose the .csv file (max 5 MB, 5000 rows)"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/system-admin/schools/{{schoolId}}/import/staff?dryRun=true",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "system-admin",
+                "schools",
+                "{{schoolId}}",
+                "import",
+                "staff"
+              ],
+              "query": [
+                {
+                  "key": "dryRun",
+                  "value": "true",
+                  "description": "checks only; writes nothing"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Import staff (teachers)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{systemAdminToken}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": [],
+                  "description": "Choose the .csv file (max 5 MB, 5000 rows)"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/system-admin/schools/{{schoolId}}/import/staff",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "system-admin",
+                "schools",
+                "{{schoolId}}",
+                "import",
+                "staff"
+              ]
+            },
+            "description": "Creates teacher records with no login. Only teachers; admins are never imported."
+          },
+          "response": []
+        },
+        {
+          "name": "Invite imported teachers (all waiting)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{systemAdminToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/system-admin/schools/{{schoolId}}/staff/invite",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "system-admin",
+                "schools",
+                "{{schoolId}}",
+                "staff",
+                "invite"
+              ]
+            },
+            "description": "Claims the imported records: temporary password + email. At most 100 per call; see remainingNotInvited."
+          },
+          "response": []
+        },
+        {
+          "name": "Invite imported teachers (chosen)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{systemAdminToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userIds\": [\n    \"{{userId}}\"\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/system-admin/schools/{{schoolId}}/staff/invite",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "system-admin",
+                "schools",
+                "{{schoolId}}",
+                "staff",
+                "invite"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

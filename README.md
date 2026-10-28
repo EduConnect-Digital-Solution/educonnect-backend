@@ -92,6 +92,7 @@ A comprehensive educational platform backend with Role-Based Access Control (RBA
 
 #### For Frontend Developers & Designers
 - **[API Endpoints Reference](./docs/API_Endpoints_Reference.md)** ⭐ **START HERE** - Complete API reference organized by user roles (35+ endpoints)
+- **[System Admin: school operations](./docs/superadmin-god-mode.md)** - Create, deactivate, archive/purge schools, remove people, CSV import of students and staff
 - **[API Examples](./docs/api-examples.md)** - Practical usage examples with cURL, JavaScript, and React integration
 - **[Paystack Integration API](./docs/postman/Paystack-Integration-API.md)** - Card checkout flow for frontend developers
 - **[NexaPay Integration API](./docs/postman/NexaPay-Integration-API.md)** - Bank transfer collection flow for frontend developers

@@ -8,6 +8,7 @@ const catchAsync = require('../utils/catchAsync');
 const SystemAdminService = require('../services/systemAdminService');
 const CrossSchoolAggregator = require('../services/crossSchoolAggregator');
 const { logSystemAdminActivity } = require('../services/authService');
+const { contextFromRequest } = require('../services/platformAuditService');
 const logger = require('../utils/logger');
 
 /**
@@ -314,7 +315,12 @@ const handleCrossSchoolError = async (error, req, res, operation) => {
   let errorCode = 'CROSS_SCHOOL_ERROR';
   let message = `Failed to perform cross-school ${operation}`;
 
-  if (error.message.includes('permission')) {
+  if (error.isOperational && error.statusCode) {
+    // A deliberate, already-worded failure from a service (not found, conflict, ...)
+    statusCode = error.statusCode;
+    errorCode = error.code || errorCode;
+    message = error.message;
+  } else if (error.message.includes('permission')) {
     statusCode = 403;
     errorCode = 'INSUFFICIENT_PERMISSIONS';
     message = 'Insufficient permissions for cross-school operation';
@@ -404,12 +410,12 @@ const createSchool = catchAsync(async (req, res) => {
     });
 
     // Create school
-    const newSchool = await SystemAdminService.createSchool(schoolData, req.user.email);
+    const newSchool = await SystemAdminService.createSchool(schoolData, req.user.email, contextFromRequest(req));
 
     // Log successful creation
     await logSystemAdminActivity(req.user.email, 'school_creation_completed', {
-      schoolId: newSchool.schoolId,
-      schoolName: newSchool.schoolName,
+      schoolId: newSchool.school.schoolId,
+      schoolName: newSchool.school.schoolName,
       severity: 'high'
     });
 
@@ -453,7 +459,7 @@ const updateSchoolConfig = catchAsync(async (req, res) => {
     });
 
     // Update school configuration
-    const updatedSchool = await SystemAdminService.updateSchoolConfig(schoolId, configUpdates, req.user.email);
+    const updatedSchool = await SystemAdminService.updateSchoolConfig(schoolId, configUpdates, req.user.email, contextFromRequest(req));
 
     // Log successful update
     await logSystemAdminActivity(req.user.email, 'school_config_update_completed', {
@@ -500,7 +506,7 @@ const deactivateSchool = catchAsync(async (req, res) => {
     });
 
     // Deactivate school
-    const result = await SystemAdminService.deactivateSchool(schoolId, reason, req.user.email);
+    const result = await SystemAdminService.deactivateSchool(schoolId, reason, req.user.email, contextFromRequest(req));
 
     // Log successful deactivation
     await logSystemAdminActivity(req.user.email, 'school_deactivation_completed', {
@@ -544,7 +550,8 @@ const reactivateSchool = catchAsync(async (req, res) => {
     const result = await SystemAdminService.reactivateSchool(schoolId, {
       reason,
       reactivatedBy: req.user.email,
-      reactivatedAt: new Date()
+      reactivatedAt: new Date(),
+      context: contextFromRequest(req)
     });
 
     // Log successful reactivation
@@ -640,7 +647,7 @@ const manageUserAccess = catchAsync(async (req, res) => {
     });
 
     // Manage user access
-    const result = await SystemAdminService.manageUserAccess(userId, permissions, req.user.email);
+    const result = await SystemAdminService.manageUserAccess(userId, permissions, req.user.email, contextFromRequest(req));
 
     // Log successful operation
     await logSystemAdminActivity(req.user.email, 'user_access_management_completed', {
