@@ -31,6 +31,7 @@ model User {
   deactivatedAt        DateTime?
   deactivatedBy        String?
   deactivationReason   String?
+  isDeleted            Boolean          @default(false)
   isVerified           Boolean          @default(false)
   invitationToken      String?
   invitationExpires    DateTime?
@@ -80,7 +81,14 @@ model School {
   verificationOTP      String?
   otpExpires           DateTime?
   isActive             Boolean            @default(true)
-  systemConfig         Json?
+  archivedAt           DateTime?          // set by a system admin "remove"; the school stays restorable until purged
+  archivedBy           String?
+  archiveReason        String?
+  isDeleted            Boolean            @default(false) // "deleted" = flagged, never physically removed
+  deletedAt            DateTime?
+  deletedBy            String?
+  deleteReason         String?
+  systemConfig        Json?
   systemMetadata       Json?
   passwordResetToken   String?
   passwordResetExpires DateTime?
@@ -110,6 +118,8 @@ model School {
 
   @@index([schoolId])
   @@index([email])
+  @@index([archivedAt])
+  @@index([isDeleted])
   @@map("schools")
 }
 
@@ -171,6 +181,7 @@ model Student {
   deactivatedAt      DateTime?
   deactivatedBy      String?
   deactivationReason String?
+  isDeleted          Boolean          @default(false)
   admissionDate      DateTime?        @default(now())
   notes              String?
   createdBy          String?

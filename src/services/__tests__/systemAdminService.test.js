@@ -65,7 +65,9 @@ jest.mock('@prisma/client', () => {
     $queryRaw: jest.fn(),
     $disconnect: jest.fn(),
   };
-  
+  // Interactive transactions run their callback against the same mock client.
+  mockPrismaClient.$transaction = jest.fn(async (callback) => callback(mockPrismaClient));
+
   return {
     PrismaClient: jest.fn(() => mockPrismaClient),
     prisma: mockPrismaClient,
@@ -211,31 +213,74 @@ describe('SystemAdminService - School Management', () => {
     };
     
     prisma.school.findFirst.mockResolvedValue(null); // No existing school
-    prisma.school.create.mockResolvedValue({
-      id: 'new-school-uuid',
-      schoolId: 'SCH999',
-      schoolName: 'New School',
-      email: 'admin@newschool.com'
-    });
-    
-    prisma.user.create.mockResolvedValue({
-      id: 'admin-uuid',
-      email: 'admin@newschool.com',
-      role: 'admin'
-    });
-    
+    prisma.school.findUnique.mockResolvedValue(null); // Generated code is free
+    prisma.school.create.mockImplementation(async ({ data }) => ({ id: 'new-school-uuid', createdAt: new Date(), ...data }));
+    prisma.user.create.mockImplementation(async ({ data }) => ({ id: 'admin-uuid', ...data }));
+    prisma.school.update.mockResolvedValue({});
+
     const result = await SystemAdminService.createSchool(schoolData, 'system@admin.com');
-    
+
     expect(result.school.schoolName).toBe('New School');
+    expect(result.school.schoolId).toMatch(/^[A-Z]{3}\d{4}$/);
     expect(result.adminUser.email).toBe('admin@newschool.com');
-    expect(prisma.school.create).toHaveBeenCalled();
-    expect(prisma.user.create).toHaveBeenCalled();
+    // A supplied password is never echoed back.
+    expect(result.temporaryPassword).toBeUndefined();
+
+    // The password is stored hashed, and the school is usable straight away.
+    const { data: schoolRow } = prisma.school.create.mock.calls[0][0];
+    expect(schoolRow.password).not.toBe('Password123!');
+    expect(schoolRow.schoolId).toBe(result.school.schoolId);
+    expect(schoolRow).toEqual(expect.objectContaining({ isVerified: true, isActive: true }));
+
+    const { data: adminRow } = prisma.user.create.mock.calls[0][0];
+    expect(adminRow).toEqual(expect.objectContaining({ role: 'admin', isSchoolAdmin: true, isVerified: true }));
+    expect(adminRow.password).not.toBe('Password123!');
+
+    // The audit row uses the real PlatformAuditLog columns.
+    expect(prisma.platformAuditLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        action: 'school.create',
+        entityType: 'school',
+        userId: 'system@admin.com',
+        schoolId: 'new-school-uuid'
+      })
+    });
+  });
+
+  test('should generate a one-time password when none is given', async () => {
+    prisma.school.findFirst.mockResolvedValue(null);
+    prisma.school.findUnique.mockResolvedValue(null);
+    prisma.school.create.mockImplementation(async ({ data }) => ({ id: 'new-school-uuid', createdAt: new Date(), ...data }));
+    prisma.user.create.mockImplementation(async ({ data }) => ({ id: 'admin-uuid', ...data }));
+    prisma.school.update.mockResolvedValue({});
+
+    const result = await SystemAdminService.createSchool(
+      { schoolName: 'No Password School', email: 'head@nopassword.com' },
+      'system@admin.com'
+    );
+
+    expect(result.temporaryPassword).toEqual(expect.any(String));
+    expect(result.temporaryPassword.length).toBeGreaterThanOrEqual(10);
+    expect(prisma.school.create.mock.calls[0][0].data.password).not.toBe(result.temporaryPassword);
+  });
+
+  test('should refuse a school whose email is already registered', async () => {
+    prisma.school.findFirst.mockResolvedValue({ id: 'existing' });
+
+    await expect(
+      SystemAdminService.createSchool({ schoolName: 'Dup', email: 'dup@school.com', password: 'Password123!' }, 'system@admin.com')
+    ).rejects.toMatchObject({ statusCode: 409, code: 'SCHOOL_EMAIL_EXISTS' });
+    expect(prisma.school.create).not.toHaveBeenCalled();
   });
 });
 
 describe('SystemAdminService - User Management', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // clearAllMocks keeps queued mockResolvedValueOnce values; drop them so one
+    // test cannot feed its leftovers to the next.
+    prisma.user.findUnique.mockReset();
+    prisma.user.update.mockReset();
   });
 
   test('should get cross-school users with filters', async () => {
@@ -296,10 +341,43 @@ describe('SystemAdminService - User Management', () => {
     
     expect(result.user.isActive).toBe(true);
     expect(result.user.id).toBe('user-1');
+    // Activating clears the deactivation stamp as well as the flag.
     expect(prisma.user.update).toHaveBeenCalledWith({
       where: { id: 'user-1' },
-      data: { isActive: true }
+      data: { isActive: true, deactivatedAt: null, deactivatedBy: null, deactivationReason: null }
     });
+  });
+
+  test('should stamp who deactivated a user and why', async () => {
+    const mockUser = { id: 'user-2', email: 'amaka@test.com', role: 'teacher', isActive: true, deactivatedAt: null, schoolId: 'school-1' };
+    prisma.user.findUnique.mockResolvedValueOnce(mockUser);
+    prisma.user.update.mockResolvedValue({ ...mockUser, isActive: false });
+
+    await SystemAdminService.manageUserAccess(
+      'user-2',
+      { action: 'deactivate', reason: 'Left the school in term two' },
+      'system@admin.com'
+    );
+
+    const { data } = prisma.user.update.mock.calls[0][0];
+    expect(data).toEqual(expect.objectContaining({
+      isActive: false,
+      deactivatedBy: 'system@admin.com',
+      deactivationReason: 'Left the school in term two'
+    }));
+    expect(data.deactivatedAt).toBeInstanceOf(Date);
+    expect(prisma.platformAuditLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ action: 'user.deactivate', entityType: 'user', entityId: 'user-2' })
+    });
+  });
+
+  test('should refuse to change an account that was removed', async () => {
+    prisma.user.findUnique.mockResolvedValueOnce({ id: 'user-3', email: 'removed-user-3@removed.invalid', isActive: false });
+
+    await expect(
+      SystemAdminService.manageUserAccess('user-3', { action: 'activate', reason: 'Please bring them back' }, 'system@admin.com')
+    ).rejects.toMatchObject({ statusCode: 409, code: 'ACCOUNT_REMOVED' });
+    expect(prisma.user.update).not.toHaveBeenCalled();
   });
 });
 

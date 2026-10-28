@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken');
 const config = require('../config');
 const { verifySystemAdminToken } = require('../services/systemAdminAuthService');
 const CacheService = require('../services/cacheService');
+const AccessGuard = require('../services/accessGuard');
 const { ROLES } = require('./rbac');
 
 /**
@@ -87,6 +88,27 @@ const authenticateToken = async (req, res, next) => {
         expiresAt: new Date(decoded.exp * 1000)
       };
     } else {
+      // A valid token is not enough: the account and its school must still be
+      // active, so deactivating one takes effect without waiting for the token
+      // to expire.
+      let access;
+      try {
+        access = await AccessGuard.check(decoded.userId);
+      } catch (guardError) {
+        return res.status(503).json({
+          success: false,
+          message: 'Could not verify account status. Please try again.',
+          code: 'ACCESS_CHECK_FAILED'
+        });
+      }
+      if (!access.allowed) {
+        return res.status(access.status).json({
+          success: false,
+          message: access.message,
+          code: access.code
+        });
+      }
+
       // Regular user object
       req.user = {
         userId: decoded.userId,
