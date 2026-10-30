@@ -1,0 +1,15 @@
+# Best-effort ping so a Render free instance doesn't sleep. Set the repository variable
+# HEALTH_URL (Settings > Secrets and variables > Actions > Variables) to https://<your-app>.onrender.com/health.
+# GitHub may delay or skip scheduled runs, so the first request can still hit a cold start.
+name: keepalive
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+jobs:
+  ping:
+    if: ${{ vars.HEALTH_URL != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - run: curl -fsS --max-time 90 --retry 2 "${{ vars.HEALTH_URL }}"
